@@ -169,7 +169,7 @@
 - (void) cmdSetAgcMode:(NSString *)mode {
     NSString *cmd = [NSString stringWithFormat:@"slice set %i agc_mode=%@",
                      [self.thisSliceNumber integerValue],
-                     mode];
+                     [mode lowercaseString]];
     [self.radio commandToRadio:cmd];
     self.sliceAgcMode = mode;
 }
@@ -257,10 +257,17 @@
 #pragma mark Utility Functions (Internal)
 
 - (NSInteger) freqStringToHertz:(NSString *)freq {
+    NSInteger cAfterDP;
+    
     // We need to get this into Hz...
     // ..
     // Count chararacters after the decimal point so we can scale frequency as needed
-    NSInteger cAfterDP = [freq length] - ([freq rangeOfString:@"."].location + 1);
+    // Check to make sure we have a DP..
+    if ([freq rangeOfString:@"."].location == NSNotFound) {
+        // No DP found - must be an integer number of MHZ
+        cAfterDP = 0;
+    } else
+        cAfterDP = [freq length] - ([freq rangeOfString:@"."].location + 1);
     
     NSString *freqMinusDP = [freq stringByReplacingOccurrencesOfString:@"." withString:@""];
     NSInteger fInHz = [freqMinusDP integerValue];

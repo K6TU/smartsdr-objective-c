@@ -97,7 +97,8 @@
                                                            repeats:YES];
         NSLog(@"Ready");
     }
-    
+
+#ifdef DEBUG
     // Create a fake radio for testing...
     RadioInstance *fake = [[RadioInstance alloc] initWithData:@"10.1.1.152"
                                                          port:[NSNumber numberWithInt:4992]
@@ -105,6 +106,7 @@
                                                     serialNum:@"007"
                                                          name:@"K6TU"];
     [self radioFound:fake];
+#endif
     
     return self;
 }
@@ -165,8 +167,10 @@
     NSDate *now = [NSDate date];
     BOOL sendNotification = NO;
     
+#ifdef DEBUG
     [[NSNotificationCenter defaultCenter] postNotificationName:@"K6TURadioFactory" object:self];
     return;   // Comment this out to renable timeout
+#endif
     
     for (id key in self.discoveredRadios) {
         RadioInstance *radio = [self.discoveredRadios objectForKey:key];

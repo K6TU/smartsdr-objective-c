@@ -32,7 +32,8 @@ enum radioConnectionState {
     disConnected = 0,
     connecting,
     connected,
-    disconnecting
+    disconnecting,
+    connectFailed
 };
 
 enum radioInterlockState {
@@ -64,12 +65,13 @@ enum radioAtuState {
 
 
 // Radio class protocol options
+@class Radio;
 
 @protocol RadioDelegate <NSObject>
 @optional
 
 // Invoked on Radio Connections State changes
-- (void) radioConnectionStateChange: (enum radioConnectionState) state;
+- (void) radioConnectionStateChange: (Radio *) radio state: (enum radioConnectionState) state;
 
 @end
 
@@ -86,7 +88,7 @@ enum radioAtuState {
 @interface Radio : NSObject <AsyncSocketDelegate>
 
 // The RadioInstance this Radio was set up to access.
-@property (weak, nonatomic) RadioInstance *radioInstance;
+@property (strong, nonatomic) RadioInstance *radioInstance;
 
 // Array to handle each slice for a radio - indexed by slice number
 // with an entry set to nil if the slice does not exist.
@@ -111,6 +113,10 @@ enum radioAtuState {
 @property (strong, nonatomic) NSNumber *tx3Delay;                   // TX3 Delay in millisoconds - INTEGER
 @property (strong, nonatomic) NSNumber *accTxDelay;                 // ACC TX Delay in milliseconds - INTEGER
 @property (strong, nonatomic) NSNumber *txDelay;                    // TX Delay in milliseconds - INTEGER
+@property (strong, nonatomic) NSNumber *masterSpeakerAfGain;        // Mixer master speaker AF gain - INTEGER [0 - 100]
+@property (strong, nonatomic) NSNumber *masterHeadsetAfGain;        // Mixer master headset AF gain - INTEGER [0 - 100]
+@property (strong, nonatomic) NSNumber *masterSpeakerMute;          // Mixer master speaker mute - BOOL
+@property (strong, nonatomic) NSNumber *masterHeadsetMute;          // Mixer master headset mute - BOOL
 
 // NOTE:  The values provided in the next three properties will change TYPE - likely at the next
 // release (from STRINGS to INTEGER.
@@ -182,6 +188,12 @@ enum radioAtuState {
 - (void) cmdSetAtuTune: (NSNumber *) state;                         // Set ATU command state (on/off) - BOOL
 - (void) cmdSetBypass;                                              // Set ATU bypass
 - (void) cmdSetTune: (NSNumber *) state;                            // Set TUNE state (on/off) - BOOL
+
+- (void) cmdSetMasterSpeakerGain: (NSNumber *) level;               // Set mixer master speaker AF level - INTEGER
+- (void) cmdSetMasterHeadsetGain: (NSNumber *) level;               // Set mixer master headset AF level - INTEGER
+
+- (void) cmdSetMasterSpeakerMute: (NSNumber *) state;               // Set mixer master speaker mute - BOOL
+- (void) cmdSetMasterHeadsetMute: (NSNumber *) state;               // Set mixer master headset mute - BOOL
 
 // NOTE:  The cmdNewSlice will change to add the ability to specify frequency, mode and antenna selections
 // in some upcoming release.

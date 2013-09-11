@@ -53,7 +53,7 @@
 - (void) parseInterlockToken: (NSScanner *) scan;
 - (void) parseRadioToken: (NSScanner *) scan;
 - (void) parseAtuToken: (NSScanner *) scan;
-- (void) parseTransmitToken: (NSScanner *) scan;
+- (void) parseTransmitToken: (NSScanner *) scan selfStatus:(BOOL) selfStatus;
 - (void) parseSliceToken: (NSScanner *) scan;
 - (void) parseMixerToken: (NSScanner *) scan;
 - (void) parseDisplayToken: (NSScanner *) scan;
@@ -76,6 +76,7 @@ enum enumStatusTokens {
     displayToken,
     meterToken,
     eqToken,
+    gpsToken,
 };
 
 enum enumStatusInterlockTokens {
@@ -213,9 +214,10 @@ NSNumber *txPowerLevel;
                          [NSNumber numberWithInt:transmitToken], @"transmit",
                          [NSNumber numberWithInt:sliceToken], @"slice",
                          [NSNumber numberWithInt:mixerToken], @"mixer",
-                         [NSNumber numberWithInt:mixerToken], @"display",
-                         [NSNumber numberWithInt:mixerToken], @"meter",
+                         [NSNumber numberWithInt:displayToken], @"display",
+                         [NSNumber numberWithInt:meterToken], @"meter",
                          [NSNumber numberWithInt:mixerToken], @"eq",
+                         [NSNumber numberWithInt:gpsToken], @"gps",
                          nil];
 }
 
@@ -362,6 +364,7 @@ NSNumber *txPowerLevel;
         
         if (![socket connectToHost:self.radioInstance.ipAddress
                             onPort:[self.radioInstance.port unsignedIntegerValue]
+                       withTimeout:5.0
                              error:&error]) {
             NSLog(@"Error connecting to %@ - %@", self.radioInstance.ipAddress, error);
             return nil;
@@ -388,6 +391,13 @@ NSNumber *txPowerLevel;
         
         // Set any initial non zero state requirements
         self.tunePowerLevel = [NSNumber numberWithInt:10];
+        
+        // Currently no way to retrieve the mixer settings - plug values for
+        // the speaker and headset gains
+        self.masterSpeakerAfGain = [NSNumber numberWithInt:50];
+        self.masterHeadsetAfGain = [NSNumber numberWithInt:50];
+        self.masterSpeakerMute = [NSNumber numberWithBool:NO];
+        self.masterHeadsetMute = [NSNumber numberWithBool:NO];
     }
     return self;
 }
@@ -486,16 +496,16 @@ NSNumber *txPowerLevel;
 - (void) parseStatusType:(NSString *)payload {
     NSScanner *scan = [[NSScanner alloc] initWithString:[payload substringFromIndex:1]];
     [scan setCharactersToBeSkipped:nil];
-    // BOOL selfStatus = NO;
+    BOOL selfStatus = NO;
     
     // First up is the handle... grap it and skip the |
     NSString *statusForHandle;
     [scan scanUpToString:@"|" intoString:&statusForHandle];
     [scan scanString:@"|" intoString:nil];
      
-    //  if ([self.apiHandle isEqualToString:statusForHandle]) {
-    //      selfStatus = YES;
-    //  }
+    if ([self.apiHandle isEqualToString:statusForHandle]) {
+        selfStatus = YES;
+    }
     
     // Next up is the source of the status message within the radio... a token
     // ending in a space...
@@ -520,7 +530,7 @@ NSNumber *txPowerLevel;
             break;
             
         case transmitToken:
-            [self parseTransmitToken: scan];
+            [self parseTransmitToken: scan selfStatus:selfStatus];
             break;
             
         case sliceToken:
@@ -541,6 +551,10 @@ NSNumber *txPowerLevel;
             
         case eqToken:
             [self parseEqToken: scan];
+            break;
+            
+        case gpsToken:
+            [self parseGpsToken: scan];
             break;
             
         default:
@@ -745,7 +759,7 @@ NSNumber *txPowerLevel;
 };
 
 
-- (void) parseTransmitToken: (NSScanner *) scan {
+- (void) parseTransmitToken: (NSScanner *) scan selfStatus:(BOOL)selfStatus {
     NSString *token;
     NSInteger intVal;
     NSString *stringVal;
@@ -778,9 +792,13 @@ NSNumber *txPowerLevel;
                 
             case rfPowerToken:
                 // Ignore the update if we are in tune state
-                if ([self.tuneEnabled boolValue])
+                if ([self.tuneEnabled boolValue] || selfStatus) {
+                    // pitch the value
+                    
+                    [scan scanInteger:&intVal];
                     break;
-                
+                }
+                                
                 [scan scanInteger:&intVal];
                 self.rfPowerLevel = [NSNumber numberWithInt:intVal];
                 break;
@@ -1069,6 +1087,10 @@ NSNumber *txPowerLevel;
     
 };
 
+- (void) parseGpsToken: (NSScanner *) scan {
+    
+}
+
 
 #pragma mark
 #pragma mark Radio Commands
@@ -1242,10 +1264,54 @@ NSNumber *txPowerLevel;
     }
 }
 
+- (void) cmdSetMasterSpeakerGain:(NSNumber *)level {
+    NSString *cmd = [NSString stringWithFormat:@"mixer lineout gain %i",
+                     [level integerValue]];
+    
+    [self commandToRadio:cmd];
+    self.masterSpeakerAfGain = level;
+}
+
+- (void) cmdSetMasterHeadsetGain:(NSNumber *)level {
+    NSString *cmd = [NSString stringWithFormat:@"mixer headphone gain %i",
+                     [level integerValue]];
+    
+    [self commandToRadio:cmd];
+    self.masterHeadsetAfGain = level;
+}
+
+- (void) cmdSetMasterSpeakerMute:(NSNumber *)state {
+    NSString *cmd = [NSString stringWithFormat:@"mixer lineout mute %i",
+                     [state boolValue]];
+    
+    [self commandToRadio:cmd];
+    self.masterSpeakerMute = state;
+}
+
+- (void) cmdSetMasterHeadsetMute:(NSNumber *)state {
+    NSString *cmd = [NSString stringWithFormat:@"mixer headphone mute %i",
+                     [state boolValue]];
+    
+    [self commandToRadio:cmd];
+    self.masterHeadsetMute = state;
+}
+
+
 #pragma mark
 #pragma mark Socket Delegates
 
-#pragma mark didConnectToHost
+
+- (void) onSocket:(AsyncSocket *)sock willDisconnectWithError:(NSError *)err  {
+    if (err.code == AsyncSocketConnectTimeoutError)
+        connectionState = connectFailed;
+    else
+        connectionState = disConnected;
+    
+    if ([self.delegate respondsToSelector:@selector(radioConnectionStateChange:state:)]) {
+        [self.delegate radioConnectionStateChange:self state:connectionState];
+    }
+}
+
 
 // Called after connected - use this to initialize the connection to the radio and
 // prime the initial read
@@ -1255,15 +1321,14 @@ NSNumber *txPowerLevel;
     connectionState = connected;
     
     // Advise any delegate
-    if ([self.delegate respondsToSelector:@selector(radioConnectionStateChange:)]) {
-        [self.delegate radioConnectionStateChange:connectionState];
+    if ([self.delegate respondsToSelector:@selector(radioConnectionStateChange:state:)]) {
+        [self.delegate radioConnectionStateChange:self state:connectionState];
     }
 
     [self initializeRadio];
 }
 
 
-#pragma mark onSocket: didReadData
 
 - (void)onSocket:(AsyncSocket *)sock didReadData:(NSData *)data withTag:(long)tag {
     if ([data bytes]) {
@@ -1274,7 +1339,8 @@ NSNumber *txPowerLevel;
         [scan scanCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@"\000"] intoString:nil];
         [scan scanUpToString:@"\n" intoString:&payload];
 #ifdef DEBUG
-        NSLog(@"Data received - %@\n", payload);
+        if (![payload hasPrefix:@"S0|gps"])
+            NSLog(@"Data received - %@\n", payload);
 #endif
         [self parseRadioStream: payload];
     }
