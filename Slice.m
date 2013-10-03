@@ -49,9 +49,9 @@
 
 
 - (NSString *) formatSliceFilterBandwidth {
-    float filterLo = [self.sliceFilterLo floatValue];
-    float filterHi = [self.sliceFilterHi floatValue];
-    NSInteger filterBW = ((filterHi * 1000.00) - (filterLo * 1000.00)) * 1000.0 + 0.5;
+    NSInteger filterLo = [self.sliceFilterLo integerValue];
+    NSInteger filterHi = [self.sliceFilterHi integerValue];
+    NSInteger filterBW = filterHi - filterLo;
     
     // Could be negative...
     filterBW = (filterBW < 0) ? -1 * filterBW : filterBW;
@@ -238,10 +238,10 @@
 }
 
 - (void) cmdSetFilter:(NSNumber *)filterLo filterHi:(NSNumber *)filterHi {
-    NSString *cmd = [NSString stringWithFormat:@"filt %i %f %f",
+    NSString *cmd = [NSString stringWithFormat:@"filt %i %i %i",
                      [self.thisSliceNumber integerValue],
-                     [filterLo floatValue] * 1000000.00,
-                     [filterHi floatValue] * 1000000.00];
+                     [filterLo integerValue],
+                     [filterHi integerValue]];
     
     // Ignore zero filter widths
     if ([filterHi floatValue] == [filterLo floatValue])

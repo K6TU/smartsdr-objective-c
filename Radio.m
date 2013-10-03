@@ -10,6 +10,7 @@
 
 #import "Radio.h"
 #import "Slice.h"
+#import "Equalizer.h"
 
 
 
@@ -32,6 +33,7 @@
 @property (strong, nonatomic) NSDictionary *statusAtuStatusTokens;
 @property (strong, nonatomic) NSDictionary *statusTransmitTokens;
 @property (strong, nonatomic) NSDictionary *statusSliceTokens;
+@property (strong, nonatomic) NSDictionary *statusEqTokens;
 
 - (void) initStatusTokens;
 - (void) initStatusInterlockTokens;
@@ -42,6 +44,7 @@
 - (void) initStatusAtuStatusTokens;
 - (void) initStatusTransmitTokens;
 - (void) initStatusSliceTokens;
+- (void) initStatusEqTokens;
 
 - (void) parseRadioStream: (NSString *) payload;
 - (void) parseHandleType: (NSString *) payload;
@@ -129,6 +132,10 @@ enum enumStatusRadioTokens {
     enumStatusRadioTokensNone = 0,
     slicesToken,
     panadaptersToken,
+    lineoutGainToken,
+    lineoutMuteToken,
+    headphoneGainToken,
+    headphoneMuteToken,
 };
 
 
@@ -162,13 +169,21 @@ enum enumStatusTransmitTokens {
     pitchToken,
     speedToken,
     iambicToken,
+    iambicModeToken,
+    swapPaddlesToken,
     breakInToken,
     breakInDelayToken,
     monitorToken,
+    monitorGainToken,
+    metInRxToken,
     voxToken,
     voxLevelToken,
     voxDelayToken,
     voxVisibleToken,
+    monGainToken,
+    tuneToken,
+    voxEnableToken,
+    micAccToken,
 };
 
 enum enumStatusSliceTokens {
@@ -194,11 +209,30 @@ enum enumStatusSliceTokens {
     ghostToken,
     wideToken,
     inUseToken,
+    panToken,
+    loopaToken,
+    loopbToken,
+    qskToken,
 };
 
 enum enumStatusMixerTokens {
     enumStatusMixerTokensNone = 0,
     
+};
+
+enum enumStatusEqTokens {
+    enumStatusEqTokensNone = 0,
+    eqRxToken,
+    eqTxToken,
+    eqModeToken,
+    eqBand0Token,
+    eqBand1Token,
+    eqBand2Token,
+    eqBand3Token,
+    eqBand4Token,
+    eqBand5Token,
+    eqBand6Token,
+    eqBand7Token,
 };
 
 
@@ -216,7 +250,7 @@ NSNumber *txPowerLevel;
                          [NSNumber numberWithInt:mixerToken], @"mixer",
                          [NSNumber numberWithInt:displayToken], @"display",
                          [NSNumber numberWithInt:meterToken], @"meter",
-                         [NSNumber numberWithInt:mixerToken], @"eq",
+                         [NSNumber numberWithInt:eqToken], @"eq",
                          [NSNumber numberWithInt:gpsToken], @"gps",
                          nil];
 }
@@ -273,6 +307,10 @@ NSNumber *txPowerLevel;
     self.statusRadioTokens = [[NSDictionary alloc] initWithObjectsAndKeys:
                               [NSNumber numberWithInt:slicesToken],  @"slices",
                               [NSNumber numberWithInt:panadaptersToken], @"panadapters",
+                              [NSNumber numberWithInt:lineoutGainToken], @"lineout_gain",
+                              [NSNumber numberWithInt:lineoutMuteToken], @"lineout_mute",
+                              [NSNumber numberWithInt:headphoneGainToken], @"headphone_gain",
+                              [NSNumber numberWithInt:headphoneMuteToken], @"headphone_mute",
                               nil];
 }
 
@@ -310,19 +348,27 @@ NSNumber *txPowerLevel;
                                  [NSNumber numberWithInt:micSelectionToken], @"mic_selection",
                                  [NSNumber numberWithInt:micBoostToken], @"mic_boost",
                                  [NSNumber numberWithInt:micBiasToken], @"mic_bias",
+                                 [NSNumber numberWithInt:micAccToken], @"mic_acc",
                                  [NSNumber numberWithInt:companderToken], @"compander",
                                  [NSNumber numberWithInt:companderLevelToken], @"compander_level",
                                  [NSNumber numberWithInt:noiseGateLevelToken], @"noise_gate_level",
                                  [NSNumber numberWithInt:pitchToken], @"pitch",
                                  [NSNumber numberWithInt:speedToken], @"speed",
                                  [NSNumber numberWithInt:iambicToken], @"iambic",
+                                 [NSNumber numberWithInt:iambicModeToken], @"iambic_mode",
+                                 [NSNumber numberWithInt:swapPaddlesToken], @"swap_paddles",
                                  [NSNumber numberWithInt:breakInToken], @"break_in",
                                  [NSNumber numberWithInt:breakInDelayToken], @"break_in_delay",
                                  [NSNumber numberWithInt:monitorToken], @"monitor",
+                                 [NSNumber numberWithInt:monitorGainToken], @"mon_gain",
+                                 [NSNumber numberWithInt:metInRxToken], @"met_in_rx",
                                  [NSNumber numberWithInt:voxToken], @"vox",
+                                 [NSNumber numberWithInt:voxEnableToken], @"vox_enable",
                                  [NSNumber numberWithInt:voxLevelToken], @"vox_level",
                                  [NSNumber numberWithInt:voxDelayToken], @"vox_delay",
                                  [NSNumber numberWithInt:voxVisibleToken], @"vox_visible",
+                                 [NSNumber numberWithInt:monGainToken], @"mon_gain",
+                                 [NSNumber numberWithInt:tuneToken], @"tune",
                                  nil];
 }
 
@@ -350,7 +396,28 @@ NSNumber *txPowerLevel;
                               [NSNumber numberWithInt:ghostToken], @"ghost",
                               [NSNumber numberWithInt:wideToken], @"wide",
                               [NSNumber numberWithInt:inUseToken], @"in_use",
+                              [NSNumber numberWithInt:panToken], @"pan",
+                              [NSNumber numberWithInt:loopaToken], @"loopa",
+                              [NSNumber numberWithInt:loopbToken], @"loopb",
+                              [NSNumber numberWithInt:qskToken], @"qsk",
                               nil];
+}
+
+
+- (void) initStatusEqTokens {
+    self.statusEqTokens = [[NSDictionary alloc] initWithObjectsAndKeys:
+                           [NSNumber numberWithInt:eqRxToken], @"rx",
+                           [NSNumber numberWithInt:eqTxToken], @"tx",
+                           [NSNumber numberWithInt:eqModeToken], @"mode",
+                           [NSNumber numberWithInt:eqBand0Token], @"63Hz",
+                           [NSNumber numberWithInt:eqBand1Token], @"125Hz",
+                           [NSNumber numberWithInt:eqBand2Token], @"250Hz",
+                           [NSNumber numberWithInt:eqBand3Token], @"500Hz",
+                           [NSNumber numberWithInt:eqBand4Token], @"1000Hz",
+                           [NSNumber numberWithInt:eqBand5Token], @"2000Hz",
+                           [NSNumber numberWithInt:eqBand6Token], @"4000Hz",
+                           [NSNumber numberWithInt:eqBand7Token], @"8000Hz",
+                           nil];
 }
 
 
@@ -380,11 +447,16 @@ NSNumber *txPowerLevel;
         [self initStatusAtuStatusTokens];
         [self initStatusTransmitTokens];
         [self initStatusSliceTokens];
+        [self initStatusEqTokens];
         
         self.slices = [[NSMutableArray alloc] init];
         for (int i=0; i < MAX_SLICES_PER_RADIO; i++) {
             [self.slices insertObject:[NSNull null] atIndex:i];
         }
+        
+        self.equalizers = [[NSMutableArray alloc] initWithCapacity:2];
+        self.equalizers[0] = [[NSNull alloc] init];
+        self.equalizers[1] = [[NSNull alloc] init];
         
         connectionState = connecting;
         self.delegate = theDelegate;
@@ -442,6 +514,8 @@ NSNumber *txPowerLevel;
     // Post initial commands
     [self commandToRadio:@"client program K6TUControl"];
     [self commandToRadio:@"sub slice all"];
+    [self commandToRadio:@"eq rx info"];
+    [self commandToRadio:@"eq tx info"];
     
     [socket readDataToData:[AsyncSocket LFData] withTimeout:-1 tag:0];
 }
@@ -719,6 +793,26 @@ NSNumber *txPowerLevel;
                 [scan scanInteger:&intVal];
                 self.availablePanadapters = [NSNumber numberWithInt:intVal];
                 break;
+                
+            case lineoutGainToken:
+                [scan scanInteger:&intVal];
+                self.masterSpeakerAfGain = [NSNumber numberWithInt:intVal];
+                break;
+                
+            case lineoutMuteToken:
+                [scan scanInteger:&intVal];
+                self.masterSpeakerMute = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case headphoneGainToken:
+                [scan scanInteger:&intVal];
+                self.masterHeadsetAfGain = [NSNumber numberWithInt:intVal];
+                break;
+                
+            case headphoneMuteToken:
+                [scan scanInteger:&intVal];
+                self.masterHeadsetMute = [NSNumber numberWithBool:intVal];
+                break;
 
             default:
                 NSLog(@"Unexpected token in parseRadioToken - %@", token);
@@ -818,6 +912,11 @@ NSNumber *txPowerLevel;
                 self.micLevel = [NSNumber numberWithInt:intVal];
                 break;
                 
+            case micAccToken:
+                [scan scanInteger:&intVal];
+                self.micAccEnabled = [NSNumber numberWithBool:intVal];
+                break;
+                
             case micBoostToken:
                 [scan scanInteger:&intVal];
                 self.micBoost = [NSNumber numberWithInt:intVal];
@@ -857,6 +956,16 @@ NSNumber *txPowerLevel;
                 [scan scanInteger:&intVal];
                 self.cwIambicEnabled = [NSNumber numberWithInt:intVal];
                 break;
+                
+            case iambicModeToken:
+                [scan scanInteger:&intVal];
+                self.cwIambicMode = [NSString stringWithString:(intVal) ? @"B" : @"A"];
+                break;
+                
+            case swapPaddlesToken:
+                [scan scanInteger:&intVal];
+                self.cwSwapPaddles = [NSNumber numberWithBool:intVal];
+                break;
 
             case breakInToken:
                 [scan scanInteger:&intVal];
@@ -873,7 +982,13 @@ NSNumber *txPowerLevel;
                 self.monitorEnabled = [NSNumber numberWithInt:intVal];
                 break;
 
+            case monitorGainToken:
+                [scan scanInteger:&intVal];
+                self.monitorLevel = [NSNumber numberWithInt:intVal];
+                break;
+                
             case voxToken:
+            case voxEnableToken:
                 [scan scanInteger:&intVal];
                 self.voxEnabled = [NSNumber numberWithInt:intVal];
                 break;
@@ -885,12 +1000,27 @@ NSNumber *txPowerLevel;
 
             case voxDelayToken:
                 [scan scanInteger:&intVal];
-                self.voxDelay = [NSNumber numberWithInt:intVal];
+                self.voxDelay = [NSNumber numberWithInt:intVal / 20];
                 break;
 
             case voxVisibleToken:
                 [scan scanInteger:&intVal];
                 self.voxVisible = [NSNumber numberWithInt:intVal];
+                break;
+                
+            case monGainToken:
+                [scan scanInteger:&intVal];
+                self.monitorLevel = [NSNumber numberWithInt:intVal];
+                break;
+                
+            case tuneToken:
+                [scan scanInteger:&intVal];
+                self.tuneEnabled = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case metInRxToken:
+                [scan scanInteger:&intVal];
+                self.metInRxEnabled = [NSNumber numberWithBool:intVal];
                 break;
                 
             default:
@@ -905,9 +1035,7 @@ NSNumber *txPowerLevel;
 - (void) parseSliceToken: (NSScanner *) scan {
     NSString *token;
     NSInteger intVal;
-    float floatVal;
     NSString *stringVal;
-    
     NSInteger thisSliceNum;
     
     // Next up in the slice message is the slice number - grab it and its
@@ -926,9 +1054,6 @@ NSNumber *txPowerLevel;
         thisSlice = self.slices[thisSliceNum];
         thisSlice.sliceAudioLevel = [NSNumber numberWithInt:50];
         thisSlice.slicePanControl = [NSNumber numberWithInt:50];
-        
-        // Temp bug fix - set antenna for this slice to antenna 1
-        // [thisSlice cmdSetRxAnt:@"ANT1"];
     }
     
     while (![scan isAtEnd]) {
@@ -962,13 +1087,13 @@ NSNumber *txPowerLevel;
                 break;
 
             case filterLoToken:
-                [scan scanFloat:&floatVal];
-                thisSlice.sliceFilterLo = [NSNumber numberWithFloat:floatVal];
+                [scan scanInteger:&intVal];
+                thisSlice.sliceFilterLo = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case filterHiToken:
-                [scan scanFloat:&floatVal];
-                thisSlice.sliceFilterHi = [NSNumber numberWithFloat:floatVal];
+                [scan scanInteger:&intVal];
+                thisSlice.sliceFilterHi = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case nrToken:
@@ -1059,13 +1184,34 @@ NSNumber *txPowerLevel;
                 }
                 break;
                 
+            case panToken:
+                [scan scanUpToString:@" " intoString:&stringVal];
+                thisSlice.panForSlice = stringVal;
+                break;
+                
+            case loopaToken:
+                [scan scanInteger:&intVal];
+                thisSlice.loopAEnabled = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case loopbToken:
+                [scan scanInteger:&intVal];
+                thisSlice.loopBEnabled = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case qskToken:
+                [scan scanInteger:&intVal];
+                thisSlice.qskEnabled = [NSNumber numberWithBool:intVal];
+                break;
+                
             default:
                 NSLog(@"Unexpected token in parseSliceToken - %@", token);
                 break;
         }
         // Scanner is either at a space or at the end - eat either
-        [scan scanCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"] intoString:nil];    }
-};
+        [scan scanCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"] intoString:nil];
+    }
+}
 
 
 - (void) parseMixerToken: (NSScanner *) scan {
@@ -1084,8 +1230,88 @@ NSNumber *txPowerLevel;
 
 
 - (void) parseEqToken: (NSScanner *) scan {
+    NSString *token;
+    NSInteger intVal, eqNum;
+    NSString *stringVal;
+    Equalizer *eq;
     
-};
+    // First parameter after eq is rx|tx
+    [scan scanUpToString:@" " intoString:&stringVal];
+    [scan scanString:@" " intoString:nil];
+    
+    if ([stringVal isEqualToString:@"rx"])
+        eqNum = 0;
+    else
+        eqNum = 1;
+    
+    if ([self.equalizers[eqNum] isKindOfClass:[NSNull class]]) {
+        // Allocate an equalizer
+        self.equalizers[eqNum] = [[Equalizer alloc] init];
+    }
+    
+    eq = self.equalizers[eqNum];
+    
+    while (![scan isAtEnd]) {
+        // Grab the token between current scanner position and the '=' separator
+        // and then eat the '='
+        [scan scanUpToString:@"=" intoString:&token];
+        [scan scanString:@"=" intoString:nil];
+        
+        // Look up in our dictionary
+        int thisToken = [self.statusEqTokens[token] integerValue];
+        
+        switch (thisToken) {
+            case eqModeToken:
+                [scan scanInt:&intVal];
+                eq.eqEnabled = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case eqBand0Token:
+                [scan scanInt:&intVal];
+                eq.eqBand0Value = [NSNumber numberWithInt:intVal];
+                break;
+                
+            case eqBand1Token:
+                [scan scanInt:&intVal];
+                eq.eqBand1Value = [NSNumber numberWithInt:intVal];
+                break;
+                
+            case eqBand2Token:
+                [scan scanInt:&intVal];
+                eq.eqBand2Value = [NSNumber numberWithInt:intVal];
+                break;
+                
+            case eqBand3Token:
+                [scan scanInt:&intVal];
+                eq.eqBand3Value = [NSNumber numberWithInt:intVal];
+                break;
+                
+            case eqBand4Token:
+                [scan scanInt:&intVal];
+                eq.eqBand4Value = [NSNumber numberWithInt:intVal];
+                break;
+                
+            case eqBand5Token:
+                [scan scanInt:&intVal];
+                eq.eqBand5Value = [NSNumber numberWithInt:intVal];
+                break;
+                
+            case eqBand6Token:
+                [scan scanInt:&intVal];
+                eq.eqBand6Value = [NSNumber numberWithInt:intVal];
+                break;
+                
+            case eqBand7Token:
+                [scan scanInt:&intVal];
+                eq.eqBand7Value = [NSNumber numberWithInt:intVal];
+                break;
+        }
+        // Scanner is either at a space or at the end - eat either
+        [scan scanCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"] intoString:nil];
+
+    }
+}
+
 
 - (void) parseGpsToken: (NSScanner *) scan {
     
@@ -1115,6 +1341,14 @@ NSNumber *txPowerLevel;
 
     [self commandToRadio:cmd];
     self.rfPowerLevel = level;
+}
+
+- (void) cmdSetAmCarrierLevel:(NSNumber *)level {
+    NSString *cmd = [NSString stringWithFormat:@"transmit set am_carrier=%i",
+                     [level integerValue]];
+    
+    [self commandToRadio:cmd];
+    self.amCarrierLevel = level;
 }
 
 - (void) cmdSetMicSelection:(NSString *)source {
@@ -1172,6 +1406,30 @@ NSNumber *txPowerLevel;
     self.companderLevel = level;
 }
 
+- (void) cmdSetVoxEnabled:(NSNumber *)state {
+    NSString *cmd = [NSString stringWithFormat:@"transmit set vox_enable=%i",
+                     [state boolValue]];
+    
+    [self commandToRadio:cmd];
+    self.voxEnabled = state;
+}
+
+- (void) cmdSetVoxLevel:(NSNumber *)level {
+    NSString *cmd = [NSString stringWithFormat:@"transmit set vox_level=%i",
+                     [level integerValue]];
+    
+    [self commandToRadio:cmd];
+    self.voxLevel = level;
+}
+
+- (void) cmdSetVoxDelay:(NSNumber *)level {
+    NSString *cmd = [NSString stringWithFormat:@"transmit set vox_delay=%i",
+                     [level integerValue] * 20];
+    
+    [self commandToRadio:cmd];
+    self.voxDelay = level;
+}
+
 - (void) cmdSetCwPitch:(NSNumber *)level {
     NSString *cmd = [NSString stringWithFormat:@"cw pitch %i",
                      [level integerValue]];
@@ -1218,6 +1476,14 @@ NSNumber *txPowerLevel;
     
     [self commandToRadio:cmd];
     self.monitorEnabled = state;
+}
+
+- (void) cmdSetMonitorLevel:(NSNumber *)level {
+    NSString *cmd = [NSString stringWithFormat:@"transmit set monitor_gain=%i",
+                     [level integerValue]];
+    
+    [self commandToRadio:cmd];
+    self.monitorLevel = level;
 }
 
 - (void) cmdSetTx:(NSNumber *)state {

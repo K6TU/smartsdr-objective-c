@@ -51,6 +51,11 @@
 @property (strong, nonatomic) NSNumber *slicePanControl;            // Slice PAN control - FLOAT (0.0 == LEFT, 1.0 == RIGHT)
 
 
+@property (strong, nonatomic) NSNumber *loopAEnabled;               // Loop A enabled - BOOL
+@property (strong, nonatomic) NSNumber *loopBEnabled;               // Loop B enabled - BOOL
+@property (strong, nonatomic) NSNumber *qskEnabled;                 // QSK capable on slice - BOOL
+@property (strong, nonatomic) NSString *panForSlice;                // Pan adaptor stream for this slice - STRING
+
 // Interface of use between Radio and Slice - DO NOT USE
 - (id) initWithRadio: (Radio *) radio sliceNumber: (NSInteger) sliceNum;
 - (void) youAreBeingDeleted;

@@ -91,9 +91,14 @@ enum radioAtuState {
 @property (strong, nonatomic) RadioInstance *radioInstance;
 
 // Array to handle each slice for a radio - indexed by slice number
-// with an entry set to nil if the slice does not exist.
+// with an entry set to NSNULL if the slice does not exist.
 
 @property (strong, nonatomic) NSMutableArray *slices;
+
+// Array to handle each equalizer for a radio - indexed by rx=0, tx=1
+// Entries are NSNULL until the equalizer is created
+
+@property (strong, nonatomic) NSMutableArray *equalizers;
 
 // All the following properties are KVO compliant for READ
 
@@ -140,15 +145,22 @@ enum radioAtuState {
 @property (strong, nonatomic) NSString *micSelection;               // Mic source selection - STRING [MIC, LINE, BAL, ACC]
 @property (strong, nonatomic) NSNumber *micBoost;                   // State of Mic Boost - BOOL
 @property (strong, nonatomic) NSNumber *micBias;                    // State of Mic Bias - BOOL
+@property (strong, nonatomic) NSNumber *micAccEnabled;              // Accessory connector mic input enabled - BOOL
 @property (strong, nonatomic) NSNumber *companderEnabled;           // State of Compander - BOOL
 @property (strong, nonatomic) NSNumber *companderLevel;             // Compander level - INTEGER [0 - 100]
 @property (strong, nonatomic) NSNumber *noiseGateLevel;             // Noise gate level - INTEGER **UNIMPLEMENTED**
 @property (strong, nonatomic) NSNumber *cwPitch;                    // CW pitch in Hertz - INTEGER
 @property (strong, nonatomic) NSNumber *cwSpeed;                    // CW speed in WPM - INTEGER
 @property (strong, nonatomic) NSNumber *cwIambicEnabled;            // State of Iambic - BOOL
+@property (strong, nonatomic) NSString *cwIambicMode;               // Mode of internal iambic keyer - STRING ("A" or "B")
+@property (strong, nonatomic) NSNumber *cwSwapPaddles;              // Internal Iambic keyer - swap dot paddle to right (for lefties) - BOOL
 @property (strong, nonatomic) NSNumber *cwBreakinEnabled;           // State of CW QSK - BOOL
 @property (strong, nonatomic) NSNumber *cwBreakinDelay;             // CW QSK delay in milliseconds - INTEGER [0 - 2000]
 @property (strong, nonatomic) NSNumber *monitorEnabled;             // State of TX monitor - BOOL
+@property (strong, nonatomic) NSNumber *monitorLevel;               // Monitor Audio level - INTEGER [0 - 100]
+@property (strong, nonatomic) NSNumber *metInRxEnabled;             // Enable Mic Level meter in RX mode - BOOL
+
+
 
 
 // Class methods
@@ -168,6 +180,7 @@ enum radioAtuState {
 - (void) commandToRadio:(NSString *) cmd;
 
 - (void) cmdSetRfPowerLevel: (NSNumber *) level;                    // Set RF power level in Watts - INTEGER
+- (void) cmdSetAmCarrierLevel: (NSNumber *) level;                  // Set AM Carrier power level in Watts - INTEGER
 
 - (void) cmdSetMicSelection: (NSString *) source;                   // Set MIC selection source - STRING
 - (void) cmdSetMicLevel: (NSNumber *) level;                        // Set MIC gain level - INTEGER
@@ -176,6 +189,9 @@ enum radioAtuState {
 - (void) cmdSetAccEnabled: (NSNumber *) state;                      // Set state of MIC via ACC connector - BOOL
 - (void) cmdSetCompander: (NSNumber *) state;                       // Set state of Compander - BOOL
 - (void) cmdSetCompanderLevel: (NSNumber *) level;                  // Set Compander Level - INTEGER
+- (void) cmdSetVoxEnabled: (NSNumber *) state;                      // Set state of VOX - BOOL
+- (void) cmdSetVoxLevel: (NSNumber *) level;                        // Set VOX gain - INTEGER
+- (void) cmdSetVoxDelay: (NSNumber *) level;                        // Set VOX delay - INTEGER
 
 - (void) cmdSetCwPitch: (NSNumber *) level;                         // Set CW pitch in Hertz - INTEGER
 - (void) cmdSetCwSpeed: (NSNumber *) level;                         // Set CW keyer speed in WPM - INTEGER
@@ -184,6 +200,7 @@ enum radioAtuState {
 - (void) cmdSetQskDelay: (NSNumber *) level;                        // Set QSK delay in milliseconds - INTEGER
 
 - (void) cmdSetMonitorEnabled: (NSNumber *) state;                  // Set state of TX Monitor - BOOL
+- (void) cmdSetMonitorLevel: (NSNumber *) level;                    // Set TX Monitor level - INTEGER
 - (void) cmdSetTx: (NSNumber *) state;                              // Set TX state (on/off) - BOOL
 - (void) cmdSetAtuTune: (NSNumber *) state;                         // Set ATU command state (on/off) - BOOL
 - (void) cmdSetBypass;                                              // Set ATU bypass
