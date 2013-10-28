@@ -11,6 +11,7 @@
 #import "Radio.h"
 #import "Slice.h"
 #import "Equalizer.h"
+#import "FilterSpec.h"
 
 
 
@@ -21,9 +22,8 @@
     enum radioConnectionState connectionState;
 }
 
-@property (weak, nonatomic) NSObject<RadioDelegate> *delegate;
-@property (strong, nonatomic) NSString *apiVersion;
-@property (strong, nonatomic) NSString *apiHandle;
+@property (strong, nonatomic) NSObject<RadioDelegate> *delegate;
+
 @property (strong, nonatomic) NSDictionary *statusTokens;
 @property (strong, nonatomic) NSDictionary *statusInterlockTokens;
 @property (strong, nonatomic) NSDictionary *statusInterlockStateTokens;
@@ -184,6 +184,7 @@ enum enumStatusTransmitTokens {
     tuneToken,
     voxEnableToken,
     micAccToken,
+    tunePowerToken,
 };
 
 enum enumStatusSliceTokens {
@@ -213,6 +214,9 @@ enum enumStatusSliceTokens {
     loopaToken,
     loopbToken,
     qskToken,
+    audioPanToken,
+    audioGainToken,
+    audioMuteToken,
 };
 
 enum enumStatusMixerTokens {
@@ -369,6 +373,7 @@ NSNumber *txPowerLevel;
                                  [NSNumber numberWithInt:voxVisibleToken], @"vox_visible",
                                  [NSNumber numberWithInt:monGainToken], @"mon_gain",
                                  [NSNumber numberWithInt:tuneToken], @"tune",
+                                 [NSNumber numberWithInt:tunePowerToken], @"tunepower",
                                  nil];
 }
 
@@ -400,6 +405,9 @@ NSNumber *txPowerLevel;
                               [NSNumber numberWithInt:loopaToken], @"loopa",
                               [NSNumber numberWithInt:loopbToken], @"loopb",
                               [NSNumber numberWithInt:qskToken], @"qsk",
+                              [NSNumber numberWithInt:audioGainToken], @"audio_gain",
+                              [NSNumber numberWithInt:audioPanToken], @"audio_pan",
+                              [NSNumber numberWithInt:audioMuteToken], @"audio_mute",
                               nil];
 }
 
@@ -418,6 +426,69 @@ NSNumber *txPowerLevel;
                            [NSNumber numberWithInt:eqBand6Token], @"4000Hz",
                            [NSNumber numberWithInt:eqBand7Token], @"8000Hz",
                            nil];
+}
+
+- (void) initFilterSpecs {
+    // Create our static data - there must be a better way... surely?
+    
+    self.filters = [[NSMutableDictionary alloc] initWithObjectsAndKeys:
+                    [NSMutableArray arrayWithObjects:
+                     [[FilterSpec alloc] initWithLabel:@"10 Hz" filterLo:-5 filterHi:5],
+                     [[FilterSpec alloc] initWithLabel:@"25 Hz" filterLo:-12.5 filterHi:12.5],
+                     [[FilterSpec alloc] initWithLabel:@"50 Hz" filterLo:-25 filterHi:25],
+                     [[FilterSpec alloc] initWithLabel:@"100 Hz" filterLo:-50 filterHi:50],
+                     [[FilterSpec alloc] initWithLabel:@"250 Hz" filterLo:-125 filterHi:125],
+                     [[FilterSpec alloc] initWithLabel:@"500 Hz" filterLo:-250 filterHi:250],
+                     [[FilterSpec alloc] initWithLabel:@"1 KHz" filterLo:-500 filterHi:500],
+                     nil], @"CW",
+                    [NSMutableArray arrayWithObjects:
+                     [[FilterSpec alloc] initWithLabel:@"1 KHz" filterLo:100 filterHi:1100],
+                     [[FilterSpec alloc] initWithLabel:@"1.5 KHz" filterLo:100 filterHi:1600],
+                     [[FilterSpec alloc] initWithLabel:@"1.8 KHz" filterLo:100 filterHi:1900],
+                     [[FilterSpec alloc] initWithLabel:@"2 KHz" filterLo:100 filterHi:2100],
+                     [[FilterSpec alloc] initWithLabel:@"2.2 KHz" filterLo:100 filterHi:2300],
+                     [[FilterSpec alloc] initWithLabel:@"2.4 KHz" filterLo:100 filterHi:2500],
+                     [[FilterSpec alloc] initWithLabel:@"2.7 KHz" filterLo:100 filterHi:2800],
+                     [[FilterSpec alloc] initWithLabel:@"2.9 KHz" filterLo:100 filterHi:3000],
+                     nil], @"USB",
+                    [NSMutableArray arrayWithObjects:
+                     [[FilterSpec alloc] initWithLabel:@"1 KHz" filterLo:-1100 filterHi:-100],
+                     [[FilterSpec alloc] initWithLabel:@"1.5 KHz" filterLo:-1600 filterHi:-100],
+                     [[FilterSpec alloc] initWithLabel:@"1.8 KHz" filterLo:-1900 filterHi:-100],
+                     [[FilterSpec alloc] initWithLabel:@"2 KHz" filterLo:-2100 filterHi:-100],
+                     [[FilterSpec alloc] initWithLabel:@"2.2 KHz" filterLo:-2300 filterHi:-100],
+                     [[FilterSpec alloc] initWithLabel:@"2.4 KHz" filterLo:-2500 filterHi:-100],
+                     [[FilterSpec alloc] initWithLabel:@"2.7 KHz" filterLo:-2800 filterHi:-100],
+                     [[FilterSpec alloc] initWithLabel:@"2.9 KHz" filterLo:-3000 filterHi:-100],
+                     nil], @"LSB",
+                    [NSMutableArray arrayWithObjects:
+                     [[FilterSpec alloc] initWithLabel:@"1 KHz" filterLo:100 filterHi:1100],
+                     [[FilterSpec alloc] initWithLabel:@"1.5 KHz" filterLo:100 filterHi:1600],
+                     [[FilterSpec alloc] initWithLabel:@"1.8 KHz" filterLo:100 filterHi:1900],
+                     [[FilterSpec alloc] initWithLabel:@"2 KHz" filterLo:100 filterHi:2100],
+                     [[FilterSpec alloc] initWithLabel:@"2.2 KHz" filterLo:100 filterHi:2300],
+                     [[FilterSpec alloc] initWithLabel:@"2.4 KHz" filterLo:100 filterHi:2500],
+                     [[FilterSpec alloc] initWithLabel:@"2.7 KHz" filterLo:100 filterHi:2800],
+                     [[FilterSpec alloc] initWithLabel:@"2.8 KHz" filterLo:100 filterHi:3000],
+                     nil], @"DIGU",
+                    [NSMutableArray arrayWithObjects:
+                     [[FilterSpec alloc] initWithLabel:@"270 Hz" filterLo:-2345 filterHi:-2075],
+                     [[FilterSpec alloc] initWithLabel:@"300 Hz" filterLo:-2360 filterHi:-2060],
+                     [[FilterSpec alloc] initWithLabel:@"500 Hz" filterLo:-2460 filterHi:-1960],
+                     [[FilterSpec alloc] initWithLabel:@"1 KHz" filterLo:-2710 filterHi:-1710],
+                     [[FilterSpec alloc] initWithLabel:@"1.2 KHz" filterLo:-2810 filterHi:-1610],
+                     nil], @"DIGL",
+                    [NSMutableArray arrayWithObjects:
+                     [[FilterSpec alloc] initWithLabel:@"5 KHz" filterLo:-2500 filterHi:2500],
+                     [[FilterSpec alloc] initWithLabel:@"6 KHz" filterLo:-3000 filterHi:3000],
+                     [[FilterSpec alloc] initWithLabel:@"8 KHz" filterLo:-4000 filterHi:4000],
+                     [[FilterSpec alloc] initWithLabel:@"10 KHz" filterLo:-5000 filterHi:5000],
+                     [[FilterSpec alloc] initWithLabel:@"12 KHz" filterLo:-6000 filterHi:6000],
+                     [[FilterSpec alloc] initWithLabel:@"14 KHz" filterLo:-7000 filterHi:7000],
+                     [[FilterSpec alloc] initWithLabel:@"16 KHz" filterLo:-8000 filterHi:8000],
+                     [[FilterSpec alloc] initWithLabel:@"20 KHz" filterLo:-10000 filterHi:10000],
+                     nil], @"AM",
+                    nil];
 }
 
 
@@ -448,6 +519,7 @@ NSNumber *txPowerLevel;
         [self initStatusTransmitTokens];
         [self initStatusSliceTokens];
         [self initStatusEqTokens];
+        [self initFilterSpecs];
         
         self.slices = [[NSMutableArray alloc] init];
         for (int i=0; i < MAX_SLICES_PER_RADIO; i++) {
@@ -656,7 +728,7 @@ NSNumber *txPowerLevel;
 
 
 - (void) parseVersionType:(NSString *)payload {
-    // Should check to see whether the radio understand our versio of
+    // Should check to see whether the radio understand our version of
     // the api commands...  leave this for later.
     // For now, save the version string
     self.apiVersion = payload;
@@ -886,7 +958,7 @@ NSNumber *txPowerLevel;
                 
             case rfPowerToken:
                 // Ignore the update if we are in tune state
-                if ([self.tuneEnabled boolValue] || selfStatus) {
+                if ([self.tuneEnabled boolValue]) {
                     // pitch the value
                     
                     [scan scanInteger:&intVal];
@@ -1016,6 +1088,11 @@ NSNumber *txPowerLevel;
             case tuneToken:
                 [scan scanInteger:&intVal];
                 self.tuneEnabled = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case tunePowerToken:
+                [scan scanInteger:&intVal];
+                self.tunePowerLevel = [NSNumber numberWithInt:intVal];
                 break;
                 
             case metInRxToken:
@@ -1204,6 +1281,21 @@ NSNumber *txPowerLevel;
                 thisSlice.qskEnabled = [NSNumber numberWithBool:intVal];
                 break;
                 
+            case audioGainToken:
+                [scan scanInteger:&intVal];
+                thisSlice.sliceAudioLevel = [NSNumber numberWithInteger:intVal];
+                break;
+                
+            case audioPanToken:
+                [scan scanInteger:&intVal];
+                thisSlice.slicePanControl = [NSNumber numberWithInteger:intVal];
+                break;
+                
+            case audioMuteToken:
+                [scan scanInteger:&intVal];
+                thisSlice.sliceMuteEnabled = [NSNumber numberWithBool:intVal];
+                break;
+                
             default:
                 NSLog(@"Unexpected token in parseSliceToken - %@", token);
                 break;
@@ -1246,8 +1338,12 @@ NSNumber *txPowerLevel;
     
     if ([self.equalizers[eqNum] isKindOfClass:[NSNull class]]) {
         // Allocate an equalizer
-        self.equalizers[eqNum] = [[Equalizer alloc] init];
+        eq = [[Equalizer alloc]init];
+        eq.eqType = stringVal;
+        eq.radio = self;
+        self.equalizers[eqNum] = eq;
     }
+    
     
     eq = self.equalizers[eqNum];
     
@@ -1439,11 +1535,12 @@ NSNumber *txPowerLevel;
 }
 
 - (void) cmdSetCwSpeed:(NSNumber *)level {
+    NSInteger speed = [level integerValue] < 5 ? 5 : [level integerValue];
     NSString *cmd = [NSString stringWithFormat:@"cw wpm %i",
-                     [level integerValue]];
+                     speed];
     
     [self commandToRadio:cmd];
-    self.cwSpeed = level;
+    self.cwSpeed = [NSNumber numberWithInteger:speed];
 }
 
 - (void) cmdSetIambicEnabled:(NSNumber *)state {
@@ -1479,7 +1576,7 @@ NSNumber *txPowerLevel;
 }
 
 - (void) cmdSetMonitorLevel:(NSNumber *)level {
-    NSString *cmd = [NSString stringWithFormat:@"transmit set monitor_gain=%i",
+    NSString *cmd = [NSString stringWithFormat:@"transmit set mon_gain=%i",
                      [level integerValue]];
     
     [self commandToRadio:cmd];

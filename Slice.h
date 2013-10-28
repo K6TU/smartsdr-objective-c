@@ -19,7 +19,7 @@
 @interface Slice : NSObject
 
 // Pointer to the object which created this Slice
-@property (weak, nonatomic) Radio *radio;
+@property (strong, nonatomic) Radio *radio;
 
 // All the following properties are KVO compliant for READ
 
@@ -48,7 +48,7 @@
 
 @property (strong, nonatomic) NSNumber *sliceMuteEnabled;           // State of slice MUTE - BOOL
 @property (strong, nonatomic) NSNumber *sliceAudioLevel;            // Slice audio level - INTEGER (0 - 100)
-@property (strong, nonatomic) NSNumber *slicePanControl;            // Slice PAN control - FLOAT (0.0 == LEFT, 1.0 == RIGHT)
+@property (strong, nonatomic) NSNumber *slicePanControl;            // Slice PAN control - INTEGER (0 == LEFT, 100 == RIGHT)
 
 
 @property (strong, nonatomic) NSNumber *loopAEnabled;               // Loop A enabled - BOOL

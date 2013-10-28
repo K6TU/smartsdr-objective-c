@@ -100,7 +100,14 @@ enum radioAtuState {
 
 @property (strong, nonatomic) NSMutableArray *equalizers;
 
+// Mutable Dictionary to handle the filter specifications in use with this
+// radio
+
+@property (strong, nonatomic) NSMutableDictionary *filters;
+
 // All the following properties are KVO compliant for READ
+@property (strong, nonatomic) NSString *apiVersion;                 // NSString of format VM.m.x.y of Version of APO
+@property (strong, nonatomic) NSString *apiHandle;                  // NSString of our API handle
 
 @property (strong, nonatomic) NSNumber *availableSlices;            // Number of available slices which can be created - INTEGER
 @property (strong, nonatomic) NSNumber *availablePanadapters;       // Number of available panadaptors which can be created - INTEGER
@@ -114,7 +121,7 @@ enum radioAtuState {
 @property (strong, nonatomic) NSNumber *rcaTxReqPolarity;           // RCA TX Request Polarity - BOOL
 @property (strong, nonatomic) NSNumber *pttDelay;                   // PTT Delay in milliseconds - INTEGER
 @property (strong, nonatomic) NSNumber *tx1Delay;                   // TX1 Delay in millisoconds - INTEGER
-@property (strong, nonatomic) NSNumber *tx2Delay;                   // TX2 Delay in millisoconds - INTEGER2
+@property (strong, nonatomic) NSNumber *tx2Delay;                   // TX2 Delay in millisoconds - INTEGER
 @property (strong, nonatomic) NSNumber *tx3Delay;                   // TX3 Delay in millisoconds - INTEGER
 @property (strong, nonatomic) NSNumber *accTxDelay;                 // ACC TX Delay in milliseconds - INTEGER
 @property (strong, nonatomic) NSNumber *txDelay;                    // TX Delay in milliseconds - INTEGER

@@ -52,6 +52,8 @@
 @property (strong, nonatomic) NSNumber *eqEnabled;
 
 - (NSArray *) eqBandNames;
+- (NSArray *) eqBandValues;
+
 - (void) cmdEqSetValue:(NSInteger) bandNum value: (NSNumber *) value;
 - (void) cmdEqSetEnabled: (NSNumber *) state;
 @end

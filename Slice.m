@@ -130,16 +130,24 @@
 
 - (void) cmdSetMute:(NSNumber *)state {
     NSInteger gain;
+    NSString *cmd;
     
-    if ([state boolValue]) {
-        gain = 0;
+    // Version dependent command differences between V1.0.0.0 and V1.1.0.0
+    if ([self.radio.apiVersion isEqualToString:@"V1.0.0.0"]) {
+        if ([state boolValue]) {
+            gain = 0;
+        } else {
+            gain = [self.sliceAudioLevel integerValue];
+        }
+        
+        cmd = [NSString stringWithFormat:@"audio client 0 slice %i gain %i",
+               [self.thisSliceNumber integerValue],
+               gain];
     } else {
-        gain = [self.sliceAudioLevel integerValue];
+        cmd = [NSString stringWithFormat:@"audio client 0 slice %i mute %i",
+               [self.thisSliceNumber integerValue],
+               [state integerValue]];
     }
-
-    NSString *cmd = [NSString stringWithFormat:@"audio client 0 slice %i gain %i",
-                     [self.thisSliceNumber integerValue],
-                     gain];
     
     [self.radio commandToRadio:cmd];
     self.sliceMuteEnabled = state;
@@ -147,20 +155,47 @@
 
 
 - (void) cmdSetAfLevel:(NSNumber *)level {
-    if (![self.sliceMuteEnabled boolValue]) {
-        NSString *cmd = [NSString stringWithFormat:@"audio client 0 slice %i gain %i",
-                         [self.thisSliceNumber integerValue],
-                         [level integerValue]];
+    NSString *cmd;
+    
+    // Version dependent command differences between V1.0.0.0 and V1.1.0.0
+    if ([self.radio.apiVersion isEqualToString:@"V1.0.0.0.0"]) {
+        // Version 1.0.0.0 didn't support the ability to mute a slice other than by
+        // reducing its audio gain to zero - hence the check on whether we command
+        // the radio below if muted
+        
+        if (![self.sliceMuteEnabled boolValue]) {
+            cmd = [NSString stringWithFormat:@"audio client 0 slice %i gain %i",
+                   [self.thisSliceNumber integerValue],
+                   [level integerValue]];
+            
+            [self.radio commandToRadio:cmd];
+        }
+    } else {
+        // V1.1.0.0 support per slice muting so no check needed on whether the slice
+        // is muted or not.  Just go ahead and set the value.
+        
+        cmd = [NSString stringWithFormat:@"audio client 0 slice %i gain %i",
+               [self.thisSliceNumber integerValue],
+               [level integerValue]];
         
         [self.radio commandToRadio:cmd];
     }
+    
     self.sliceAudioLevel = level;
 }
 
 - (void) cmdSetAfPan:(NSNumber *)level {
-    NSString *cmd = [NSString stringWithFormat:@"audio client 0 slice %i pan %f",
-                     [self.thisSliceNumber integerValue],
-                     [level floatValue] / 100.0];
+    NSString *cmd;
+    
+    // Version dependent command format between V1.0.0.0 and V1.1.0.0
+    if ([self.radio.apiVersion isEqualToString:@"V1.0.0.0"])
+        cmd = [NSString stringWithFormat:@"audio client 0 slice %i pan %f",
+               [self.thisSliceNumber integerValue],
+               [level floatValue] / 100.0];
+    else
+        cmd = [NSString stringWithFormat:@"audio client 0 slice %i pan %i",
+               [self.thisSliceNumber integerValue],
+               [level integerValue]];
     
     [self.radio commandToRadio:cmd];
     self.slicePanControl = level;

@@ -50,30 +50,44 @@
     return names;
 }
 
+- (NSArray *) eqBandValues {
+    NSArray *bValues = [[NSArray alloc] initWithObjects:
+                        self.eqBand0Value, self.eqBand1Value, self.eqBand2Value, self.eqBand3Value,
+                        self.eqBand4Value, self.eqBand5Value, self.eqBand6Value, self.eqBand7Value,
+                        nil];
+    
+    return bValues;
+}
+
 - (void) cmdEqSetValue:(NSInteger)bandNum value:(NSNumber *)value {
-    NSString *cmd = [NSString stringWithFormat:@"eq %@ %@=%i",
-                     self.eqType,
-                     self.bandCmdName[bandNum],
-                     [value integerValue]];
+    BOOL changed = NO;
     
     switch (bandNum) {
-        case 0:     self.eqBand0Value = value;    break;
-        case 1:     self.eqBand1Value = value;    break;
-        case 2:     self.eqBand2Value = value;    break;
-        case 3:     self.eqBand3Value = value;    break;
-        case 4:     self.eqBand4Value = value;    break;
-        case 5:     self.eqBand5Value = value;    break;
-        case 6:     self.eqBand6Value = value;    break;
-        case 7:     self.eqBand7Value = value;    break;
+        case 0:     changed = ![self.eqBand0Value isEqualToNumber:value]; self.eqBand0Value = value;    break;
+        case 1:     changed = ![self.eqBand0Value isEqualToNumber:value]; self.eqBand1Value = value;    break;
+        case 2:     changed = ![self.eqBand0Value isEqualToNumber:value]; self.eqBand2Value = value;    break;
+        case 3:     changed = ![self.eqBand0Value isEqualToNumber:value]; self.eqBand3Value = value;    break;
+        case 4:     changed = ![self.eqBand0Value isEqualToNumber:value]; self.eqBand4Value = value;    break;
+        case 5:     changed = ![self.eqBand0Value isEqualToNumber:value]; self.eqBand5Value = value;    break;
+        case 6:     changed = ![self.eqBand0Value isEqualToNumber:value]; self.eqBand6Value = value;    break;
+        case 7:     changed = ![self.eqBand0Value isEqualToNumber:value]; self.eqBand7Value = value;    break;
     }
     
-    [self.radio commandToRadio:cmd];
+    if (changed)
+        [self cmdEqSetEnabled:self.eqEnabled];
 }
 
 - (void) cmdEqSetEnabled:(NSNumber *)state {
-    NSString *cmd = [NSString stringWithFormat:@"eq %@ mode=%i",
+    NSString *cmd = [NSString stringWithFormat:@"eq %@ mode=%i ",
                      self.eqType,
                      [state boolValue]];
+    
+    NSArray *bValues = [self eqBandValues];
+    
+    for (int i=0; i<EQ_NUMBER_OF_BANDS; i++) {
+        NSString *apS = [NSString stringWithFormat:@"%@=%i ", self.bandCmdName[i], [bValues[i] integerValue]];
+        cmd = [cmd stringByAppendingString:apS];
+    }
     
     self.eqEnabled = state;
     [self.radio commandToRadio:cmd];
