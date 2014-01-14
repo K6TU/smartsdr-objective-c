@@ -100,10 +100,10 @@
 
 #ifdef DEBUG
     // Create a fake radio for testing...
-    RadioInstance *fake = [[RadioInstance alloc] initWithData:@"10.1.1.152"
+    RadioInstance *fake = [[RadioInstance alloc] initWithData:@"10.1.1.135"
                                                          port:[NSNumber numberWithInt:4992]
-                                                        model:@"Flex-6700"
-                                                    serialNum:@"007"
+                                                        model:@"FLEX-6700"
+                                                    serialNum:@"1340-1100-0001-0007"
                                                          name:@"K6TU"];
     [self radioFound:fake];
 #endif
@@ -134,19 +134,29 @@
 - (void) radioFound:(RadioInstance *)radio {
     // Check if in list...
     NSString *key = radio.ipAddress;
-    RadioInstance *inList = self.discoveredRadios[key];
+    RadioInstance *inList;
+    
+    @synchronized(self) {
+        inList = self.discoveredRadios[key];
+    }
     
     if (!inList) {
         // New radio for us - simply add
-        self.discoveredRadios[key] = radio;
+        @synchronized(self) {
+            self.discoveredRadios[key] = radio;
+        }
+        
         [[NSNotificationCenter defaultCenter] postNotificationName:@"K6TURadioFactory" object:self];
         NSLog(@"Radio added");
         
     } else if (![inList isEqual:radio]) {
         // The radio instance has changed... a different radio is at the same address
         // or some attribute of it has changed.
-        [self.discoveredRadios removeObjectForKey:key];
-        self.discoveredRadios[key] = radio;
+        @synchronized(self) {
+            [self.discoveredRadios removeObjectForKey:key];
+            self.discoveredRadios[key] = radio;
+        }
+        
         [[NSNotificationCenter defaultCenter] postNotificationName:@"K6TURadioFactory" object:self];
         NSLog(@"Radio updated");
     } else {
@@ -166,22 +176,25 @@
 - (void) radioTimeoutCheck: (NSTimer *) timer {
     NSDate *now = [NSDate date];
     BOOL sendNotification = NO;
+    NSArray *keys;
     
 #ifdef DEBUG
-    [[NSNotificationCenter defaultCenter] postNotificationName:@"K6TURadioFactory" object:self];
-    return;   // Comment this out to renable timeout
+    // [[NSNotificationCenter defaultCenter] postNotificationName:@"K6TURadioFactory" object:self];
+    // return;   // Comment this out to renable timeout
 #endif
-    
-    for (id key in self.discoveredRadios) {
-        RadioInstance *radio = [self.discoveredRadios objectForKey:key];
-        if ([now timeIntervalSinceDate:radio.lastSeen] > 1.5) {
-            // This radio has timed out - remove it
-            [self.discoveredRadios removeObjectForKey:key];
-            sendNotification = YES;
-            NSLog(@"Radio timeout");
+    @synchronized(self) {
+        keys = [self.discoveredRadios allKeys];
+
+        for (int i=0; i < [keys count]; i++) {
+            RadioInstance *radio = [self.discoveredRadios objectForKey:keys[i]];
+            if (radio && [now timeIntervalSinceDate:radio.lastSeen] > 5.0) {
+                // This radio has timed out - remove it
+                [self.discoveredRadios removeObjectForKey:keys[i]];
+                sendNotification = YES;
+                NSLog(@"Radio timeout");
+            }
         }
     }
-    
     if (sendNotification)
         [[NSNotificationCenter defaultCenter] postNotificationName:@"K6TURadioFactory" object:self];
 }
@@ -190,9 +203,10 @@
 #pragma mark availabeRadioInstances
 
 - (NSArray *) availableRadioInstances {
-    return [self.discoveredRadios allValues];
+    @synchronized(self) {
+        return [self.discoveredRadios allValues];
+    }
 }
-
 
 #pragma mark 
 

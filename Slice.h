@@ -27,6 +27,10 @@
 @property (strong, nonatomic) NSNumber *sliceInUse;                 // Slice in use - BOOL
 @property (strong, nonatomic) NSString *sliceFrequency;             // Slice frequency in MHz - STRING (e.g: 14.225001)
 @property (strong, nonatomic) NSString *sliceRxAnt;                 // RX Antenna port for this slice - STRING (ANT1, ANT2, RX_A, RX_B, XVTR)
+@property (strong, nonatomic) NSNumber *sliceXitEnabled;            // XIT state ON|OFF - BOOL
+@property (strong, nonatomic) NSNumber *sliceXitOffset;             // XIT offset value - INTEGER
+@property (strong, nonatomic) NSNumber *sliceRitEnabled;            // RIT state ON|OFF - BOOL
+@property (strong, nonatomic) NSNumber *sliceRitOffset;             // RIT offset value - INTEGER
 @property (strong, nonatomic) NSString *sliceMode;                  // Slice mode - STRING (USB, LSB, CW, DIGU, DIGL)
 @property (strong, nonatomic) NSNumber *sliceWide;                  // State of slice bandpass filter (BPF or WIDE) - BOOL (TRUE == WIDE)
 @property (strong, nonatomic) NSNumber *sliceFilterLo;              // RX filter low frequency - INTEGER
@@ -46,6 +50,9 @@
 @property (strong, nonatomic) NSNumber *sliceGhostStatus;           // Slice ghost - RESERVED for FUTURE use
 @property (strong, nonatomic) NSNumber *sliceOwner;                 // Slice owner - RESERVED for FUTURE use
 
+@property (strong, nonatomic) NSNumber *sliceDax;                   // DAX channel for this slice - INTEGER (1-8)
+@property (strong, nonatomic) NSNumber *sliceDaxClients;            // Count of  the number of DAX clients for this slice
+@property (strong, nonatomic) NSNumber *sliceDaxTxEnabled;          // DAX transmit channel
 @property (strong, nonatomic) NSNumber *sliceMuteEnabled;           // State of slice MUTE - BOOL
 @property (strong, nonatomic) NSNumber *sliceAudioLevel;            // Slice audio level - INTEGER (0 - 100)
 @property (strong, nonatomic) NSNumber *slicePanControl;            // Slice PAN control - INTEGER (0 == LEFT, 100 == RIGHT)
@@ -89,6 +96,12 @@
 - (void) cmdSetDspNbLevel: (NSNumber *) level;                      // Set DSP NB level - INTEGER
 - (void) cmdSetDspNrLevel: (NSNumber *) level;                      // Set DSP NR level - INTEGER
 - (void) cmdSetDspAnfLevel: (NSNumber *) level;                     // Set DSP ANF level - INTEGER
+
+- (void) cmdSetXitEnable: (NSNumber *) state;                       // Set XIT state ON|OFF - BOOL
+- (void) cmdSetRitEnable: (NSNumber *) state;                       // Set RIT state ON|OFF - BOOL
+- (void) cmdSetDaxEnable: (NSNumber *) channel;                     // Set DAX channel - INTEGER [0-8]
+- (void) cmdSetXitOffset: (NSNumber *) offset;                      // Set XIT offset - INTEGER
+- (void) cmdSetRitOffset: (NSNumber *) offset;                      // Set RIT offset - INTEGER
 
 - (void) cmdSetFilter:(NSNumber *) filterLo
              filterHi: (NSNumber *) filterHi;

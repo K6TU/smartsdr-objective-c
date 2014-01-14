@@ -63,14 +63,14 @@
     BOOL changed = NO;
     
     switch (bandNum) {
-        case 0:     changed = ![self.eqBand0Value isEqualToNumber:value]; self.eqBand0Value = value;    break;
-        case 1:     changed = ![self.eqBand0Value isEqualToNumber:value]; self.eqBand1Value = value;    break;
-        case 2:     changed = ![self.eqBand0Value isEqualToNumber:value]; self.eqBand2Value = value;    break;
-        case 3:     changed = ![self.eqBand0Value isEqualToNumber:value]; self.eqBand3Value = value;    break;
-        case 4:     changed = ![self.eqBand0Value isEqualToNumber:value]; self.eqBand4Value = value;    break;
-        case 5:     changed = ![self.eqBand0Value isEqualToNumber:value]; self.eqBand5Value = value;    break;
-        case 6:     changed = ![self.eqBand0Value isEqualToNumber:value]; self.eqBand6Value = value;    break;
-        case 7:     changed = ![self.eqBand0Value isEqualToNumber:value]; self.eqBand7Value = value;    break;
+        case 0:     changed = ![self.eqBand0Value isEqualToNumber:value]; if (changed) self.eqBand0Value = value;    break;
+        case 1:     changed = ![self.eqBand1Value isEqualToNumber:value]; if (changed) self.eqBand1Value = value;    break;
+        case 2:     changed = ![self.eqBand2Value isEqualToNumber:value]; if (changed) self.eqBand2Value = value;    break;
+        case 3:     changed = ![self.eqBand3Value isEqualToNumber:value]; if (changed) self.eqBand3Value = value;    break;
+        case 4:     changed = ![self.eqBand4Value isEqualToNumber:value]; if (changed) self.eqBand4Value = value;    break;
+        case 5:     changed = ![self.eqBand5Value isEqualToNumber:value]; if (changed) self.eqBand5Value = value;    break;
+        case 6:     changed = ![self.eqBand6Value isEqualToNumber:value]; if (changed) self.eqBand6Value = value;    break;
+        case 7:     changed = ![self.eqBand7Value isEqualToNumber:value]; if (changed) self.eqBand7Value = value;    break;
     }
     
     if (changed)

@@ -105,8 +105,14 @@ enum radioAtuState {
 
 @property (strong, nonatomic) NSMutableDictionary *filters;
 
+// Available antenna ports - varies by model - set for read only when Radio is
+// instantiated.
+
+@property (strong, nonatomic) NSMutableArray *rxAntennaPorts;       // Array of strings with name for each RX antenna Port
+@property (strong, nonatomic) NSMutableArray *txAntennaPorts;       // Same for TX antenna ports
+
 // All the following properties are KVO compliant for READ
-@property (strong, nonatomic) NSString *apiVersion;                 // NSString of format VM.m.x.y of Version of APO
+@property (strong, nonatomic) NSString *apiVersion;                 // NSString of format VM.m.x.y of Version of API
 @property (strong, nonatomic) NSString *apiHandle;                  // NSString of our API handle
 
 @property (strong, nonatomic) NSNumber *availableSlices;            // Number of available slices which can be created - INTEGER
@@ -123,12 +129,18 @@ enum radioAtuState {
 @property (strong, nonatomic) NSNumber *tx1Delay;                   // TX1 Delay in millisoconds - INTEGER
 @property (strong, nonatomic) NSNumber *tx2Delay;                   // TX2 Delay in millisoconds - INTEGER
 @property (strong, nonatomic) NSNumber *tx3Delay;                   // TX3 Delay in millisoconds - INTEGER
+@property (strong, nonatomic) NSNumber *tx1Enabled;                 // TX1 Delay enabled - BOOL
+@property (strong, nonatomic) NSNumber *tx2Enabled;                 // TX2 Delay enabled - BOOL
+@property (strong, nonatomic) NSNumber *tx3Enabled;                 // TX3 Delay enabled - BOOL
+@property (strong, nonatomic) NSNumber *accTxEnabled;               // ACC tx enabled - BOOL
 @property (strong, nonatomic) NSNumber *accTxDelay;                 // ACC TX Delay in milliseconds - INTEGER
 @property (strong, nonatomic) NSNumber *txDelay;                    // TX Delay in milliseconds - INTEGER
+@property (strong, nonatomic) NSNumber *hwAlcEnabled;               // Hardware ALC enabled - BOOL
 @property (strong, nonatomic) NSNumber *masterSpeakerAfGain;        // Mixer master speaker AF gain - INTEGER [0 - 100]
 @property (strong, nonatomic) NSNumber *masterHeadsetAfGain;        // Mixer master headset AF gain - INTEGER [0 - 100]
 @property (strong, nonatomic) NSNumber *masterSpeakerMute;          // Mixer master speaker mute - BOOL
 @property (strong, nonatomic) NSNumber *masterHeadsetMute;          // Mixer master headset mute - BOOL
+@property (strong, nonatomic) NSNumber *remoteOnEnabled;            // Remote on enabled - BOOL
 
 // NOTE:  The values provided in the next three properties will change TYPE - likely at the next
 // release (from STRINGS to INTEGER.
@@ -186,6 +198,7 @@ enum radioAtuState {
 // with a specific radio - e.g: Slice, Meters, Pandaptors...
 - (void) commandToRadio:(NSString *) cmd;
 
+- (void) cmdSetTxBandwidth: (NSNumber *) lo high: (NSNumber *) hi;  // Set TX bandwidth
 - (void) cmdSetRfPowerLevel: (NSNumber *) level;                    // Set RF power level in Watts - INTEGER
 - (void) cmdSetAmCarrierLevel: (NSNumber *) level;                  // Set AM Carrier power level in Watts - INTEGER
 
@@ -202,9 +215,23 @@ enum radioAtuState {
 
 - (void) cmdSetCwPitch: (NSNumber *) level;                         // Set CW pitch in Hertz - INTEGER
 - (void) cmdSetCwSpeed: (NSNumber *) level;                         // Set CW keyer speed in WPM - INTEGER
+- (void) cmdSetCwSwapPaddles: (NSNumber *) state;                   // Set Swap CW paddles - BOOL (F = Dot/Dash, T = Dash/Dot)
 - (void) cmdSetIambicEnabled: (NSNumber *) state;                   // Set state of Iambic - BOOL
+- (void) cmdSetIambicMode: (NSString *) mode;                       // Iambic mode - STRING "A" or "B"
 - (void) cmdSetBreakinEnabled: (NSNumber *) state;                  // Set state of QSK - BOOL
 - (void) cmdSetQskDelay: (NSNumber *) level;                        // Set QSK delay in milliseconds - INTEGER
+
+- (void) cmdSetTxDelay: (NSNumber *) delay;                         // Set TX Delay in milliseconds - INTEGER
+- (void) cmdSetTx1Delay: (NSNumber *) delay;                        // Set RCA TX1 Delay in milliseconds - INTEGER
+- (void) cmdSetTx2Delay: (NSNumber *) delay;                        // Set RCA TX2 Delay in milliseconds - INTEGER
+- (void) cmdSetTx3Delay: (NSNumber *) delay;                        // Set RCA TX3 Delay in milliseconds - INTEGER
+- (void) cmdSetAccTxDelay: (NSNumber *) delay;                      // Set ACC TX Delay in milliseconds - INTEGER
+
+- (void) cmdSetTx1Enabled: (NSNumber *) state;                      // Set RCA TX1 Enabled - BOOL
+- (void) cmdSetTx2Enabled: (NSNumber *) state;                      // Set RCA TX2 Enabled - BOOL
+- (void) cmdSetTx3Enabled: (NSNumber *) state;                      // Set RCA TX3 Enabled - BOOL
+- (void) cmdSetAccTxEnabled: (NSNumber *) state;                    // Set ACC TX Enabled - BOOL
+
 
 - (void) cmdSetMonitorEnabled: (NSNumber *) state;                  // Set state of TX Monitor - BOOL
 - (void) cmdSetMonitorLevel: (NSNumber *) level;                    // Set TX Monitor level - INTEGER
@@ -219,10 +246,26 @@ enum radioAtuState {
 - (void) cmdSetMasterSpeakerMute: (NSNumber *) state;               // Set mixer master speaker mute - BOOL
 - (void) cmdSetMasterHeadsetMute: (NSNumber *) state;               // Set mixer master headset mute - BOOL
 
+- (void) cmdSetRemoteOnEnabled: (NSNumber *) state;                 // Set remote on enabled - BOOL
+- (void) cmdSetHwAlcEnabled: (NSNumber *) state;                    // Set HW ALC enabled - BOOL
+
+- (void) cmdSetRcaTxInterlockEnabled: (NSNumber *) state;           // Set RCA Interlock enabled - BOOL
+- (void) cmdSetRcaTXInterlockPolarity: (NSNumber *) state;          // Set RCA Interlock Polarity - BOOL (F = active lo, T = active hi)
+
+- (void) cmdSetAccTxInterlockEnabled: (NSNumber *) state;           // Set ACC Interlock enabled - BOOL
+- (void) cmdSetAccTxInterlockPolarity: (NSNumber *) state;          // Set ACC Interlock Polarity - BOOL (F = active lo, T = active hi)
+
+- (void) cmdSetInterlockTimeoutValue: (NSNumber *) value;           // Set Interlock timeout in minutes - INTEGER
+
+
 // NOTE:  The cmdNewSlice will change to add the ability to specify frequency, mode and antenna selections
 // in some upcoming release.
 
 - (void) cmdNewSlice;                                               // Create a new slice (14.150, USB, ANT1 - hardcoded)
+- (void) cmdNewSlice: (NSString *) frequency
+             antenna: (NSString *) antennaPort
+                mode: (NSString *) mode;                            // Create a new slice withthe specified mode, frequency and port
+
 - (void) cmdRemoveSlice: (NSNumber *) sliceNum;                     // Remove slice N - INTEGER
 
 

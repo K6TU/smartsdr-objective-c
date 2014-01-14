@@ -272,6 +272,51 @@
     self.sliceAnfLevel = level;
 }
 
+- (void) cmdSetXitEnable:(NSNumber *)state {
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i xit_on=%i",
+                     [self.thisSliceNumber integerValue],
+                     [state boolValue]];
+    
+    [self.radio commandToRadio:cmd];
+    self.sliceXitEnabled = state;
+}
+
+- (void) cmdSetRitEnable:(NSNumber *)state {
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i rit_on=%i",
+                     [self.thisSliceNumber integerValue],
+                     [state boolValue]];
+    
+    [self.radio commandToRadio:cmd];
+    self.sliceRitEnabled = state;
+}
+
+- (void) cmdSetXitOffset:(NSNumber *)offset {
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i xit_freq=%i",
+                     [self.thisSliceNumber integerValue],
+                     [offset integerValue]];
+    
+    [self.radio commandToRadio:cmd];
+    self.sliceXitOffset = offset;
+}
+
+- (void) cmdSetRitOffset:(NSNumber *)offset {
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i rit_freq=%i",
+                     [self.thisSliceNumber integerValue],
+                     [offset integerValue]];
+    
+    [self.radio commandToRadio:cmd];
+    self.sliceRitOffset = offset;
+}
+
+- (void) cmdSetDaxEnable:(NSNumber *)channel {
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i dax=%i",
+                     [self.thisSliceNumber integerValue],
+                     [channel integerValue]];
+    
+    [self.radio commandToRadio:cmd];
+    self.sliceDax = channel;
+}
+
 - (void) cmdSetFilter:(NSNumber *)filterLo filterHi:(NSNumber *)filterHi {
     NSString *cmd = [NSString stringWithFormat:@"filt %i %i %i",
                      [self.thisSliceNumber integerValue],

@@ -10,10 +10,13 @@
 
 @implementation FilterSpec
 
-- (FilterSpec *) initWithLabel: (NSString *) label filterLo: (float)filterLo filterHi:(float)filterHi {
+- (FilterSpec *) initWithLabel:(NSString *)label mode:(NSString *)mode txFilterLo:(NSInteger)txFilterLo txFilterHi:(NSInteger)txFilterHi filterLo:(NSInteger)filterLo filterHi:(NSInteger)filterHi {
     self.label = label;
-    self.lo = [NSNumber numberWithInt:filterLo];
-    self.hi = [NSNumber numberWithInt:filterHi];
+    self.mode = mode;
+    self.txLo = [NSNumber numberWithInteger:txFilterLo];
+    self.txHi = [NSNumber numberWithInteger:txFilterHi];
+    self.lo = [NSNumber numberWithInteger:filterLo];
+    self.hi = [NSNumber numberWithInteger:filterHi];
     
     return self;
 }

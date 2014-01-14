@@ -10,8 +10,16 @@
 
 @interface FilterSpec : NSObject
 @property (strong, nonatomic) NSString *label;
+@property (strong, nonatomic) NSString *mode;
+@property (strong, nonatomic) NSNumber *txLo;
+@property (strong, nonatomic) NSNumber *txHi;
 @property (strong, nonatomic) NSNumber *lo;
 @property (strong, nonatomic) NSNumber *hi;
 
-- (FilterSpec *) initWithLabel: (NSString *) label filterLo: (float) filterLo filterHi: (float) filterHi;
+- (FilterSpec *) initWithLabel: (NSString *) label
+                          mode: (NSString *) mode
+                    txFilterLo: (NSInteger) txFilterLo
+                    txFilterHi: (NSInteger) txFilterHi
+                      filterLo: (NSInteger) filterLo
+                      filterHi: (NSInteger) filterHi;
 @end

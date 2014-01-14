@@ -61,7 +61,7 @@
 - (void) parseMixerToken: (NSScanner *) scan;
 - (void) parseDisplayToken: (NSScanner *) scan;
 - (void) parseMeterToken: (NSScanner *) scan;
-- (void) parseEqToken: (NSScanner *) scan;
+- (void) parseEqToken: (NSScanner *) scan selfStatus: (BOOL) selfStatus;
 
 @end
 
@@ -98,6 +98,10 @@ enum enumStatusInterlockTokens {
     stateToken,
     sourceToken,
     reasonToken,
+    tx1EnabledToken,
+    tx2EnabledToken,
+    tx3EnabledToken,
+    accTxEnabledToken,
 };
 
 enum enumStatusInterlockReasonTokens {
@@ -136,6 +140,10 @@ enum enumStatusRadioTokens {
     lineoutMuteToken,
     headphoneGainToken,
     headphoneMuteToken,
+    remoteOnToken,
+    pllDoneToken,
+    freqErrorToken,
+    calFreqToken,
 };
 
 
@@ -185,6 +193,7 @@ enum enumStatusTransmitTokens {
     voxEnableToken,
     micAccToken,
     tunePowerToken,
+    hwAlcEnabledToken,
 };
 
 enum enumStatusSliceTokens {
@@ -217,6 +226,13 @@ enum enumStatusSliceTokens {
     audioPanToken,
     audioGainToken,
     audioMuteToken,
+    xitOnToken,
+    ritOnToken,
+    xitFreqToken,
+    ritFreqToken,
+    daxToken,
+    daxClientsToken,
+    daxTxToken,
 };
 
 enum enumStatusMixerTokens {
@@ -276,6 +292,10 @@ NSNumber *txPowerLevel;
                                   [NSNumber numberWithInt:stateToken], @"state",
                                   [NSNumber numberWithInt:reasonToken], @"reason",
                                   [NSNumber numberWithInt:sourceToken], @"source",
+                                  [NSNumber numberWithInt:tx1EnabledToken], @"tx1_enabled",
+                                  [NSNumber numberWithInt:tx2EnabledToken], @"tx2_enabled",
+                                  [NSNumber numberWithInt:tx3EnabledToken], @"tx3_enabled",
+                                  [NSNumber numberWithInt:accTxEnabledToken], @"acc_tx_enabled",
                                   nil];
 }
 
@@ -315,6 +335,10 @@ NSNumber *txPowerLevel;
                               [NSNumber numberWithInt:lineoutMuteToken], @"lineout_mute",
                               [NSNumber numberWithInt:headphoneGainToken], @"headphone_gain",
                               [NSNumber numberWithInt:headphoneMuteToken], @"headphone_mute",
+                              [NSNumber numberWithInt:remoteOnToken], @"remote_on_enabled",
+                              [NSNumber numberWithInt:pllDoneToken], @"pll_done",
+                              [NSNumber numberWithInt:freqErrorToken], @"freq_error_ppb",
+                              [NSNumber numberWithInt:calFreqToken], @"cal_freq",
                               nil];
 }
 
@@ -374,6 +398,7 @@ NSNumber *txPowerLevel;
                                  [NSNumber numberWithInt:monGainToken], @"mon_gain",
                                  [NSNumber numberWithInt:tuneToken], @"tune",
                                  [NSNumber numberWithInt:tunePowerToken], @"tunepower",
+                                 [NSNumber numberWithInt:hwAlcEnabledToken], @"hwalc_enabled",
                                  nil];
 }
 
@@ -408,6 +433,13 @@ NSNumber *txPowerLevel;
                               [NSNumber numberWithInt:audioGainToken], @"audio_gain",
                               [NSNumber numberWithInt:audioPanToken], @"audio_pan",
                               [NSNumber numberWithInt:audioMuteToken], @"audio_mute",
+                              [NSNumber numberWithInt:xitOnToken], @"xit_on",
+                              [NSNumber numberWithInt:ritOnToken], @"rit_on",
+                              [NSNumber numberWithInt:xitFreqToken], @"xit_freq",
+                              [NSNumber numberWithInt:ritFreqToken], @"rit_freq",
+                              [NSNumber numberWithInt:daxToken], @"dax",
+                              [NSNumber numberWithInt:daxClientsToken], @"dax_clients",
+                              [NSNumber numberWithInt:daxTxToken], @"dax_tx",
                               nil];
 }
 
@@ -433,60 +465,60 @@ NSNumber *txPowerLevel;
     
     self.filters = [[NSMutableDictionary alloc] initWithObjectsAndKeys:
                     [NSMutableArray arrayWithObjects:
-                     [[FilterSpec alloc] initWithLabel:@"10 Hz" filterLo:-5 filterHi:5],
-                     [[FilterSpec alloc] initWithLabel:@"25 Hz" filterLo:-12.5 filterHi:12.5],
-                     [[FilterSpec alloc] initWithLabel:@"50 Hz" filterLo:-25 filterHi:25],
-                     [[FilterSpec alloc] initWithLabel:@"100 Hz" filterLo:-50 filterHi:50],
-                     [[FilterSpec alloc] initWithLabel:@"250 Hz" filterLo:-125 filterHi:125],
-                     [[FilterSpec alloc] initWithLabel:@"500 Hz" filterLo:-250 filterHi:250],
-                     [[FilterSpec alloc] initWithLabel:@"1 KHz" filterLo:-500 filterHi:500],
+                     [[FilterSpec alloc] initWithLabel:@"10 Hz"   mode:@"CW" txFilterLo: 0 txFilterHi: 0 filterLo:-5 filterHi:5],
+                     [[FilterSpec alloc] initWithLabel:@"24 Hz"   mode:@"CW" txFilterLo: 0 txFilterHi: 0 filterLo:-12 filterHi:12],
+                     [[FilterSpec alloc] initWithLabel:@"50 Hz"   mode:@"CW" txFilterLo: 0 txFilterHi: 0 filterLo:-25 filterHi:25],
+                     [[FilterSpec alloc] initWithLabel:@"100 Hz"  mode:@"CW" txFilterLo: 0 txFilterHi: 0 filterLo:-50 filterHi:50],
+                     [[FilterSpec alloc] initWithLabel:@"250 Hz"  mode:@"CW" txFilterLo: 0 txFilterHi: 0 filterLo:-125 filterHi:125],
+                     [[FilterSpec alloc] initWithLabel:@"500 Hz"  mode:@"CW" txFilterLo: 0 txFilterHi: 0 filterLo:-250 filterHi:250],
+                     [[FilterSpec alloc] initWithLabel:@"1 KHz"   mode:@"CW" txFilterLo: 0 txFilterHi: 0 filterLo:-500 filterHi:500],
                      nil], @"CW",
                     [NSMutableArray arrayWithObjects:
-                     [[FilterSpec alloc] initWithLabel:@"1 KHz" filterLo:100 filterHi:1100],
-                     [[FilterSpec alloc] initWithLabel:@"1.5 KHz" filterLo:100 filterHi:1600],
-                     [[FilterSpec alloc] initWithLabel:@"1.8 KHz" filterLo:100 filterHi:1900],
-                     [[FilterSpec alloc] initWithLabel:@"2 KHz" filterLo:100 filterHi:2100],
-                     [[FilterSpec alloc] initWithLabel:@"2.2 KHz" filterLo:100 filterHi:2300],
-                     [[FilterSpec alloc] initWithLabel:@"2.4 KHz" filterLo:100 filterHi:2500],
-                     [[FilterSpec alloc] initWithLabel:@"2.7 KHz" filterLo:100 filterHi:2800],
-                     [[FilterSpec alloc] initWithLabel:@"2.9 KHz" filterLo:100 filterHi:3000],
+                     [[FilterSpec alloc] initWithLabel:@"1 KHz"   mode:@"USB" txFilterLo: 100 txFilterHi: 2800 filterLo:100 filterHi:1100],
+                     [[FilterSpec alloc] initWithLabel:@"1.5 KHz" mode:@"USB" txFilterLo: 100 txFilterHi: 2800 filterLo:100 filterHi:1600],
+                     [[FilterSpec alloc] initWithLabel:@"1.8 KHz" mode:@"USB" txFilterLo: 100 txFilterHi: 2800 filterLo:100 filterHi:1900],
+                     [[FilterSpec alloc] initWithLabel:@"2 KHz"   mode:@"USB" txFilterLo: 100 txFilterHi: 2800 filterLo:100 filterHi:2100],
+                     [[FilterSpec alloc] initWithLabel:@"2.2 KHz" mode:@"USB" txFilterLo: 100 txFilterHi: 2800 filterLo:100 filterHi:2300],
+                     [[FilterSpec alloc] initWithLabel:@"2.4 KHz" mode:@"USB" txFilterLo: 100 txFilterHi: 2800 filterLo:100 filterHi:2500],
+                     [[FilterSpec alloc] initWithLabel:@"2.7 KHz" mode:@"USB" txFilterLo: 100 txFilterHi: 2800 filterLo:100 filterHi:2800],
+                     [[FilterSpec alloc] initWithLabel:@"2.9 KHz" mode:@"USB" txFilterLo: 100 txFilterHi: 2800 filterLo:100 filterHi:3000],
                      nil], @"USB",
                     [NSMutableArray arrayWithObjects:
-                     [[FilterSpec alloc] initWithLabel:@"1 KHz" filterLo:-1100 filterHi:-100],
-                     [[FilterSpec alloc] initWithLabel:@"1.5 KHz" filterLo:-1600 filterHi:-100],
-                     [[FilterSpec alloc] initWithLabel:@"1.8 KHz" filterLo:-1900 filterHi:-100],
-                     [[FilterSpec alloc] initWithLabel:@"2 KHz" filterLo:-2100 filterHi:-100],
-                     [[FilterSpec alloc] initWithLabel:@"2.2 KHz" filterLo:-2300 filterHi:-100],
-                     [[FilterSpec alloc] initWithLabel:@"2.4 KHz" filterLo:-2500 filterHi:-100],
-                     [[FilterSpec alloc] initWithLabel:@"2.7 KHz" filterLo:-2800 filterHi:-100],
-                     [[FilterSpec alloc] initWithLabel:@"2.9 KHz" filterLo:-3000 filterHi:-100],
+                     [[FilterSpec alloc] initWithLabel:@"1 KHz"   mode:@"LSB" txFilterLo: 100 txFilterHi: 2800 filterLo:-1100 filterHi:-100],
+                     [[FilterSpec alloc] initWithLabel:@"1.5 KHz" mode:@"LSB" txFilterLo: 100 txFilterHi: 2800 filterLo:-1600 filterHi:-100],
+                     [[FilterSpec alloc] initWithLabel:@"1.8 KHz" mode:@"LSB" txFilterLo: 100 txFilterHi: 2800 filterLo:-1900 filterHi:-100],
+                     [[FilterSpec alloc] initWithLabel:@"2 KHz"   mode:@"LSB" txFilterLo: 100 txFilterHi: 2800 filterLo:-2100 filterHi:-100],
+                     [[FilterSpec alloc] initWithLabel:@"2.2 KHz" mode:@"LSB" txFilterLo: 100 txFilterHi: 2800 filterLo:-2300 filterHi:-100],
+                     [[FilterSpec alloc] initWithLabel:@"2.4 KHz" mode:@"LSB" txFilterLo: 100 txFilterHi: 2800 filterLo:-2500 filterHi:-100],
+                     [[FilterSpec alloc] initWithLabel:@"2.7 KHz" mode:@"LSB" txFilterLo: 100 txFilterHi: 2800 filterLo:-2800 filterHi:-100],
+                     [[FilterSpec alloc] initWithLabel:@"2.9 KHz" mode:@"LSB" txFilterLo: 100 txFilterHi: 2800 filterLo:-3000 filterHi:-100],
                      nil], @"LSB",
                     [NSMutableArray arrayWithObjects:
-                     [[FilterSpec alloc] initWithLabel:@"1 KHz" filterLo:100 filterHi:1100],
-                     [[FilterSpec alloc] initWithLabel:@"1.5 KHz" filterLo:100 filterHi:1600],
-                     [[FilterSpec alloc] initWithLabel:@"1.8 KHz" filterLo:100 filterHi:1900],
-                     [[FilterSpec alloc] initWithLabel:@"2 KHz" filterLo:100 filterHi:2100],
-                     [[FilterSpec alloc] initWithLabel:@"2.2 KHz" filterLo:100 filterHi:2300],
-                     [[FilterSpec alloc] initWithLabel:@"2.4 KHz" filterLo:100 filterHi:2500],
-                     [[FilterSpec alloc] initWithLabel:@"2.7 KHz" filterLo:100 filterHi:2800],
-                     [[FilterSpec alloc] initWithLabel:@"2.8 KHz" filterLo:100 filterHi:3000],
+                     [[FilterSpec alloc] initWithLabel:@"1 KHz"   mode:@"DIGU" txFilterLo: 100 txFilterHi: 2800 filterLo:100 filterHi:1100],
+                     [[FilterSpec alloc] initWithLabel:@"1.5 KHz" mode:@"DIGU" txFilterLo: 100 txFilterHi: 2800 filterLo:100 filterHi:1600],
+                     [[FilterSpec alloc] initWithLabel:@"1.8 KHz" mode:@"DIGU" txFilterLo: 100 txFilterHi: 2800 filterLo:100 filterHi:1900],
+                     [[FilterSpec alloc] initWithLabel:@"2 KHz"   mode:@"DIGU" txFilterLo: 100 txFilterHi: 2800 filterLo:100 filterHi:2100],
+                     [[FilterSpec alloc] initWithLabel:@"2.2 KHz" mode:@"DIGU" txFilterLo: 100 txFilterHi: 2800 filterLo:100 filterHi:2300],
+                     [[FilterSpec alloc] initWithLabel:@"2.4 KHz" mode:@"DIGU" txFilterLo: 100 txFilterHi: 2800 filterLo:100 filterHi:2500],
+                     [[FilterSpec alloc] initWithLabel:@"2.7 KHz" mode:@"DIGU" txFilterLo: 100 txFilterHi: 2800 filterLo:100 filterHi:2800],
+                     [[FilterSpec alloc] initWithLabel:@"2.8 KHz" mode:@"DIGU" txFilterLo: 100 txFilterHi: 2800 filterLo:100 filterHi:3000],
                      nil], @"DIGU",
                     [NSMutableArray arrayWithObjects:
-                     [[FilterSpec alloc] initWithLabel:@"270 Hz" filterLo:-2345 filterHi:-2075],
-                     [[FilterSpec alloc] initWithLabel:@"300 Hz" filterLo:-2360 filterHi:-2060],
-                     [[FilterSpec alloc] initWithLabel:@"500 Hz" filterLo:-2460 filterHi:-1960],
-                     [[FilterSpec alloc] initWithLabel:@"1 KHz" filterLo:-2710 filterHi:-1710],
-                     [[FilterSpec alloc] initWithLabel:@"1.2 KHz" filterLo:-2810 filterHi:-1610],
+                     [[FilterSpec alloc] initWithLabel:@"270 Hz"  mode:@"DIGL" txFilterLo: 100 txFilterHi: 2800 filterLo:-2345 filterHi:-2075],
+                     [[FilterSpec alloc] initWithLabel:@"300 Hz"  mode:@"DIGL" txFilterLo: 100 txFilterHi: 2800 filterLo:-2360 filterHi:-2060],
+                     [[FilterSpec alloc] initWithLabel:@"500 Hz"  mode:@"DIGL" txFilterLo: 100 txFilterHi: 2800 filterLo:-2460 filterHi:-1960],
+                     [[FilterSpec alloc] initWithLabel:@"1 KHz"   mode:@"DIGL" txFilterLo: 100 txFilterHi: 2800 filterLo:-2710 filterHi:-1710],
+                     [[FilterSpec alloc] initWithLabel:@"1.2 KHz" mode:@"DIGL" txFilterLo: 100 txFilterHi: 2800 filterLo:-2810 filterHi:-1610],
                      nil], @"DIGL",
                     [NSMutableArray arrayWithObjects:
-                     [[FilterSpec alloc] initWithLabel:@"5 KHz" filterLo:-2500 filterHi:2500],
-                     [[FilterSpec alloc] initWithLabel:@"6 KHz" filterLo:-3000 filterHi:3000],
-                     [[FilterSpec alloc] initWithLabel:@"8 KHz" filterLo:-4000 filterHi:4000],
-                     [[FilterSpec alloc] initWithLabel:@"10 KHz" filterLo:-5000 filterHi:5000],
-                     [[FilterSpec alloc] initWithLabel:@"12 KHz" filterLo:-6000 filterHi:6000],
-                     [[FilterSpec alloc] initWithLabel:@"14 KHz" filterLo:-7000 filterHi:7000],
-                     [[FilterSpec alloc] initWithLabel:@"16 KHz" filterLo:-8000 filterHi:8000],
-                     [[FilterSpec alloc] initWithLabel:@"20 KHz" filterLo:-10000 filterHi:10000],
+                     [[FilterSpec alloc] initWithLabel:@"5 KHz"  mode:@"AM" txFilterLo: 1 txFilterHi: 2500 filterLo:-2500 filterHi:2500],
+                     [[FilterSpec alloc] initWithLabel:@"6 KHz"  mode:@"AM" txFilterLo: 1 txFilterHi: 3000 filterLo:-3000 filterHi:3000],
+                     [[FilterSpec alloc] initWithLabel:@"8 KHz"  mode:@"AM" txFilterLo: 1 txFilterHi: 4000 filterLo:-4000 filterHi:4000],
+                     [[FilterSpec alloc] initWithLabel:@"10 KHz" mode:@"AM" txFilterLo: 1 txFilterHi: 5000 filterLo:-5000 filterHi:5000],
+                     [[FilterSpec alloc] initWithLabel:@"12 KHz" mode:@"AM" txFilterLo: 1 txFilterHi: 6000 filterLo:-6000 filterHi:6000],
+                     [[FilterSpec alloc] initWithLabel:@"14 KHz" mode:@"AM" txFilterLo: 1 txFilterHi: 7000 filterLo:-7000 filterHi:7000],
+                     [[FilterSpec alloc] initWithLabel:@"16 KHz" mode:@"AM" txFilterLo: 1 txFilterHi: 8000 filterLo:-8000 filterHi:8000],
+                     [[FilterSpec alloc] initWithLabel:@"20 KHz" mode:@"AM" txFilterLo: 1 txFilterHi: 10000 filterLo:-10000 filterHi:10000],
                      nil], @"AM",
                     nil];
 }
@@ -520,6 +552,15 @@ NSNumber *txPowerLevel;
         [self initStatusSliceTokens];
         [self initStatusEqTokens];
         [self initFilterSpecs];
+        
+        // Set TX ports - same for 6500 and 6700
+        self.txAntennaPorts = [[NSMutableArray alloc] initWithObjects:@"ANT1", @"ANT2", @"XVTR", nil];
+        
+        // Rx ports are model dependent
+        if ([self.radioInstance.model isEqualToString:@"FLEX-6700"])
+            self.rxAntennaPorts = [[NSMutableArray alloc] initWithObjects:@"ANT1", @"ANT2", @"RX_A", @"RX_B", @"XVTR", nil];
+        else
+            self.rxAntennaPorts = [[NSMutableArray alloc] initWithObjects:@"ANT1", @"ANT2", @"RX_A", @"XVTR", nil];
         
         self.slices = [[NSMutableArray alloc] init];
         for (int i=0; i < MAX_SLICES_PER_RADIO; i++) {
@@ -585,6 +626,8 @@ NSNumber *txPowerLevel;
 - (void) initializeRadio {
     // Post initial commands
     [self commandToRadio:@"client program K6TUControl"];
+    [self commandToRadio:@"sub tx all"];
+    [self commandToRadio:@"sub atu all"];
     [self commandToRadio:@"sub slice all"];
     [self commandToRadio:@"eq rx info"];
     [self commandToRadio:@"eq tx info"];
@@ -696,7 +739,7 @@ NSNumber *txPowerLevel;
             break;
             
         case eqToken:
-            [self parseEqToken: scan];
+            [self parseEqToken: scan selfStatus:selfStatus];
             break;
             
         case gpsToken:
@@ -831,7 +874,31 @@ NSNumber *txPowerLevel;
                 self.interlockReason = stringVal;
                 break;
                 
+            case tx1EnabledToken:
+                [scan scanInteger:&intVal];
+                self.tx1Enabled = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case tx2EnabledToken:
+                [scan scanInteger:&intVal];
+                self.tx2Enabled = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case tx3EnabledToken:
+                [scan scanInteger:&intVal];
+                self.tx3Enabled = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case accTxEnabledToken:
+                [scan scanInteger:&intVal];
+                self.accTxEnabled = [NSNumber numberWithBool:intVal];
+                break;
+                
             default:
+                // Unknown token and therefore an unknown argument type
+                // Eat until the next space or \n
+                [scan scanUpToCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"]
+                                     intoString:nil];
                 NSLog(@"Unexpected token in parseInterlockToken - %@", token);
                 break;
         }
@@ -885,8 +952,29 @@ NSNumber *txPowerLevel;
                 [scan scanInteger:&intVal];
                 self.masterHeadsetMute = [NSNumber numberWithBool:intVal];
                 break;
+                
+            case remoteOnToken:
+                [scan scanInteger:&intVal];
+                self.remoteOnEnabled = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case pllDoneToken:
+                [scan scanInteger:&intVal];
+                break;
+                
+            case freqErrorToken:
+                [scan scanInteger:&intVal];
+                break;
+                
+            case calFreqToken:
+                [scan scanInteger:&intVal];
+                break;
 
             default:
+                // Unknown token and therefore an unknown argument type
+                // Eat until the next space or \n
+                [scan scanUpToCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"]
+                                     intoString:nil];
                 NSLog(@"Unexpected token in parseRadioToken - %@", token);
                 break;
         }
@@ -917,6 +1005,10 @@ NSNumber *txPowerLevel;
                 break;
                 
             default:
+                // Unknown token and therefore an unknown argument type
+                // Eat until the next space or \n
+                [scan scanUpToCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"]
+                                     intoString:nil];
                 NSLog(@"Unexpected token in parseAtuToken - %@", token);
                 break;
         }
@@ -1095,12 +1187,21 @@ NSNumber *txPowerLevel;
                 self.tunePowerLevel = [NSNumber numberWithInt:intVal];
                 break;
                 
+            case hwAlcEnabledToken:
+                [scan scanInteger:&intVal];
+                self.hwAlcEnabled = [NSNumber numberWithBool:intVal];
+                break;
+                
             case metInRxToken:
                 [scan scanInteger:&intVal];
                 self.metInRxEnabled = [NSNumber numberWithBool:intVal];
                 break;
                 
             default:
+                // Unknown token and therefore an unknown argument type
+                // Eat until the next space or \n
+                [scan scanUpToCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"]
+                                     intoString:nil];
                 NSLog(@"Unexpected token in parseTransmitToken - %@", token);
                 break;
         }
@@ -1296,7 +1397,46 @@ NSNumber *txPowerLevel;
                 thisSlice.sliceMuteEnabled = [NSNumber numberWithBool:intVal];
                 break;
                 
+            case xitOnToken:
+                [scan scanInteger:&intVal];
+                thisSlice.sliceXitEnabled = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case ritOnToken:
+                [scan scanInteger:&intVal];
+                thisSlice.sliceRitEnabled = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case xitFreqToken:
+                [scan scanInteger:&intVal];
+                thisSlice.sliceXitOffset = [NSNumber numberWithInteger:intVal];
+                break;
+                
+            case ritFreqToken:
+                [scan scanInteger:&intVal];
+                thisSlice.sliceRitOffset = [NSNumber numberWithInteger:intVal];
+                break;
+                
+            case daxToken:
+                [scan scanInteger:&intVal];
+                thisSlice.sliceDax = [NSNumber numberWithInteger:intVal];
+                break;
+                
+            case daxClientsToken:
+                [scan scanInteger:&intVal];
+                thisSlice.sliceDaxClients = [NSNumber numberWithInteger:intVal];
+                break;
+                
+            case daxTxToken:
+                [scan scanInteger:&intVal];
+                thisSlice.sliceDaxTxEnabled = [NSNumber numberWithBool:intVal];
+                break;
+                
             default:
+                // Unknown token and therefore an unknown argument type
+                // Eat until the next space or \n
+                [scan scanUpToCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"]
+                                     intoString:nil];
                 NSLog(@"Unexpected token in parseSliceToken - %@", token);
                 break;
         }
@@ -1321,11 +1461,12 @@ NSNumber *txPowerLevel;
 };
 
 
-- (void) parseEqToken: (NSScanner *) scan {
+- (void) parseEqToken: (NSScanner *) scan selfStatus:(BOOL)selfStatus {
     NSString *token;
     NSInteger intVal, eqNum;
     NSString *stringVal;
     Equalizer *eq;
+    BOOL firstUpdate = NO;
     
     // First parameter after eq is rx|tx
     [scan scanUpToString:@" " intoString:&stringVal];
@@ -1342,10 +1483,15 @@ NSNumber *txPowerLevel;
         eq.eqType = stringVal;
         eq.radio = self;
         self.equalizers[eqNum] = eq;
+        firstUpdate = YES;
     }
     
     
     eq = self.equalizers[eqNum];
+    
+    if ([eq isKindOfClass:[Equalizer class]] && selfStatus && !firstUpdate)
+        // Ignore the update - we already know the answer!
+        return;
     
     while (![scan isAtEnd]) {
         // Grab the token between current scanner position and the '=' separator
@@ -1425,11 +1571,29 @@ NSNumber *txPowerLevel;
     }
 }
 
+- (void) cmdNewSlice:(NSString *)frequency antenna:(NSString *)antennaPort mode:(NSString *)mode {
+    if ([self.availableSlices integerValue]) {
+        NSString *cmd = [NSString stringWithFormat:@"slice c %@ %@ %@",
+                         frequency, antennaPort, mode];
+        
+        [self commandToRadio:cmd];
+    }
+}
+
 - (void) cmdRemoveSlice:(NSNumber *)sliceNum {
     NSString *cmd = [NSString stringWithFormat:@"slice remove %i", [sliceNum integerValue]];
     
     [self commandToRadio:cmd];
 }
+
+- (void) cmdSetTxBandwidth:(NSNumber *)lo high:(NSNumber *)hi {
+    NSString *cmd = [NSString stringWithFormat:@"transmit set filter_low=%i filter_high=%i",
+                     [lo integerValue], [hi integerValue]];
+    [self commandToRadio:cmd];
+    self.transmitFilterLo = [lo stringValue];
+    self.transmitFilterHi = [hi stringValue];
+}
+
 
 - (void) cmdSetRfPowerLevel:(NSNumber *)level {
     NSString *cmd = [NSString stringWithFormat:@"transmit set rfpower=%i",
@@ -1543,12 +1707,29 @@ NSNumber *txPowerLevel;
     self.cwSpeed = [NSNumber numberWithInteger:speed];
 }
 
+- (void) cmdSetCwSwapPaddles: (NSNumber *) state {
+    NSString *cmd = [NSString stringWithFormat:@"cw swap %i",
+                     [state boolValue]];
+    
+    [self commandToRadio:cmd];
+    self.cwSwapPaddles = state;
+}
+
+
 - (void) cmdSetIambicEnabled:(NSNumber *)state {
     NSString *cmd = [NSString stringWithFormat:@"cw iambic %i",
                      [state boolValue]];
     
     [self commandToRadio:cmd];
     self.cwIambicEnabled = state;
+}
+
+- (void) cmdSetIambicMode: (NSString *) mode {
+    NSString *cmd = [NSString stringWithFormat:@"cw mode %i",
+                     [mode isEqualToString:@"B"]];
+    
+    [self commandToRadio:cmd];
+    self.cwIambicMode = mode;
 }
 
 - (void) cmdSetBreakinEnabled:(NSNumber *)state {
@@ -1659,6 +1840,140 @@ NSNumber *txPowerLevel;
     self.masterHeadsetMute = state;
 }
 
+
+- (void) cmdSetRemoteOnEnabled:(NSNumber *)state {
+    NSString *cmd = [NSString stringWithFormat:@"radio set remote_on_enabled=%i",
+                     [state boolValue]];
+    
+    [self commandToRadio:cmd];
+    self.remoteOnEnabled = state;
+}
+
+
+- (void) cmdSetTxDelay: (NSNumber *) delay {
+    NSString *cmd = [NSString stringWithFormat:@"interlock tx_delay=%i",
+                     [delay integerValue]];
+    
+    [self commandToRadio:cmd];
+    self.txDelay = delay;
+}
+
+
+- (void) cmdSetTx1Delay: (NSNumber *) delay {
+    NSString *cmd = [NSString stringWithFormat:@"interlock tx1_delay=%i",
+                     [delay integerValue]];
+    
+    [self commandToRadio:cmd];
+    self.tx1Delay = delay;
+}
+
+
+- (void) cmdSetTx2Delay: (NSNumber *) delay {
+    NSString *cmd = [NSString stringWithFormat:@"interlock tx2_delay=%i",
+                     [delay integerValue]];
+    
+    [self commandToRadio:cmd];
+    self.tx2Delay = delay;
+}
+
+- (void) cmdSetTx3Delay: (NSNumber *) delay {
+    NSString *cmd = [NSString stringWithFormat:@"interlock tx3_delay=%i",
+                     [delay integerValue]];
+    
+    [self commandToRadio:cmd];
+    self.tx3Delay = delay;
+}
+
+- (void) cmdSetAccTxDelay: (NSNumber *) delay {
+    NSString *cmd = [NSString stringWithFormat:@"interlock acc_tx_delay=%i",
+                     [delay integerValue]];
+    
+    [self commandToRadio:cmd];
+    self.accTxDelay = delay;
+}
+
+- (void) cmdSetTx1Enabled: (NSNumber *) state {
+    NSString *cmd = [NSString stringWithFormat:@"interlock tx1_enabled=%i",
+                     [state boolValue]];
+    
+    [self commandToRadio:cmd];
+    self.tx1Enabled = state;
+}
+
+
+- (void) cmdSetTx2Enabled: (NSNumber *) state {
+    NSString *cmd = [NSString stringWithFormat:@"interlock tx2_enabled=%i",
+                     [state boolValue]];
+    
+    [self commandToRadio:cmd];
+    self.tx2Enabled = state;
+}
+
+- (void) cmdSetTx3Enabled: (NSNumber *) state {
+    NSString *cmd = [NSString stringWithFormat:@"interlock tx3_enabled=%i",
+                     [state boolValue]];
+    
+    [self commandToRadio:cmd];
+    self.tx3Enabled = state;
+}
+
+- (void) cmdSetAccTxEnabled: (NSNumber *) state {
+    NSString *cmd = [NSString stringWithFormat:@"interlock acc_tx_enabled=%i",
+                     [state boolValue]];
+    
+    [self commandToRadio:cmd];
+    self.accTxEnabled = state;
+}
+
+
+- (void) cmdSetHwAlcEnabled: (NSNumber *) state {
+    NSString *cmd = [NSString stringWithFormat:@"transmit set hw_alc_enabled=%i",
+                     [state boolValue]];
+    
+    [self commandToRadio:cmd];
+    self.hwAlcEnabled = state;
+}
+
+
+- (void) cmdSetRcaTxInterlockEnabled:(NSNumber *)state {
+    NSString *cmd = [NSString stringWithFormat:@"interlock rca_tx_req_enable=%i",
+                     [state boolValue]];
+    
+    [self commandToRadio:cmd];
+    self.rcaTxReqEnable = state;
+}
+
+- (void) cmdSetRcaTXInterlockPolarity:(NSNumber *)state {
+    NSString *cmd = [NSString stringWithFormat:@"interlock rca_tx_req_polarity=%i",
+                     [state boolValue]];
+    
+    [self commandToRadio:cmd];
+    self.rcaTxReqPolarity = state;
+}
+
+- (void) cmdSetAccTxInterlockEnabled:(NSNumber *)state {
+    NSString *cmd = [NSString stringWithFormat:@"interlock acc_tx_req_enable=%i",
+                     [state boolValue]];
+    
+    [self commandToRadio:cmd];
+    self.accTxReqEnable = state;
+}
+
+- (void) cmdSetAccTxInterlockPolarity:(NSNumber *)state {
+    NSString *cmd = [NSString stringWithFormat:@"interlock acc_tx_req_polarity=%i",
+                     [state boolValue]];
+    
+    [self commandToRadio:cmd];
+    self.accTxReqPolarity = state;
+}
+
+- (void) cmdSetInterlockTimeoutValue:(NSNumber *)value {
+    NSString *cmd = [NSString stringWithFormat:@"interlock timeout=%i",
+                     [value integerValue]];
+    
+    [self commandToRadio:cmd];
+    self.interlockTimeoutValue = value;
+}
 
 #pragma mark
 #pragma mark Socket Delegates
