@@ -153,6 +153,18 @@
     self.sliceMuteEnabled = state;
 }
 
+- (void) cmdSetLock:(NSNumber *)state {
+    NSString * cmd;
+    
+    if ([state boolValue])
+        cmd = [NSString stringWithFormat:@"slice lock %i", [self.thisSliceNumber integerValue]];
+    else
+        cmd = [NSString stringWithFormat:@"slice unlock %i", [self.thisSliceNumber integerValue]];
+    
+    [self.radio commandToRadio:cmd];
+    self.sliceLocked = state;
+}
+
 
 - (void) cmdSetAfLevel:(NSNumber *)level {
     NSString *cmd;
@@ -245,6 +257,15 @@
     self.sliceAnfEnabled = state;
 }
 
+- (void) cmdSetDspApf:(NSNumber *)state {
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i apf=%i",
+                     [self.thisSliceNumber integerValue],
+                     [state integerValue]];
+    
+    [self.radio commandToRadio:cmd];
+    self.sliceApfEnabled = state;
+}
+
 - (void) cmdSetDspNbLevel:(NSNumber *)level {
     NSString *cmd = [NSString stringWithFormat:@"slice set %i nb_level=%i",
                      [self.thisSliceNumber integerValue],
@@ -270,6 +291,15 @@
     
     [self.radio commandToRadio:cmd];
     self.sliceAnfLevel = level;
+}
+
+- (void) cmdSetDspApfLevel:(NSNumber *)level {
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i apf=%i apf_level=%i",
+                     [self.thisSliceNumber integerValue], [self.sliceApfEnabled boolValue],
+                     [level integerValue]];
+    
+    [self.radio commandToRadio:cmd];
+    self.sliceApfLevel = level;
 }
 
 - (void) cmdSetXitEnable:(NSNumber *)state {
@@ -330,6 +360,18 @@
     [self.radio commandToRadio:cmd];
     self.sliceFilterLo = filterLo;
     self.sliceFilterHi = filterHi;
+}
+
+- (void) cmdSetSliceActive:(NSNumber *)state {
+    if ([self.sliceActive boolValue] == [state boolValue])
+        return;
+    
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i active=%i",
+                     [self.thisSliceNumber integerValue],
+                     [state integerValue]];
+    [self.radio commandToRadio:cmd];
+    
+    self.sliceActive = state;
 }
 
 

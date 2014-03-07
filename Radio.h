@@ -19,7 +19,7 @@
 //  https://github.com/robbiehanson/CocoaAsyncSocket
 //
 
-#import "AsyncSocket.h"
+#import "GCDAsyncSocket.h"
 
 
 // The primary interface object for a Flex 6000 series radio
@@ -72,6 +72,7 @@ enum radioAtuState {
 
 // Invoked on Radio Connections State changes
 - (void) radioConnectionStateChange: (Radio *) radio state: (enum radioConnectionState) state;
+- (void) radioCommandResponse: (int) seqNum response: (NSString *) cmdResponse;
 
 @end
 
@@ -85,7 +86,7 @@ enum radioAtuState {
 // are unique within the radio such as number of available slices, panadapters etc.
 //
 
-@interface Radio : NSObject <AsyncSocketDelegate>
+@interface Radio : NSObject <GCDAsyncSocketDelegate, RadioDelegate>
 
 // The RadioInstance this Radio was set up to access.
 @property (strong, nonatomic) RadioInstance *radioInstance;
@@ -141,6 +142,7 @@ enum radioAtuState {
 @property (strong, nonatomic) NSNumber *masterSpeakerMute;          // Mixer master speaker mute - BOOL
 @property (strong, nonatomic) NSNumber *masterHeadsetMute;          // Mixer master headset mute - BOOL
 @property (strong, nonatomic) NSNumber *remoteOnEnabled;            // Remote on enabled - BOOL
+@property (strong, nonatomic) NSNumber *txInhibit;                  // TX Inhibit - BOOL
 
 // NOTE:  The values provided in the next three properties will change TYPE - likely at the next
 // release (from STRINGS to INTEGER.
@@ -162,6 +164,7 @@ enum radioAtuState {
 @property (strong, nonatomic) NSNumber *voxDelay;                   // VOX Delay - INTEGER
 @property (strong, nonatomic) NSNumber *micLevel;                   // Mic gain level - INTEGER [0 - 100]
 @property (strong, nonatomic) NSString *micSelection;               // Mic source selection - STRING [MIC, LINE, BAL, ACC]
+@property (strong, nonatomic) NSNumber *txDaxEnabled;               // DAX Enabled as TX audio source - BOOL
 @property (strong, nonatomic) NSNumber *micBoost;                   // State of Mic Boost - BOOL
 @property (strong, nonatomic) NSNumber *micBias;                    // State of Mic Bias - BOOL
 @property (strong, nonatomic) NSNumber *micAccEnabled;              // Accessory connector mic input enabled - BOOL
@@ -178,6 +181,14 @@ enum radioAtuState {
 @property (strong, nonatomic) NSNumber *monitorEnabled;             // State of TX monitor - BOOL
 @property (strong, nonatomic) NSNumber *monitorLevel;               // Monitor Audio level - INTEGER [0 - 100]
 @property (strong, nonatomic) NSNumber *metInRxEnabled;             // Enable Mic Level meter in RX mode - BOOL
+
+@property (strong, nonatomic) NSString *radioScreenSaver;           // ScreenSaver value - STRING
+@property (strong, nonatomic) NSString *radioCallsign;              // Callsign value for radio if set - STRING
+@property (strong, nonatomic) NSString *radioModel;                 // Model of radio - STRING
+@property (strong, nonatomic) NSString *radioName;                  // Name of radio if set - STRING
+
+@property (strong, nonatomic) NSNumber *syncActiveSlice;            // Client should sync active slice with radio - BOOL [Default YES]
+
 
 
 
@@ -198,10 +209,14 @@ enum radioAtuState {
 // with a specific radio - e.g: Slice, Meters, Pandaptors...
 - (void) commandToRadio:(NSString *) cmd;
 
+// DO NOT USE DIRECTLY - same proviso as above
+- (int) commandToRadio:(NSString *) cmd notify: (id<RadioDelegate>) notifyMe;
+
 - (void) cmdSetTxBandwidth: (NSNumber *) lo high: (NSNumber *) hi;  // Set TX bandwidth
 - (void) cmdSetRfPowerLevel: (NSNumber *) level;                    // Set RF power level in Watts - INTEGER
 - (void) cmdSetAmCarrierLevel: (NSNumber *) level;                  // Set AM Carrier power level in Watts - INTEGER
 
+- (void) cmdSetDaxSource: (NSNumber *) state;                       // Set DAX as TX audio input - BOOL
 - (void) cmdSetMicSelection: (NSString *) source;                   // Set MIC selection source - STRING
 - (void) cmdSetMicLevel: (NSNumber *) level;                        // Set MIC gain level - INTEGER
 - (void) cmdSetMicBias: (NSNumber *) state;                         // Set state of MIC Bias - BOOL
@@ -247,6 +262,7 @@ enum radioAtuState {
 - (void) cmdSetMasterHeadsetMute: (NSNumber *) state;               // Set mixer master headset mute - BOOL
 
 - (void) cmdSetRemoteOnEnabled: (NSNumber *) state;                 // Set remote on enabled - BOOL
+- (void) cmdSetTxInhibit: (NSNumber *) state;                       // Set TX inhibit - BOOL
 - (void) cmdSetHwAlcEnabled: (NSNumber *) state;                    // Set HW ALC enabled - BOOL
 
 - (void) cmdSetRcaTxInterlockEnabled: (NSNumber *) state;           // Set RCA Interlock enabled - BOOL
@@ -257,6 +273,11 @@ enum radioAtuState {
 
 - (void) cmdSetInterlockTimeoutValue: (NSNumber *) value;           // Set Interlock timeout in minutes - INTEGER
 
+- (void) cmdSetRadioScreenSaver: (NSString *) source;               // Set display source (model | callsign | name) - STRING
+- (void) cmdSetRadioCallsign: (NSString *) callsign;                // Set callsign value - STRING max length 16
+- (void) cmdSetRadioName: (NSString *) name;                        // Set name value - STRING max length 16
+
+- (void) cmdSetSyncActiveSlice: (NSNumber *) state;                 // Client should sync active slice with radio
 
 // NOTE:  The cmdNewSlice will change to add the ability to specify frequency, mode and antenna selections
 // in some upcoming release.

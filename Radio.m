@@ -16,7 +16,7 @@
 
 
 @interface Radio () {
-    AsyncSocket *socket;
+    GCDAsyncSocket *socket;
     UInt16 seqNum;
     BOOL verbose;
     enum radioConnectionState connectionState;
@@ -34,6 +34,7 @@
 @property (strong, nonatomic) NSDictionary *statusTransmitTokens;
 @property (strong, nonatomic) NSDictionary *statusSliceTokens;
 @property (strong, nonatomic) NSDictionary *statusEqTokens;
+@property (strong, nonatomic) NSMutableDictionary *notifyList;
 
 - (void) initStatusTokens;
 - (void) initStatusInterlockTokens;
@@ -194,6 +195,8 @@ enum enumStatusTransmitTokens {
     micAccToken,
     tunePowerToken,
     hwAlcEnabledToken,
+    daxTxEnabledToken,
+    inhibitToken,
 };
 
 enum enumStatusSliceTokens {
@@ -210,6 +213,8 @@ enum enumStatusSliceTokens {
     nbLevelToken,
     anfToken,
     anfLevelToken,
+    apfToken,
+    apfQToken,
     agcModeToken,
     agcThresholdToken,
     agcOffLevelToken,
@@ -233,6 +238,9 @@ enum enumStatusSliceTokens {
     daxToken,
     daxClientsToken,
     daxTxToken,
+    lockToken,
+    stepToken,
+    stepListToken,
 };
 
 enum enumStatusMixerTokens {
@@ -399,6 +407,8 @@ NSNumber *txPowerLevel;
                                  [NSNumber numberWithInt:tuneToken], @"tune",
                                  [NSNumber numberWithInt:tunePowerToken], @"tunepower",
                                  [NSNumber numberWithInt:hwAlcEnabledToken], @"hwalc_enabled",
+                                 [NSNumber numberWithInt:daxTxEnabledToken], @"dax",
+                                 [NSNumber numberWithInt:inhibitToken], @"inhibit",
                                  nil];
 }
 
@@ -417,6 +427,8 @@ NSNumber *txPowerLevel;
                               [NSNumber numberWithInt:nbLevelToken], @"nb_level",
                               [NSNumber numberWithInt:anfToken], @"anf",
                               [NSNumber numberWithInt:anfLevelToken], @"anf_level",
+                              [NSNumber numberWithInt:apfToken], @"apf",
+                              [NSNumber numberWithInt:apfQToken], @"apf_q",
                               [NSNumber numberWithInt:agcModeToken], @"agc_mode",
                               [NSNumber numberWithInt:agcThresholdToken], @"agc_threshold",
                               [NSNumber numberWithInt:agcOffLevelToken], @"agc_off_level",
@@ -440,6 +452,9 @@ NSNumber *txPowerLevel;
                               [NSNumber numberWithInt:daxToken], @"dax",
                               [NSNumber numberWithInt:daxClientsToken], @"dax_clients",
                               [NSNumber numberWithInt:daxTxToken], @"dax_tx",
+                              [NSNumber numberWithInt:lockToken], @"lock",
+                              [NSNumber numberWithInt:stepToken], @"step",
+                              [NSNumber numberWithInt:stepListToken], @"step_list",
                               nil];
 }
 
@@ -529,7 +544,10 @@ NSNumber *txPowerLevel;
     
     if (self) {
         self.radioInstance = thisRadio;
-        socket = [[AsyncSocket alloc] initWithDelegate:self];
+        socket = [[GCDAsyncSocket alloc] initWithDelegate:self delegateQueue:dispatch_get_main_queue()];
+        [socket setPreferIPv4OverIPv6:YES];
+        [socket setIPv6Enabled:NO];
+        
         NSError *error = nil;
         
         if (![socket connectToHost:self.radioInstance.ipAddress
@@ -574,15 +592,12 @@ NSNumber *txPowerLevel;
         connectionState = connecting;
         self.delegate = theDelegate;
         
+        // Set up list for notification of command results
+        self.notifyList = [[NSMutableDictionary alloc]init];
+        
         // Set any initial non zero state requirements
         self.tunePowerLevel = [NSNumber numberWithInt:10];
-        
-        // Currently no way to retrieve the mixer settings - plug values for
-        // the speaker and headset gains
-        self.masterSpeakerAfGain = [NSNumber numberWithInt:50];
-        self.masterHeadsetAfGain = [NSNumber numberWithInt:50];
-        self.masterSpeakerMute = [NSNumber numberWithBool:NO];
-        self.masterHeadsetMute = [NSNumber numberWithBool:NO];
+        self.syncActiveSlice = [NSNumber numberWithBool:YES];
     }
     return self;
 }
@@ -631,8 +646,9 @@ NSNumber *txPowerLevel;
     [self commandToRadio:@"sub slice all"];
     [self commandToRadio:@"eq rx info"];
     [self commandToRadio:@"eq tx info"];
+    [self commandToRadio:@"info" notify:self];
     
-    [socket readDataToData:[AsyncSocket LFData] withTimeout:-1 tag:0];
+    [socket readDataToData:[GCDAsyncSocket LFData] withTimeout:-1 tag:0];
 }
 
 
@@ -646,6 +662,21 @@ NSNumber *txPowerLevel;
 #endif
     [socket writeData: [cmdline dataUsingEncoding:NSUTF8StringEncoding] withTimeout:-1 tag:(long)seqNum];
 }
+
+
+- (int) commandToRadio:(NSString *) cmd notify: (id<RadioDelegate>) notifyMe {
+    seqNum++;
+    NSString *cmdline = [[NSString alloc] initWithFormat:@"c%@%u|%@\n", verbose ? @"d" : @"", (unsigned int)seqNum, cmd ];
+    
+    self.notifyList[[NSString stringWithFormat:@"%i", seqNum]] = notifyMe;
+    
+#ifdef DEBUG
+    NSLog(@"Data sent - %@", cmdline);
+#endif
+    [socket writeData: [cmdline dataUsingEncoding:NSUTF8StringEncoding] withTimeout:-1 tag:(long)seqNum];
+    return seqNum;
+}
+
 
 
 // Parse the data stream from the radio
@@ -780,10 +811,27 @@ NSNumber *txPowerLevel;
 
 
 - (void) parseResponseType:(NSString *)payload {
-    // For now, this does nothing
-    // It likely should examine the response number and then post
-    // a notification or call a delegate function in case something
-    // needs or is waiting on the result of a command
+    // See if someone is waiting for this response...
+    NSScanner *scan = [[NSScanner alloc] initWithString:[payload substringFromIndex:1]];
+    [scan setCharactersToBeSkipped:nil];
+    
+    // First up is the sequence number... grab it and skip the |
+    NSString *seqNumAsString;
+    [scan scanUpToString:@"|" intoString:&seqNumAsString];
+    [scan scanString:@"|" intoString:nil];
+    id<RadioDelegate> notifyIt = self.notifyList[seqNumAsString];
+    
+    if (notifyIt) {
+        // Someone waiting for the response...
+        NSString *responseString;
+        [scan scanUpToString:@"\n" intoString:&responseString];
+        
+        if ([notifyIt respondsToSelector:@selector(radioCommandResponse:response:)])
+            [notifyIt radioCommandResponse:[seqNumAsString integerValue] response:responseString];
+        
+        // Remove the object for the notification list
+        [self.notifyList removeObjectForKey:seqNumAsString];
+    }
 }
 
 
@@ -912,6 +960,7 @@ NSNumber *txPowerLevel;
 - (void) parseRadioToken: (NSScanner *) scan {
     NSString *token;
     NSInteger intVal;
+    float floatVal;
     
     while (![scan isAtEnd]) {
         // Grab the token between current scanner position and the '=' separator
@@ -967,7 +1016,7 @@ NSNumber *txPowerLevel;
                 break;
                 
             case calFreqToken:
-                [scan scanInteger:&intVal];
+                [scan scanFloat:&floatVal];
                 break;
 
             default:
@@ -1197,6 +1246,16 @@ NSNumber *txPowerLevel;
                 self.metInRxEnabled = [NSNumber numberWithBool:intVal];
                 break;
                 
+            case daxTxEnabledToken:
+                [scan scanInteger:&intVal];
+                self.txDaxEnabled = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case inhibitToken:
+                [scan scanInteger:&intVal];
+                self.txInhibit = [NSNumber numberWithBool:intVal];
+                break;
+                
             default:
                 // Unknown token and therefore an unknown argument type
                 // Eat until the next space or \n
@@ -1252,6 +1311,11 @@ NSNumber *txPowerLevel;
             case modeToken:
                 [scan scanUpToString:@" " intoString:&stringVal];
                 thisSlice.sliceMode = stringVal;
+                
+                // This really shouldn't have to be here but...
+                thisSlice.sliceApfEnabled = [NSNumber numberWithBool:NO];
+                thisSlice.sliceAnfEnabled = [NSNumber numberWithBool:NO];
+                thisSlice.sliceNrEnabled = [NSNumber numberWithBool:NO];
                 break;
 
             case rxAntToken:
@@ -1303,6 +1367,16 @@ NSNumber *txPowerLevel;
                 [scan scanInteger:&intVal];
                 thisSlice.sliceAnfLevel = [NSNumber numberWithInt:intVal];
                 break;
+                
+            case apfToken:
+                [scan scanInteger:&intVal];
+                thisSlice.sliceApfEnabled = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case apfQToken:
+                [scan scanInteger:&intVal];
+                thisSlice.sliceApfLevel= [NSNumber numberWithInt:intVal];
+                break;
 
             case agcModeToken:
                 [scan scanUpToString:@" " intoString:&stringVal];
@@ -1326,9 +1400,8 @@ NSNumber *txPowerLevel;
 
             case activeToken:
                 [scan scanInteger:&intVal];
-                thisSlice.sliceActive = [NSNumber numberWithInt:intVal];
+                thisSlice.sliceActive = [NSNumber numberWithBool:intVal];
                 break;
-                
                 
             case ghostToken:
                 [scan scanInteger:&intVal];
@@ -1431,6 +1504,20 @@ NSNumber *txPowerLevel;
                 [scan scanInteger:&intVal];
                 thisSlice.sliceDaxTxEnabled = [NSNumber numberWithBool:intVal];
                 break;
+                 
+            case lockToken:
+                [scan scanInteger:&intVal];
+                thisSlice.sliceLocked = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case stepToken:
+                [scan scanInteger:&intVal];
+                break;
+                
+            case stepListToken:
+                [scan scanUpToCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"]
+                                     intoString:nil];
+                break;
                 
             default:
                 // Unknown token and therefore an unknown argument type
@@ -1471,6 +1558,12 @@ NSNumber *txPowerLevel;
     // First parameter after eq is rx|tx
     [scan scanUpToString:@" " intoString:&stringVal];
     [scan scanString:@" " intoString:nil];
+    
+    
+    // Check for bogus APF parameter..
+    if ([stringVal isEqualToString:@"apf"])
+        // ignore...
+        return;
     
     if ([stringVal isEqualToString:@"rx"])
         eqNum = 0;
@@ -1560,6 +1653,76 @@ NSNumber *txPowerLevel;
 }
 
 
+// Currently there is only one issued command for which a response is waited - info
+// to recover the settings for the Model, Callsign and Name which may be displayed
+// as the "screensaver" on the 6500/6700 front panel display.
+//
+// If others are added here in the Radio model, then this should be modified to take
+// the sequence number of the response, look it up to a selector of the appropriate
+// response processor and then invoke it.
+
+- (void) radioCommandResponse:(int)seqNum response:(NSString *)cmdResponse {
+    NSScanner *scan = [[NSScanner alloc] initWithString:[cmdResponse substringFromIndex:1]];
+    [scan setCharactersToBeSkipped:nil];
+    
+    // First up is the response error code... grab it and skip the |
+    NSString *errorNumAsString;
+    [scan scanUpToString:@"|" intoString:&errorNumAsString];
+    [scan scanString:@"|" intoString:nil];
+    
+    if ([errorNumAsString integerValue])
+        // Anything other than 0 is an error and we return
+        return;
+    
+    NSString *response;
+    [scan scanUpToString:@"\n" intoString:&response];
+    
+    // Split into strings on comma
+    NSArray *list = [response componentsSeparatedByString:@","];
+    
+    enum wantedTerms {
+        screensaver = 1,
+        callsign,
+        name,
+        model,
+    };
+    
+    NSDictionary *terms = [[NSDictionary alloc] initWithObjectsAndKeys:
+                           [NSNumber numberWithInt:screensaver], @"screensaver",
+                           [NSNumber numberWithInt:callsign], @"callsign",
+                           [NSNumber numberWithInt:name], @"name",
+                           [NSNumber numberWithInt:model], @"model",
+                           nil];
+    
+    for (NSString *term in list) {
+        NSArray *fields = [term componentsSeparatedByString:@"="];
+        
+        int tVal = [terms[fields[0]] integerValue];
+        
+        if (tVal) {
+            NSString * val = [fields[1] stringByReplacingOccurrencesOfString:@"\"" withString:@""];
+            switch(tVal) {
+                case screensaver:
+                    self.radioScreenSaver = val;
+                    break;
+                    
+                case callsign:
+                    self.radioCallsign = val;
+                    break;
+                    
+                case model:
+                    self.radioModel = val;
+                    break;
+                    
+                case name:
+                    self.radioName = val;
+                    break;
+            }
+        }
+    }    
+}
+
+
 #pragma mark
 #pragma mark Radio Commands
 
@@ -1609,6 +1772,14 @@ NSNumber *txPowerLevel;
     
     [self commandToRadio:cmd];
     self.amCarrierLevel = level;
+}
+
+- (void) cmdSetDaxSource:(NSNumber *)state {
+    NSString *cmd = [NSString stringWithFormat:@"transmit set dax=%i",
+                     [state integerValue]];
+    
+    [self commandToRadio:cmd];
+    self.txDaxEnabled = state;
 }
 
 - (void) cmdSetMicSelection:(NSString *)source {
@@ -1849,6 +2020,13 @@ NSNumber *txPowerLevel;
     self.remoteOnEnabled = state;
 }
 
+- (void) cmdSetTxInhibit:(NSNumber *)state {
+    NSString *cmd = [NSString stringWithFormat:@"transmit set inhibit=%i",
+                     [state boolValue]];
+    
+    [self commandToRadio:cmd];
+    self.txInhibit = state;
+}
 
 - (void) cmdSetTxDelay: (NSNumber *) delay {
     NSString *cmd = [NSString stringWithFormat:@"interlock tx_delay=%i",
@@ -1936,7 +2114,7 @@ NSNumber *txPowerLevel;
 
 
 - (void) cmdSetRcaTxInterlockEnabled:(NSNumber *)state {
-    NSString *cmd = [NSString stringWithFormat:@"interlock rca_tx_req_enable=%i",
+    NSString *cmd = [NSString stringWithFormat:@"interlock rca_txreq_enable=%i",
                      [state boolValue]];
     
     [self commandToRadio:cmd];
@@ -1944,7 +2122,7 @@ NSNumber *txPowerLevel;
 }
 
 - (void) cmdSetRcaTXInterlockPolarity:(NSNumber *)state {
-    NSString *cmd = [NSString stringWithFormat:@"interlock rca_tx_req_polarity=%i",
+    NSString *cmd = [NSString stringWithFormat:@"interlock rca_txreq_polarity=%i",
                      [state boolValue]];
     
     [self commandToRadio:cmd];
@@ -1952,7 +2130,7 @@ NSNumber *txPowerLevel;
 }
 
 - (void) cmdSetAccTxInterlockEnabled:(NSNumber *)state {
-    NSString *cmd = [NSString stringWithFormat:@"interlock acc_tx_req_enable=%i",
+    NSString *cmd = [NSString stringWithFormat:@"interlock acc_txreq_enable=%i",
                      [state boolValue]];
     
     [self commandToRadio:cmd];
@@ -1960,7 +2138,7 @@ NSNumber *txPowerLevel;
 }
 
 - (void) cmdSetAccTxInterlockPolarity:(NSNumber *)state {
-    NSString *cmd = [NSString stringWithFormat:@"interlock acc_tx_req_polarity=%i",
+    NSString *cmd = [NSString stringWithFormat:@"interlock acc_txreq_polarity=%i",
                      [state boolValue]];
     
     [self commandToRadio:cmd];
@@ -1975,12 +2153,41 @@ NSNumber *txPowerLevel;
     self.interlockTimeoutValue = value;
 }
 
+- (void) cmdSetRadioScreenSaver:(NSString *)source {
+    NSString *cmd = [NSString stringWithFormat:@"radio screensaver %@",
+                     source];
+    
+    [self commandToRadio:cmd];
+    self.radioScreenSaver = source;
+}
+
+- (void) cmdSetRadioCallsign:(NSString *)callsign {
+    NSString *cmd = [NSString stringWithFormat:@"radio callsign %@",
+                     callsign];
+    
+    [self commandToRadio:cmd];
+    self.radioCallsign = callsign;
+}
+
+- (void) cmdSetRadioName:(NSString *)name {
+    NSString *cmd = [NSString stringWithFormat:@"radio name %@",
+                     name];
+    
+    [self commandToRadio:cmd];
+    self.radioName = name;
+}
+
+- (void) cmdSetSyncActiveSlice:(NSNumber *)state {
+    self.syncActiveSlice = state;
+}
+
+
 #pragma mark
 #pragma mark Socket Delegates
 
 
-- (void) onSocket:(AsyncSocket *)sock willDisconnectWithError:(NSError *)err  {
-    if (err.code == AsyncSocketConnectTimeoutError)
+- (void) socket:(GCDAsyncSocket *)sock socketDidDisconnect:(NSError *)err  {
+    if (err.code == GCDAsyncSocketConnectTimeoutError)
         connectionState = connectFailed;
     else
         connectionState = disConnected;
@@ -1994,7 +2201,7 @@ NSNumber *txPowerLevel;
 // Called after connected - use this to initialize the connection to the radio and
 // prime the initial read
 
-- (void)onSocket:(AsyncSocket *)sock didConnectToHost:(NSString *)host port:(UInt16)port {
+- (void)socket:(GCDAsyncSocket *)sock didConnectToHost:(NSString *)host port:(UInt16)port {
     // Connected to the radio
     connectionState = connected;
     
@@ -2008,7 +2215,7 @@ NSNumber *txPowerLevel;
 
 
 
-- (void)onSocket:(AsyncSocket *)sock didReadData:(NSData *)data withTag:(long)tag {
+- (void)socket:(GCDAsyncSocket *)sock didReadData:(NSData *)data withTag:(long)tag {
     if ([data bytes]) {
         NSScanner *scan = [[NSScanner alloc] initWithString:[[NSString alloc] initWithBytes:[data bytes] length:[data length] encoding:NSUTF8StringEncoding]];
         NSString *payload;
@@ -2023,7 +2230,7 @@ NSNumber *txPowerLevel;
         [self parseRadioStream: payload];
     }
     
-    [socket readDataToData:[AsyncSocket LFData] withTimeout:-1 tag:0];
+    [socket readDataToData:[GCDAsyncSocket LFData] withTimeout:-1 tag:0];
 }
 
 

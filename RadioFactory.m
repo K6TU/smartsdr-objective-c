@@ -9,6 +9,7 @@
 // the specific approval of Stu Phillips, K6TU.
 
 #import "RadioFactory.h"
+#import "arpa/inet.h"
 
 #define FLEX_DISCOVERY  4992
 #define FLEX_CONNECT    4992
@@ -55,7 +56,7 @@
 
 @interface RadioFactory () {
     long tag;
-    AsyncUdpSocket *udpSocket;
+    GCDAsyncUdpSocket *udpSocket;
 }
 
 @property (strong, nonatomic) NSMutableDictionary *discoveredRadios;
@@ -73,8 +74,10 @@
     self = [super init];
     
     if (self) {
-        udpSocket = [[AsyncUdpSocket alloc] initIPv4];
-        [udpSocket setDelegate:self];
+        udpSocket = [[GCDAsyncUdpSocket alloc] initWithDelegate:self delegateQueue:dispatch_get_main_queue()];
+        [udpSocket setPreferIPv4];
+        [udpSocket setIPv6Enabled:NO];
+        [udpSocket enableBroadcast:YES error:nil];
         
         NSError *error = nil;
         
@@ -83,7 +86,7 @@
             return nil;;
         }
         
-        [udpSocket receiveWithTimeout:-1 tag:0];
+        [udpSocket receiveOnce:&error];
         
         // Initialize dictionary
          self.discoveredRadios = [[NSMutableDictionary alloc] initWithCapacity:0];
@@ -210,11 +213,9 @@
 
 #pragma mark 
 
-- (BOOL)onUdpSocket:(AsyncUdpSocket *)sock
-     didReceiveData:(NSData *)data
-            withTag:(long)tag
-           fromHost:(NSString *)host
-               port:(UInt16)port
+- (void)udpSocket:(GCDAsyncUdpSocket *)sock didReceiveData:(NSData *)data
+      fromAddress:(NSData *)address
+withFilterContext:(id)filterContext
 {
 #define MAX_NAME_LENGTH 32
     
@@ -227,6 +228,11 @@
     // NOTA BENE: The byte ordering of the data in the payload is little endian for all
     // integer fields - loading 32 bits works without a swap, 16 bits have to be swapped.
     // Go figure...
+    
+    NSString *host;
+    UInt16 hostPort;
+    [GCDAsyncUdpSocket getHost:&host port:&hostPort fromAddress:address];
+
     
     typedef struct _discovery
     {
@@ -257,8 +263,9 @@
     }
 	
     // Post a new read
-	[udpSocket receiveWithTimeout:-1 tag:0];
-	return YES;
+    NSError *error = nil;
+    
+	[udpSocket receiveOnce:&error];
 }
 
 @end

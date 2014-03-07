@@ -41,12 +41,15 @@
 @property (strong, nonatomic) NSNumber *sliceNrLevel;               // DSP Noise Reduction level - INTEGER (0 - 100)
 @property (strong, nonatomic) NSNumber *sliceAnfEnabled;            // State of DSP Automatic Notch Filter - BOOL
 @property (strong, nonatomic) NSNumber *sliceAnfLevel;              // DSP Automatic Notch Filter level (0 - 100)
+@property (strong, nonatomic) NSNumber *sliceApfEnabled;            // DSP Audio Peaking Filter for CW -  BOOL
+@property (strong, nonatomic) NSNumber *sliceApfLevel;              // DSP APF Level - INTEGER (0 - 100)
 @property (strong, nonatomic) NSString *sliceAgcMode;               // Slice AGC mode - STRING (FAST, MED, SLOW, OFF)
 @property (strong, nonatomic) NSNumber *sliceAgcThreshold;          // Slice AGC Threshold level - INTEGER (0 - 100)
 @property (strong, nonatomic) NSNumber *sliceAgcOffLevel;           // Slice AGC Off level
 @property (strong, nonatomic) NSString *sliceTxAnt;                 // TX Antenna port for this slice - STRING (ANT1, ANT2, XVTR)
 @property (strong, nonatomic) NSNumber *sliceTxEnabled;             // TX on ths slice frequency/mode - BOOL
-@property (strong, nonatomic) NSNumber *sliceActive;                // Slice active - RESERVED for FUTURE use
+@property (strong, nonatomic) NSNumber *sliceActive;                // Slice active - This is the active slice = BOOL
+@property (strong, nonatomic) NSNumber *sliceLocked;                // Slice frequency locked - BOOL
 @property (strong, nonatomic) NSNumber *sliceGhostStatus;           // Slice ghost - RESERVED for FUTURE use
 @property (strong, nonatomic) NSNumber *sliceOwner;                 // Slice owner - RESERVED for FUTURE use
 
@@ -83,6 +86,7 @@
 - (void) cmdSetTxAnt: (NSString *) antenna;                         // Set TX antenna port - STIRNG
 
 - (void) cmdSetMute: (NSNumber *) state;                            // Set MUTE for this slice - BOOL
+- (void) cmdSetLock: (NSNumber *) state;                            // Set LOCK state for this slice - BOOL
 - (void) cmdSetAfLevel: (NSNumber *) level;                         // Set AF level for this slice - INTEGER
 - (void) cmdSetAfPan: (NSNumber *) level;                           // Set PAN for this slice - FLOAT
 
@@ -92,16 +96,20 @@
 - (void) cmdSetDspNb: (NSNumber *) state;                           // Set state of DSP NB - BOOL
 - (void) cmdSetDspNr: (NSNumber *) state;                           // Set state of DSP NR - BOOL
 - (void) cmdSetDspAnf: (NSNumber *) state;                          // Set state of DSP ANF - BOOL
+- (void) cmdSetDspApf: (NSNumber *) state;                          // Set state of DSP APF - BOOL
 
 - (void) cmdSetDspNbLevel: (NSNumber *) level;                      // Set DSP NB level - INTEGER
 - (void) cmdSetDspNrLevel: (NSNumber *) level;                      // Set DSP NR level - INTEGER
 - (void) cmdSetDspAnfLevel: (NSNumber *) level;                     // Set DSP ANF level - INTEGER
+- (void) cmdSetDspApfLevel: (NSNumber *) level;                     // Set DSP APF level - INTEGER
 
 - (void) cmdSetXitEnable: (NSNumber *) state;                       // Set XIT state ON|OFF - BOOL
 - (void) cmdSetRitEnable: (NSNumber *) state;                       // Set RIT state ON|OFF - BOOL
 - (void) cmdSetDaxEnable: (NSNumber *) channel;                     // Set DAX channel - INTEGER [0-8]
 - (void) cmdSetXitOffset: (NSNumber *) offset;                      // Set XIT offset - INTEGER
 - (void) cmdSetRitOffset: (NSNumber *) offset;                      // Set RIT offset - INTEGER
+
+- (void) cmdSetSliceActive: (NSNumber *) state;                     // Set this slice to be active slice - BOOL
 
 - (void) cmdSetFilter:(NSNumber *) filterLo
              filterHi: (NSNumber *) filterHi;

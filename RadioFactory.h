@@ -18,7 +18,7 @@
 //  https://github.com/robbiehanson/CocoaAsyncSocket
 //
 
-#import "AsyncUdpSocket.h"
+#import "GCDAsyncUdpSocket.h"
 
 
 //
@@ -78,7 +78,7 @@
 // either via a new radio being discovered or an existing radio timing out and
 // being removed from the set of RadioInstances.
 
-@interface RadioFactory : NSObject <AsyncUdpSocketDelegate>
+@interface RadioFactory : NSObject <GCDAsyncUdpSocketDelegate>
 
 // availableRadioInstances: returns an NSArray containing RadioInstance objects of
 // all the radios currently discovered by the RadioFactory.
