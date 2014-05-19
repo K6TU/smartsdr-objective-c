@@ -181,6 +181,8 @@ enum radioAtuState {
 @property (strong, nonatomic) NSNumber *monitorEnabled;             // State of TX monitor - BOOL
 @property (strong, nonatomic) NSNumber *monitorLevel;               // Monitor Audio level - INTEGER [0 - 100]
 @property (strong, nonatomic) NSNumber *metInRxEnabled;             // Enable Mic Level meter in RX mode - BOOL
+@property (strong, nonatomic) NSNumber *speechProcEnabled;          // Speech Processor enabled - BOOL
+@property (strong, nonatomic) NSNumber *speechProcLevel;            // Speech Processor level - INTEGER (0 = NORM, 1 = DX, 2 = DX+)
 
 @property (strong, nonatomic) NSString *radioScreenSaver;           // ScreenSaver value - STRING
 @property (strong, nonatomic) NSString *radioCallsign;              // Callsign value for radio if set - STRING
@@ -224,6 +226,8 @@ enum radioAtuState {
 - (void) cmdSetAccEnabled: (NSNumber *) state;                      // Set state of MIC via ACC connector - BOOL
 - (void) cmdSetCompander: (NSNumber *) state;                       // Set state of Compander - BOOL
 - (void) cmdSetCompanderLevel: (NSNumber *) level;                  // Set Compander Level - INTEGER
+- (void) cmdSetSpeechProcEnabled: (NSNumber *) state;               // Set state of Speech Processor - BOOL
+- (void) cmdSetSpeechProcLevel: (NSNumber *) level;                 // Set Speech Processor Level - INTEGER (0 - 2)
 - (void) cmdSetVoxEnabled: (NSNumber *) state;                      // Set state of VOX - BOOL
 - (void) cmdSetVoxLevel: (NSNumber *) level;                        // Set VOX gain - INTEGER
 - (void) cmdSetVoxDelay: (NSNumber *) level;                        // Set VOX delay - INTEGER

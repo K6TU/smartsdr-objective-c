@@ -145,6 +145,8 @@ enum enumStatusRadioTokens {
     pllDoneToken,
     freqErrorToken,
     calFreqToken,
+    tnfEnabledToken,
+    snapTuneEnabledToken,
 };
 
 
@@ -174,6 +176,8 @@ enum enumStatusTransmitTokens {
     micBiasToken,
     companderToken,
     companderLevelToken,
+    speechProcToken,
+    speechProcLevelToken,
     noiseGateLevelToken,
     pitchToken,
     speedToken,
@@ -197,6 +201,7 @@ enum enumStatusTransmitTokens {
     hwAlcEnabledToken,
     daxTxEnabledToken,
     inhibitToken,
+    showTxInWaterFallToken,
 };
 
 enum enumStatusSliceTokens {
@@ -214,7 +219,7 @@ enum enumStatusSliceTokens {
     anfToken,
     anfLevelToken,
     apfToken,
-    apfQToken,
+    apfLevelToken,
     agcModeToken,
     agcThresholdToken,
     agcOffLevelToken,
@@ -241,6 +246,9 @@ enum enumStatusSliceTokens {
     lockToken,
     stepToken,
     stepListToken,
+    recordToken,
+    playToken,
+    recordTimeToken,
 };
 
 enum enumStatusMixerTokens {
@@ -347,6 +355,8 @@ NSNumber *txPowerLevel;
                               [NSNumber numberWithInt:pllDoneToken], @"pll_done",
                               [NSNumber numberWithInt:freqErrorToken], @"freq_error_ppb",
                               [NSNumber numberWithInt:calFreqToken], @"cal_freq",
+                              [NSNumber numberWithInt:tnfEnabledToken], @"tnf_enabled",
+                              [NSNumber numberWithInt:snapTuneEnabledToken], @"snap_tune_enabled",
                               nil];
 }
 
@@ -387,6 +397,8 @@ NSNumber *txPowerLevel;
                                  [NSNumber numberWithInt:micAccToken], @"mic_acc",
                                  [NSNumber numberWithInt:companderToken], @"compander",
                                  [NSNumber numberWithInt:companderLevelToken], @"compander_level",
+                                 [NSNumber numberWithInteger:speechProcToken], @"speech_processor_enable",
+                                 [NSNumber numberWithInteger:speechProcLevelToken], @"speech_processor_level",
                                  [NSNumber numberWithInt:noiseGateLevelToken], @"noise_gate_level",
                                  [NSNumber numberWithInt:pitchToken], @"pitch",
                                  [NSNumber numberWithInt:speedToken], @"speed",
@@ -409,6 +421,7 @@ NSNumber *txPowerLevel;
                                  [NSNumber numberWithInt:hwAlcEnabledToken], @"hwalc_enabled",
                                  [NSNumber numberWithInt:daxTxEnabledToken], @"dax",
                                  [NSNumber numberWithInt:inhibitToken], @"inhibit",
+                                 [NSNumber numberWithInt:showTxInWaterFallToken], @"show_tx_in_waterfall",
                                  nil];
 }
 
@@ -428,7 +441,7 @@ NSNumber *txPowerLevel;
                               [NSNumber numberWithInt:anfToken], @"anf",
                               [NSNumber numberWithInt:anfLevelToken], @"anf_level",
                               [NSNumber numberWithInt:apfToken], @"apf",
-                              [NSNumber numberWithInt:apfQToken], @"apf_q",
+                              [NSNumber numberWithInt:apfLevelToken], @"apf_level",
                               [NSNumber numberWithInt:agcModeToken], @"agc_mode",
                               [NSNumber numberWithInt:agcThresholdToken], @"agc_threshold",
                               [NSNumber numberWithInt:agcOffLevelToken], @"agc_off_level",
@@ -455,6 +468,9 @@ NSNumber *txPowerLevel;
                               [NSNumber numberWithInt:lockToken], @"lock",
                               [NSNumber numberWithInt:stepToken], @"step",
                               [NSNumber numberWithInt:stepListToken], @"step_list",
+                              [NSNumber numberWithInt:recordToken], @"record",
+                              [NSNumber numberWithInt:playToken], @"play",
+                              [NSNumber numberWithInt:recordTimeToken], @"record_time",
                               nil];
 }
 
@@ -571,13 +587,15 @@ NSNumber *txPowerLevel;
         [self initStatusEqTokens];
         [self initFilterSpecs];
         
-        // Set TX ports - same for 6500 and 6700
+        // Set TX ports - same for 6300, 6500 and 6700
         self.txAntennaPorts = [[NSMutableArray alloc] initWithObjects:@"ANT1", @"ANT2", @"XVTR", nil];
         
         // Rx ports are model dependent
         if ([self.radioInstance.model isEqualToString:@"FLEX-6700"])
             self.rxAntennaPorts = [[NSMutableArray alloc] initWithObjects:@"ANT1", @"ANT2", @"RX_A", @"RX_B", @"XVTR", nil];
-        else
+        else if ([self.radioInstance.model isEqualToString:@"FLEX-6300"]) {
+            self.rxAntennaPorts = [[NSMutableArray alloc] initWithObjects:@"ANT1", @"ANT2", @"XVTR", nil];
+        } else // FLEX-6500
             self.rxAntennaPorts = [[NSMutableArray alloc] initWithObjects:@"ANT1", @"ANT2", @"RX_A", @"XVTR", nil];
         
         self.slices = [[NSMutableArray alloc] init];
@@ -734,7 +752,7 @@ NSNumber *txPowerLevel;
     [scan scanUpToString:@" " intoString:&sourceToken];
     [scan scanString:@" " intoString:nil];
     
-    int thisToken = [self.statusTokens[sourceToken] integerValue];
+    int thisToken = [self.statusTokens[sourceToken] intValue];
     
     switch (thisToken) {
         case interlockToken:
@@ -827,7 +845,7 @@ NSNumber *txPowerLevel;
         [scan scanUpToString:@"\n" intoString:&responseString];
         
         if ([notifyIt respondsToSelector:@selector(radioCommandResponse:response:)])
-            [notifyIt radioCommandResponse:[seqNumAsString integerValue] response:responseString];
+            [notifyIt radioCommandResponse:[seqNumAsString intValue] response:responseString];
         
         // Remove the object for the notification list
         [self.notifyList removeObjectForKey:seqNumAsString];
@@ -848,63 +866,63 @@ NSNumber *txPowerLevel;
         [scan scanString:@"=" intoString:nil];
         
         // Look up in our dictionary
-        int thisToken = [self.statusInterlockTokens[token] integerValue];
+        int thisToken = [self.statusInterlockTokens[token] intValue];
         
         
         switch (thisToken) {
             case timeoutToken:
                 [scan scanInteger:&intVal];
-                self.interlockTimeoutValue = [NSNumber numberWithInt:intVal];
+                self.interlockTimeoutValue = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case acc_txreq_enableToken:
                 [scan scanInteger:&intVal];
-                self.accTxReqEnable = [NSNumber numberWithInt:intVal];
+                self.accTxReqEnable = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case rca_txreq_enableToken:
                 [scan scanInteger:&intVal];
-                self.rcaTxReqEnable = [NSNumber numberWithInt:intVal];
+                self.rcaTxReqEnable = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case acc_txreq_polarityToken:
                 [scan scanInteger:&intVal];
-                self.accTxReqPolarity = [NSNumber numberWithInt:intVal];
+                self.accTxReqPolarity = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case rca_txreq_polarityToken:
                 [scan scanInteger:&intVal];
-                self.rcaTxReqPolarity = [NSNumber numberWithInt:intVal];
+                self.rcaTxReqPolarity = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case ptt_delayToken:
                 [scan scanInteger:&intVal];
-                self.pttDelay = [NSNumber numberWithInt:intVal];
+                self.pttDelay = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case tx1_delayToken:
                 [scan scanInteger:&intVal];
-                self.tx1Delay = [NSNumber numberWithInt:intVal];
+                self.tx1Delay = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case tx2_delayToken:
                 [scan scanInteger:&intVal];
-                self.tx2Delay = [NSNumber numberWithInt:intVal];
+                self.tx2Delay = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case tx3_delayToken:
                 [scan scanInteger:&intVal];
-                self.tx3Delay = [NSNumber numberWithInt:intVal];
+                self.tx3Delay = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case acc_tx_delayToken:
                 [scan scanInteger:&intVal];
-                self.accTxDelay = [NSNumber numberWithInt:intVal];
+                self.accTxDelay = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case tx_delayToken:
                 [scan scanInteger:&intVal];
-                self.txDelay = [NSNumber numberWithInt:intVal];
+                self.txDelay = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case stateToken:
@@ -969,22 +987,22 @@ NSNumber *txPowerLevel;
         [scan scanString:@"=" intoString:nil];
         
         // Look up in our dictionary
-        int thisToken = [self.statusRadioTokens[token] integerValue];
+        int thisToken = [self.statusRadioTokens[token] intValue];
         
         switch (thisToken) {
             case slicesToken:
                 [scan scanInteger:&intVal];
-                self.availableSlices = [NSNumber numberWithInt:intVal];
+                self.availableSlices = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case panadaptersToken:
                 [scan scanInteger:&intVal];
-                self.availablePanadapters = [NSNumber numberWithInt:intVal];
+                self.availablePanadapters = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case lineoutGainToken:
                 [scan scanInteger:&intVal];
-                self.masterSpeakerAfGain = [NSNumber numberWithInt:intVal];
+                self.masterSpeakerAfGain = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case lineoutMuteToken:
@@ -994,7 +1012,7 @@ NSNumber *txPowerLevel;
                 
             case headphoneGainToken:
                 [scan scanInteger:&intVal];
-                self.masterHeadsetAfGain = [NSNumber numberWithInt:intVal];
+                self.masterHeadsetAfGain = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case headphoneMuteToken:
@@ -1017,6 +1035,14 @@ NSNumber *txPowerLevel;
                 
             case calFreqToken:
                 [scan scanFloat:&floatVal];
+                break;
+                
+            case tnfEnabledToken:
+                [scan scanInteger:&intVal];
+                break;
+                
+            case snapTuneEnabledToken:
+                [scan scanInteger:&intVal];
                 break;
 
             default:
@@ -1045,7 +1071,7 @@ NSNumber *txPowerLevel;
         [scan scanString:@"=" intoString:nil];
         
         // Look up in our dictionary
-        int thisToken = [self.statusAtuTokens[token] integerValue];
+        int thisToken = [self.statusAtuTokens[token] intValue];
         
         switch (thisToken) {
             case atuStatusToken:
@@ -1079,7 +1105,7 @@ NSNumber *txPowerLevel;
         [scan scanString:@"=" intoString:nil];
         
         // Look up in our dictionary
-        int thisToken = [self.statusTransmitTokens[token] integerValue];
+        int thisToken = [self.statusTransmitTokens[token] intValue];
         
         switch (thisToken) {
             case freqToken:
@@ -1107,12 +1133,12 @@ NSNumber *txPowerLevel;
                 }
                                 
                 [scan scanInteger:&intVal];
-                self.rfPowerLevel = [NSNumber numberWithInt:intVal];
+                self.rfPowerLevel = [NSNumber numberWithInteger:intVal];
                 break;
 
             case amCarrierLevelToken:
                 [scan scanInteger:&intVal];
-                self.amCarrierLevel = [NSNumber numberWithInt:intVal];
+                self.amCarrierLevel = [NSNumber numberWithInteger:intVal];
                 break;
 
             case micSelectionToken:
@@ -1122,7 +1148,7 @@ NSNumber *txPowerLevel;
                 
              case micLevelToken:
                 [scan scanInteger:&intVal];
-                self.micLevel = [NSNumber numberWithInt:intVal];
+                self.micLevel = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case micAccToken:
@@ -1132,42 +1158,52 @@ NSNumber *txPowerLevel;
                 
             case micBoostToken:
                 [scan scanInteger:&intVal];
-                self.micBoost = [NSNumber numberWithInt:intVal];
+                self.micBoost = [NSNumber numberWithInteger:intVal];
                 break;
 
             case micBiasToken:
                 [scan scanInteger:&intVal];
-                self.micBias = [NSNumber numberWithInt:intVal];
+                self.micBias = [NSNumber numberWithInteger:intVal];
                 break;
                 
              case companderToken:
                 [scan scanInteger:&intVal];
-                self.companderEnabled = [NSNumber numberWithInt:intVal];
+                self.companderEnabled = [NSNumber numberWithInteger:intVal];
                 break;
 
             case companderLevelToken:
                 [scan scanInteger:&intVal];
-                self.companderLevel = [NSNumber numberWithInt:intVal];
+                self.companderLevel = [NSNumber numberWithInteger:intVal];
                 break;
 
+            case speechProcToken:
+                [scan scanInteger:&intVal];
+                self.speechProcEnabled = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case speechProcLevelToken:
+                [scan scanInteger:&intVal];
+                self.speechProcLevel = [NSNumber numberWithInteger:intVal];
+                break;
+                
             case noiseGateLevelToken:
                 [scan scanInteger:&intVal];
-                self.noiseGateLevel = [NSNumber numberWithInt:intVal];
+                self.noiseGateLevel = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case pitchToken:
                 [scan scanInteger:&intVal];
-                self.cwPitch = [NSNumber numberWithInt:intVal];
+                self.cwPitch = [NSNumber numberWithInteger:intVal];
                 break;
 
             case speedToken:
                 [scan scanInteger:&intVal];
-                self.cwSpeed = [NSNumber numberWithInt:intVal];
+                self.cwSpeed = [NSNumber numberWithInteger:intVal];
                 break;
 
             case iambicToken:
                 [scan scanInteger:&intVal];
-                self.cwIambicEnabled = [NSNumber numberWithInt:intVal];
+                self.cwIambicEnabled = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case iambicModeToken:
@@ -1182,48 +1218,48 @@ NSNumber *txPowerLevel;
 
             case breakInToken:
                 [scan scanInteger:&intVal];
-                self.cwBreakinEnabled = [NSNumber numberWithInt:intVal];
+                self.cwBreakinEnabled = [NSNumber numberWithInteger:intVal];
                 break;
 
             case breakInDelayToken:
                 [scan scanInteger:&intVal];
-                self.cwBreakinDelay = [NSNumber numberWithInt:intVal];
+                self.cwBreakinDelay = [NSNumber numberWithInteger:intVal];
                 break;
 
             case monitorToken:
                 [scan scanInteger:&intVal];
-                self.monitorEnabled = [NSNumber numberWithInt:intVal];
+                self.monitorEnabled = [NSNumber numberWithInteger:intVal];
                 break;
 
             case monitorGainToken:
                 [scan scanInteger:&intVal];
-                self.monitorLevel = [NSNumber numberWithInt:intVal];
+                self.monitorLevel = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case voxToken:
             case voxEnableToken:
                 [scan scanInteger:&intVal];
-                self.voxEnabled = [NSNumber numberWithInt:intVal];
+                self.voxEnabled = [NSNumber numberWithInteger:intVal];
                 break;
 
             case voxLevelToken:
                 [scan scanInteger:&intVal];
-                self.voxLevel = [NSNumber numberWithInt:intVal];
+                self.voxLevel = [NSNumber numberWithInteger:intVal];
                 break;
 
             case voxDelayToken:
                 [scan scanInteger:&intVal];
-                self.voxDelay = [NSNumber numberWithInt:intVal / 20];
+                self.voxDelay = [NSNumber numberWithInteger:intVal / 20];
                 break;
 
             case voxVisibleToken:
                 [scan scanInteger:&intVal];
-                self.voxVisible = [NSNumber numberWithInt:intVal];
+                self.voxVisible = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case monGainToken:
                 [scan scanInteger:&intVal];
-                self.monitorLevel = [NSNumber numberWithInt:intVal];
+                self.monitorLevel = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case tuneToken:
@@ -1233,7 +1269,7 @@ NSNumber *txPowerLevel;
                 
             case tunePowerToken:
                 [scan scanInteger:&intVal];
-                self.tunePowerLevel = [NSNumber numberWithInt:intVal];
+                self.tunePowerLevel = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case hwAlcEnabledToken:
@@ -1256,6 +1292,11 @@ NSNumber *txPowerLevel;
                 self.txInhibit = [NSNumber numberWithBool:intVal];
                 break;
                 
+            case showTxInWaterFallToken:
+                [scan scanInteger:&intVal];
+                // Nothing to do for us at present
+                break;
+                
             default:
                 // Unknown token and therefore an unknown argument type
                 // Eat until the next space or \n
@@ -1273,7 +1314,9 @@ NSNumber *txPowerLevel;
     NSString *token;
     NSInteger intVal;
     NSString *stringVal;
+    float floatVal;
     NSInteger thisSliceNum;
+    BOOL play;
     
     // Next up in the slice message is the slice number - grab it and its
     // trailing space.
@@ -1300,7 +1343,7 @@ NSNumber *txPowerLevel;
         [scan scanString:@"=" intoString:nil];
         
         // Look up in our dictionary
-        int thisToken = [self.statusSliceTokens[token] integerValue];
+        int thisToken = [self.statusSliceTokens[token] intValue];
         
         switch (thisToken) {
             case rfFrequencyToken:
@@ -1340,32 +1383,32 @@ NSNumber *txPowerLevel;
                 
             case nrToken:
                 [scan scanInteger:&intVal];
-                thisSlice.sliceNrEnabled = [NSNumber numberWithInt:intVal];
+                thisSlice.sliceNrEnabled = [NSNumber numberWithInteger:intVal];
                 break;
 
              case nrLevelToken:
                 [scan scanInteger:&intVal];
-                thisSlice.sliceNrLevel = [NSNumber numberWithInt:intVal];
+                thisSlice.sliceNrLevel = [NSNumber numberWithInteger:intVal];
                 break;
 
              case nbToken:
                 [scan scanInteger:&intVal];
-                thisSlice.sliceNbEnabled = [NSNumber numberWithInt:intVal];
+                thisSlice.sliceNbEnabled = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case nbLevelToken:
                 [scan scanInteger:&intVal];
-                thisSlice.sliceNbLevel = [NSNumber numberWithInt:intVal];
+                thisSlice.sliceNbLevel = [NSNumber numberWithInteger:intVal];
                 break;
 
             case anfToken:
                 [scan scanInteger:&intVal];
-                thisSlice.sliceAnfEnabled = [NSNumber numberWithInt:intVal];
+                thisSlice.sliceAnfEnabled = [NSNumber numberWithInteger:intVal];
                 break;
 
             case anfLevelToken:
                 [scan scanInteger:&intVal];
-                thisSlice.sliceAnfLevel = [NSNumber numberWithInt:intVal];
+                thisSlice.sliceAnfLevel = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case apfToken:
@@ -1373,9 +1416,9 @@ NSNumber *txPowerLevel;
                 thisSlice.sliceApfEnabled = [NSNumber numberWithBool:intVal];
                 break;
                 
-            case apfQToken:
+            case apfLevelToken:
                 [scan scanInteger:&intVal];
-                thisSlice.sliceApfLevel= [NSNumber numberWithInt:intVal];
+                thisSlice.sliceApfLevel= [NSNumber numberWithInteger:intVal];
                 break;
 
             case agcModeToken:
@@ -1385,17 +1428,17 @@ NSNumber *txPowerLevel;
                                 
             case agcThresholdToken:
                 [scan scanInteger:&intVal];
-                thisSlice.sliceAgcThreshold = [NSNumber numberWithInt:intVal];
+                thisSlice.sliceAgcThreshold = [NSNumber numberWithInteger:intVal];
                 break;
 
             case agcOffLevelToken:
                 [scan scanInteger:&intVal];
-                thisSlice.sliceAgcOffLevel = [NSNumber numberWithInt:intVal];
+                thisSlice.sliceAgcOffLevel = [NSNumber numberWithInteger:intVal];
                 break;
 
             case txToken:
                 [scan scanInteger:&intVal];
-                thisSlice.sliceTxEnabled = [NSNumber numberWithInt:intVal];
+                thisSlice.sliceTxEnabled = [NSNumber numberWithInteger:intVal];
                 break;
 
             case activeToken:
@@ -1405,17 +1448,17 @@ NSNumber *txPowerLevel;
                 
             case ghostToken:
                 [scan scanInteger:&intVal];
-                // thisSlice.sliceGhost = [NSNumber numberWithInt:intVal];
+                // thisSlice.sliceGhost = [NSNumber numberWithInteger:intVal];
                 break;
 
             case ownerToken:
                 // [scan scanInteger:&intVal];
-                // thisSlice.sliceOwner = [NSNumber numberWithInt:intVal];
+                // thisSlice.sliceOwner = [NSNumber numberWithInteger:intVal];
                 break;
 
             case wideToken:
                 [scan scanInteger:&intVal];
-                thisSlice.sliceWide = [NSNumber numberWithInt:intVal];
+                thisSlice.sliceWide = [NSNumber numberWithInteger:intVal];
                 break;
 
             case inUseToken:
@@ -1428,10 +1471,10 @@ NSNumber *txPowerLevel;
                     
                     // By the time this returns, the slice be deletable - post the transition to
                     // not in use and then delete from the slices array
-                    thisSlice.sliceInUse = [NSNumber numberWithInt:intVal];
+                    thisSlice.sliceInUse = [NSNumber numberWithInteger:intVal];
                     self.slices[thisSliceNum] = [NSNull null];
                 } else {
-                    thisSlice.sliceInUse = [NSNumber numberWithInt:intVal];
+                    thisSlice.sliceInUse = [NSNumber numberWithInteger:intVal];
                 }
                 break;
                 
@@ -1519,6 +1562,29 @@ NSNumber *txPowerLevel;
                                      intoString:nil];
                 break;
                 
+            case recordToken:
+                [scan scanInteger:&intVal];
+                thisSlice.sliceRecordEnabled = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case playToken:
+                [scan scanUpToCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"]
+                                     intoString:&stringVal];
+                
+                // Depending on whether the command was sent with "enabled" or "1", the reply will be
+                // similarly encoded...  SSDR sends enabled - we sent 1...
+                // Argh!
+                play = NO;
+                play = [stringVal isEqualToString:@"enabled"] || [stringVal isEqualToString:@"1"];
+                
+                thisSlice.slicePlaybackEnabled = [NSNumber numberWithBool:play];
+                break;
+                
+            case recordTimeToken:
+                [scan scanFloat:&floatVal];
+                thisSlice.sliceQRlength = [NSNumber numberWithFloat:floatVal];
+                break;
+                
             default:
                 // Unknown token and therefore an unknown argument type
                 // Eat until the next space or \n
@@ -1527,6 +1593,7 @@ NSNumber *txPowerLevel;
                 NSLog(@"Unexpected token in parseSliceToken - %@", token);
                 break;
         }
+        
         // Scanner is either at a space or at the end - eat either
         [scan scanCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"] intoString:nil];
     }
@@ -1593,52 +1660,52 @@ NSNumber *txPowerLevel;
         [scan scanString:@"=" intoString:nil];
         
         // Look up in our dictionary
-        int thisToken = [self.statusEqTokens[token] integerValue];
+        int thisToken = [self.statusEqTokens[token] intValue];
         
         switch (thisToken) {
             case eqModeToken:
-                [scan scanInt:&intVal];
+                [scan scanInteger:&intVal];
                 eq.eqEnabled = [NSNumber numberWithBool:intVal];
                 break;
                 
             case eqBand0Token:
-                [scan scanInt:&intVal];
-                eq.eqBand0Value = [NSNumber numberWithInt:intVal];
+                [scan scanInteger:&intVal];
+                eq.eqBand0Value = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case eqBand1Token:
-                [scan scanInt:&intVal];
-                eq.eqBand1Value = [NSNumber numberWithInt:intVal];
+                [scan scanInteger:&intVal];
+                eq.eqBand1Value = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case eqBand2Token:
-                [scan scanInt:&intVal];
-                eq.eqBand2Value = [NSNumber numberWithInt:intVal];
+                [scan scanInteger:&intVal];
+                eq.eqBand2Value = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case eqBand3Token:
-                [scan scanInt:&intVal];
-                eq.eqBand3Value = [NSNumber numberWithInt:intVal];
+                [scan scanInteger:&intVal];
+                eq.eqBand3Value = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case eqBand4Token:
-                [scan scanInt:&intVal];
-                eq.eqBand4Value = [NSNumber numberWithInt:intVal];
+                [scan scanInteger:&intVal];
+                eq.eqBand4Value = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case eqBand5Token:
-                [scan scanInt:&intVal];
-                eq.eqBand5Value = [NSNumber numberWithInt:intVal];
+                [scan scanInteger:&intVal];
+                eq.eqBand5Value = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case eqBand6Token:
-                [scan scanInt:&intVal];
-                eq.eqBand6Value = [NSNumber numberWithInt:intVal];
+                [scan scanInteger:&intVal];
+                eq.eqBand6Value = [NSNumber numberWithInteger:intVal];
                 break;
                 
             case eqBand7Token:
-                [scan scanInt:&intVal];
-                eq.eqBand7Value = [NSNumber numberWithInt:intVal];
+                [scan scanInteger:&intVal];
+                eq.eqBand7Value = [NSNumber numberWithInteger:intVal];
                 break;
         }
         // Scanner is either at a space or at the end - eat either
@@ -1697,7 +1764,7 @@ NSNumber *txPowerLevel;
     for (NSString *term in list) {
         NSArray *fields = [term componentsSeparatedByString:@"="];
         
-        int tVal = [terms[fields[0]] integerValue];
+        int tVal = [terms[fields[0]] intValue];
         
         if (tVal) {
             NSString * val = [fields[1] stringByReplacingOccurrencesOfString:@"\"" withString:@""];
@@ -1744,14 +1811,14 @@ NSNumber *txPowerLevel;
 }
 
 - (void) cmdRemoveSlice:(NSNumber *)sliceNum {
-    NSString *cmd = [NSString stringWithFormat:@"slice remove %i", [sliceNum integerValue]];
+    NSString *cmd = [NSString stringWithFormat:@"slice remove %i", [sliceNum intValue]];
     
     [self commandToRadio:cmd];
 }
 
 - (void) cmdSetTxBandwidth:(NSNumber *)lo high:(NSNumber *)hi {
     NSString *cmd = [NSString stringWithFormat:@"transmit set filter_low=%i filter_high=%i",
-                     [lo integerValue], [hi integerValue]];
+                     [lo intValue], [hi intValue]];
     [self commandToRadio:cmd];
     self.transmitFilterLo = [lo stringValue];
     self.transmitFilterHi = [hi stringValue];
@@ -1760,7 +1827,7 @@ NSNumber *txPowerLevel;
 
 - (void) cmdSetRfPowerLevel:(NSNumber *)level {
     NSString *cmd = [NSString stringWithFormat:@"transmit set rfpower=%i",
-                     [level integerValue]];
+                     [level intValue]];
 
     [self commandToRadio:cmd];
     self.rfPowerLevel = level;
@@ -1768,7 +1835,7 @@ NSNumber *txPowerLevel;
 
 - (void) cmdSetAmCarrierLevel:(NSNumber *)level {
     NSString *cmd = [NSString stringWithFormat:@"transmit set am_carrier=%i",
-                     [level integerValue]];
+                     [level intValue]];
     
     [self commandToRadio:cmd];
     self.amCarrierLevel = level;
@@ -1776,7 +1843,7 @@ NSNumber *txPowerLevel;
 
 - (void) cmdSetDaxSource:(NSNumber *)state {
     NSString *cmd = [NSString stringWithFormat:@"transmit set dax=%i",
-                     [state integerValue]];
+                     [state intValue]];
     
     [self commandToRadio:cmd];
     self.txDaxEnabled = state;
@@ -1791,7 +1858,7 @@ NSNumber *txPowerLevel;
 
 - (void) cmdSetMicLevel:(NSNumber *)level {
     NSString *cmd = [NSString stringWithFormat:@"transmit set miclevel=%i",
-                     [level integerValue]];
+                     [level intValue]];
     
     [self commandToRadio:cmd];
     self.micLevel = level;
@@ -1831,10 +1898,26 @@ NSNumber *txPowerLevel;
 
 - (void) cmdSetCompanderLevel:(NSNumber *)level {
     NSString *cmd = [NSString stringWithFormat:@"transmit set compander_level=%i",
-                     [level integerValue]];
+                     [level intValue]];
     
     [self commandToRadio:cmd];
     self.companderLevel = level;
+}
+
+- (void) cmdSetSpeechProcEnabled:(NSNumber *) state {
+    NSString *cmd = [NSString stringWithFormat:@"transmit set speech_processor_enable=%i",
+                     [state boolValue]];
+    
+    [self commandToRadio:cmd];
+    self.speechProcEnabled = state;
+}
+
+- (void) cmdSetSpeechProcLevel:(NSNumber *) level {
+    NSString *cmd = [NSString stringWithFormat:@"transmit set speech_processor_level=%i",
+                     [level intValue]];
+    
+    [self commandToRadio:cmd];
+    self.speechProcLevel = level;
 }
 
 - (void) cmdSetVoxEnabled:(NSNumber *)state {
@@ -1847,7 +1930,7 @@ NSNumber *txPowerLevel;
 
 - (void) cmdSetVoxLevel:(NSNumber *)level {
     NSString *cmd = [NSString stringWithFormat:@"transmit set vox_level=%i",
-                     [level integerValue]];
+                     [level intValue]];
     
     [self commandToRadio:cmd];
     self.voxLevel = level;
@@ -1855,7 +1938,7 @@ NSNumber *txPowerLevel;
 
 - (void) cmdSetVoxDelay:(NSNumber *)level {
     NSString *cmd = [NSString stringWithFormat:@"transmit set vox_delay=%i",
-                     [level integerValue] * 20];
+                     [level intValue] * 20];
     
     [self commandToRadio:cmd];
     self.voxDelay = level;
@@ -1863,7 +1946,7 @@ NSNumber *txPowerLevel;
 
 - (void) cmdSetCwPitch:(NSNumber *)level {
     NSString *cmd = [NSString stringWithFormat:@"cw pitch %i",
-                     [level integerValue]];
+                     [level intValue]];
     
     [self commandToRadio:cmd];
     self.cwPitch = level;
@@ -1872,7 +1955,7 @@ NSNumber *txPowerLevel;
 - (void) cmdSetCwSpeed:(NSNumber *)level {
     NSInteger speed = [level integerValue] < 5 ? 5 : [level integerValue];
     NSString *cmd = [NSString stringWithFormat:@"cw wpm %i",
-                     speed];
+                     (int)speed];
     
     [self commandToRadio:cmd];
     self.cwSpeed = [NSNumber numberWithInteger:speed];
@@ -1913,7 +1996,7 @@ NSNumber *txPowerLevel;
 
 - (void) cmdSetQskDelay:(NSNumber *)level {
     NSString *cmd = [NSString stringWithFormat:@"cw break_in_delay %i",
-                     [level integerValue]];
+                     [level intValue]];
     
     [self commandToRadio:cmd];
     self.cwBreakinDelay = level;
@@ -1929,7 +2012,7 @@ NSNumber *txPowerLevel;
 
 - (void) cmdSetMonitorLevel:(NSNumber *)level {
     NSString *cmd = [NSString stringWithFormat:@"transmit set mon_gain=%i",
-                     [level integerValue]];
+                     [level intValue]];
     
     [self commandToRadio:cmd];
     self.monitorLevel = level;
@@ -1961,7 +2044,7 @@ NSNumber *txPowerLevel;
         self.tuneEnabled = [NSNumber numberWithBool:YES];
     
     if (!txPowerLevel)  // Going into tune... save the power level
-        txPowerLevel = [NSNumber numberWithInt:[self.rfPowerLevel integerValue]];
+        txPowerLevel = [NSNumber numberWithInt:[self.rfPowerLevel intValue]];
     
     if ([state boolValue]) {
         // Tune requested - set TX power level and then command tune
@@ -1981,7 +2064,7 @@ NSNumber *txPowerLevel;
 
 - (void) cmdSetMasterSpeakerGain:(NSNumber *)level {
     NSString *cmd = [NSString stringWithFormat:@"mixer lineout gain %i",
-                     [level integerValue]];
+                     [level intValue]];
     
     [self commandToRadio:cmd];
     self.masterSpeakerAfGain = level;
@@ -1989,7 +2072,7 @@ NSNumber *txPowerLevel;
 
 - (void) cmdSetMasterHeadsetGain:(NSNumber *)level {
     NSString *cmd = [NSString stringWithFormat:@"mixer headphone gain %i",
-                     [level integerValue]];
+                     [level intValue]];
     
     [self commandToRadio:cmd];
     self.masterHeadsetAfGain = level;
@@ -2030,7 +2113,7 @@ NSNumber *txPowerLevel;
 
 - (void) cmdSetTxDelay: (NSNumber *) delay {
     NSString *cmd = [NSString stringWithFormat:@"interlock tx_delay=%i",
-                     [delay integerValue]];
+                     [delay intValue]];
     
     [self commandToRadio:cmd];
     self.txDelay = delay;
@@ -2039,7 +2122,7 @@ NSNumber *txPowerLevel;
 
 - (void) cmdSetTx1Delay: (NSNumber *) delay {
     NSString *cmd = [NSString stringWithFormat:@"interlock tx1_delay=%i",
-                     [delay integerValue]];
+                     [delay intValue]];
     
     [self commandToRadio:cmd];
     self.tx1Delay = delay;
@@ -2048,7 +2131,7 @@ NSNumber *txPowerLevel;
 
 - (void) cmdSetTx2Delay: (NSNumber *) delay {
     NSString *cmd = [NSString stringWithFormat:@"interlock tx2_delay=%i",
-                     [delay integerValue]];
+                     [delay intValue]];
     
     [self commandToRadio:cmd];
     self.tx2Delay = delay;
@@ -2056,7 +2139,7 @@ NSNumber *txPowerLevel;
 
 - (void) cmdSetTx3Delay: (NSNumber *) delay {
     NSString *cmd = [NSString stringWithFormat:@"interlock tx3_delay=%i",
-                     [delay integerValue]];
+                     [delay intValue]];
     
     [self commandToRadio:cmd];
     self.tx3Delay = delay;
@@ -2064,7 +2147,7 @@ NSNumber *txPowerLevel;
 
 - (void) cmdSetAccTxDelay: (NSNumber *) delay {
     NSString *cmd = [NSString stringWithFormat:@"interlock acc_tx_delay=%i",
-                     [delay integerValue]];
+                     [delay intValue]];
     
     [self commandToRadio:cmd];
     self.accTxDelay = delay;
@@ -2147,7 +2230,7 @@ NSNumber *txPowerLevel;
 
 - (void) cmdSetInterlockTimeoutValue:(NSNumber *)value {
     NSString *cmd = [NSString stringWithFormat:@"interlock timeout=%i",
-                     [value integerValue]];
+                     [value intValue]];
     
     [self commandToRadio:cmd];
     self.interlockTimeoutValue = value;

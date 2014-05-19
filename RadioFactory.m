@@ -103,9 +103,9 @@
 
 #ifdef DEBUG
     // Create a fake radio for testing...
-    RadioInstance *fake = [[RadioInstance alloc] initWithData:@"10.1.1.135"
+    RadioInstance *fake = [[RadioInstance alloc] initWithData:@"10.1.1.131"
                                                          port:[NSNumber numberWithInt:4992]
-                                                        model:@"FLEX-6700"
+                                                        model:@"FLEX-6300"
                                                     serialNum:@"1340-1100-0001-0007"
                                                          name:@"K6TU"];
     [self radioFound:fake];
