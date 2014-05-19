@@ -60,6 +60,10 @@
 @property (strong, nonatomic) NSNumber *sliceAudioLevel;            // Slice audio level - INTEGER (0 - 100)
 @property (strong, nonatomic) NSNumber *slicePanControl;            // Slice PAN control - INTEGER (0 == LEFT, 100 == RIGHT)
 
+@property (strong, nonatomic) NSNumber *slicePlaybackEnabled;       // Quick record playback is active - BOOL
+@property (strong, nonatomic) NSNumber *sliceRecordEnabled;         // Quick record record is active - BOOL
+@property (strong, nonatomic) NSNumber *sliceQRlength;              // Length of quick recording in seconds - FLOAT
+
 
 @property (strong, nonatomic) NSNumber *loopAEnabled;               // Loop A enabled - BOOL
 @property (strong, nonatomic) NSNumber *loopBEnabled;               // Loop B enabled - BOOL
@@ -110,6 +114,8 @@
 - (void) cmdSetRitOffset: (NSNumber *) offset;                      // Set RIT offset - INTEGER
 
 - (void) cmdSetSliceActive: (NSNumber *) state;                     // Set this slice to be active slice - BOOL
+- (void) cmdSetQRPlayback: (NSNumber *) state;                      // Set the state of quick record playback
+- (void) cmdSetQRRecord: (NSNumber *) state;                        // Set the state of quick record record
 
 - (void) cmdSetFilter:(NSNumber *) filterLo
              filterHi: (NSNumber *) filterHi;

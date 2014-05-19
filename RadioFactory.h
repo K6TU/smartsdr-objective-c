@@ -40,7 +40,7 @@
 @property (strong, nonatomic) NSNumber *port;
 
 // model: The model number of the radio returned as a string.  Currently
-// this is "FLEX-6500" or "FLEX-6700".
+// this is ""FLEX-6300", FLEX-6500" or "FLEX-6700".
 
 @property (strong, nonatomic) NSString *model;
 

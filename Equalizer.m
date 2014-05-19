@@ -85,7 +85,7 @@
     NSArray *bValues = [self eqBandValues];
     
     for (int i=0; i<EQ_NUMBER_OF_BANDS; i++) {
-        NSString *apS = [NSString stringWithFormat:@"%@=%i ", self.bandCmdName[i], [bValues[i] integerValue]];
+        NSString *apS = [NSString stringWithFormat:@"%@=%i ", self.bandCmdName[i], (int)[bValues[i] integerValue]];
         cmd = [cmd stringByAppendingString:apS];
     }
     

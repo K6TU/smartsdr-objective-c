@@ -26,7 +26,7 @@
     
     if (self) {
         self.radio = radio;
-        self.thisSliceNumber = [NSNumber numberWithInt:sliceNum];
+        self.thisSliceNumber = [NSNumber numberWithInteger:sliceNum];
         [[NSNotificationCenter defaultCenter] postNotificationName:@"SliceCreated" object:self];
     }
     
@@ -40,7 +40,7 @@
 
 
 - (NSString *) formatSliceFrequency {
-    NSInteger fInHz = [self freqStringToHertz:self.sliceFrequency];
+    int fInHz = (int)[self freqStringToHertz:self.sliceFrequency];
     NSString *fmtFreq = [NSString stringWithFormat:@"%i.%03i.%03i",
                          fInHz / 1000000, fInHz / 1000 % 1000, fInHz % 1000 ];
     return fmtFreq;
@@ -49,9 +49,9 @@
 
 
 - (NSString *) formatSliceFilterBandwidth {
-    NSInteger filterLo = [self.sliceFilterLo integerValue];
-    NSInteger filterHi = [self.sliceFilterHi integerValue];
-    NSInteger filterBW = filterHi - filterLo;
+    int filterLo = (int)[self.sliceFilterLo integerValue];
+    int filterHi = (int)[self.sliceFilterHi integerValue];
+    int filterBW = filterHi - filterLo;
     
     // Could be negative...
     filterBW = (filterBW < 0) ? -1 * filterBW : filterBW;
@@ -71,12 +71,12 @@
 
 
 - (NSNumber *) formatSliceFrequencyAsNumber {
-    return [NSNumber numberWithInt:[self freqStringToHertz:self.sliceFrequency]];
+    return [NSNumber numberWithInteger:[self freqStringToHertz:self.sliceFrequency]];
 }
 
 
 - (NSString *) formatFrequencyNumberAsCommandString:(NSNumber *) frequency {
-    NSInteger fInHz = [frequency integerValue];
+    int fInHz = (int)[frequency integerValue];
     NSString *fmtFreq = [NSString stringWithFormat:@"%i.%03i%03i",
                          fInHz / 1000000, fInHz / 1000 % 1000, fInHz % 1000 ];
     return fmtFreq;
@@ -87,7 +87,7 @@
 
 - (void) cmdSetTx:(NSNumber *)state {
     NSString *cmd = [NSString stringWithFormat:@"slice set %i tx=%@",
-                     [self.thisSliceNumber integerValue],
+                     [self.thisSliceNumber intValue],
                      state];
     [self.radio commandToRadio:cmd];
     self.sliceTxEnabled = state;
@@ -97,7 +97,7 @@
     NSString *cmdF = [self formatFrequencyNumberAsCommandString:frequency];
     
     NSString *cmd = [NSString stringWithFormat: @"slice tune %i %@",
-                     [self.thisSliceNumber integerValue],
+                     [self.thisSliceNumber intValue],
                      cmdF];
     [self.radio commandToRadio: cmd];
     self.sliceFrequency = cmdF;    
@@ -105,7 +105,7 @@
 
 - (void) cmdSetMode:(NSString *)mode {
     NSString *cmd = [NSString stringWithFormat:@"slice set %i mode=%@",
-                     [self.thisSliceNumber integerValue],
+                     [self.thisSliceNumber intValue],
                      mode];
     [self.radio commandToRadio:cmd];
     self.sliceMode = mode;
@@ -113,7 +113,7 @@
 
 - (void) cmdSetRxAnt:(NSString *)antenna {
     NSString *cmd = [NSString stringWithFormat:@"slice set %i rxant=%@",
-                     [self.thisSliceNumber integerValue],
+                     [self.thisSliceNumber intValue],
                      antenna];
     [self.radio commandToRadio:cmd];
     self.sliceRxAnt = antenna;
@@ -122,14 +122,14 @@
 
 - (void) cmdSetTxAnt:(NSString *)antenna {
     NSString *cmd = [NSString stringWithFormat:@"slice set %i txant=%@",
-                     [self.thisSliceNumber integerValue],
+                     [self.thisSliceNumber intValue],
                      antenna];
     [self.radio commandToRadio:cmd];
     self.sliceTxAnt = antenna;
 }
 
 - (void) cmdSetMute:(NSNumber *)state {
-    NSInteger gain;
+    int gain;
     NSString *cmd;
     
     // Version dependent command differences between V1.0.0.0 and V1.1.0.0
@@ -137,16 +137,16 @@
         if ([state boolValue]) {
             gain = 0;
         } else {
-            gain = [self.sliceAudioLevel integerValue];
+            gain = [self.sliceAudioLevel intValue];
         }
         
         cmd = [NSString stringWithFormat:@"audio client 0 slice %i gain %i",
-               [self.thisSliceNumber integerValue],
+               [self.thisSliceNumber intValue],
                gain];
     } else {
         cmd = [NSString stringWithFormat:@"audio client 0 slice %i mute %i",
-               [self.thisSliceNumber integerValue],
-               [state integerValue]];
+               [self.thisSliceNumber intValue],
+               [state intValue]];
     }
     
     [self.radio commandToRadio:cmd];
@@ -157,9 +157,9 @@
     NSString * cmd;
     
     if ([state boolValue])
-        cmd = [NSString stringWithFormat:@"slice lock %i", [self.thisSliceNumber integerValue]];
+        cmd = [NSString stringWithFormat:@"slice lock %i", [self.thisSliceNumber intValue]];
     else
-        cmd = [NSString stringWithFormat:@"slice unlock %i", [self.thisSliceNumber integerValue]];
+        cmd = [NSString stringWithFormat:@"slice unlock %i", [self.thisSliceNumber intValue]];
     
     [self.radio commandToRadio:cmd];
     self.sliceLocked = state;
@@ -177,8 +177,8 @@
         
         if (![self.sliceMuteEnabled boolValue]) {
             cmd = [NSString stringWithFormat:@"audio client 0 slice %i gain %i",
-                   [self.thisSliceNumber integerValue],
-                   [level integerValue]];
+                   [self.thisSliceNumber intValue],
+                   [level intValue]];
             
             [self.radio commandToRadio:cmd];
         }
@@ -187,8 +187,8 @@
         // is muted or not.  Just go ahead and set the value.
         
         cmd = [NSString stringWithFormat:@"audio client 0 slice %i gain %i",
-               [self.thisSliceNumber integerValue],
-               [level integerValue]];
+               [self.thisSliceNumber intValue],
+               [level intValue]];
         
         [self.radio commandToRadio:cmd];
     }
@@ -202,12 +202,12 @@
     // Version dependent command format between V1.0.0.0 and V1.1.0.0
     if ([self.radio.apiVersion isEqualToString:@"V1.0.0.0"])
         cmd = [NSString stringWithFormat:@"audio client 0 slice %i pan %f",
-               [self.thisSliceNumber integerValue],
+               [self.thisSliceNumber intValue],
                [level floatValue] / 100.0];
     else
         cmd = [NSString stringWithFormat:@"audio client 0 slice %i pan %i",
-               [self.thisSliceNumber integerValue],
-               [level integerValue]];
+               [self.thisSliceNumber intValue],
+               [level intValue]];
     
     [self.radio commandToRadio:cmd];
     self.slicePanControl = level;
@@ -215,7 +215,7 @@
 
 - (void) cmdSetAgcMode:(NSString *)mode {
     NSString *cmd = [NSString stringWithFormat:@"slice set %i agc_mode=%@",
-                     [self.thisSliceNumber integerValue],
+                     [self.thisSliceNumber intValue],
                      [mode lowercaseString]];
     [self.radio commandToRadio:cmd];
     self.sliceAgcMode = mode;
@@ -223,8 +223,8 @@
 
 - (void) cmdSetAgcLevel:(NSNumber *)level {
     NSString *cmd = [NSString stringWithFormat:@"slice set %i agc_threshold=%i",
-                     [self.thisSliceNumber integerValue],
-                     [level integerValue]];
+                     [self.thisSliceNumber intValue],
+                     [level intValue]];
     
     [self.radio commandToRadio:cmd];
     self.sliceAgcThreshold = level;
@@ -232,8 +232,8 @@
 
 - (void) cmdSetDspNb:(NSNumber *)state {
     NSString *cmd = [NSString stringWithFormat:@"slice set %i nb=%i",
-                     [self.thisSliceNumber integerValue],
-                     [state integerValue]];
+                     [self.thisSliceNumber intValue],
+                     [state intValue]];
     
     [self.radio commandToRadio:cmd];
     self.sliceNbEnabled = state;
@@ -241,8 +241,8 @@
 
 - (void) cmdSetDspNr:(NSNumber *)state {
     NSString *cmd = [NSString stringWithFormat:@"slice set %i nr=%i",
-                     [self.thisSliceNumber integerValue],
-                     [state integerValue]];
+                     [self.thisSliceNumber intValue],
+                     [state intValue]];
     
     [self.radio commandToRadio:cmd];
     self.sliceNrEnabled = state;
@@ -250,8 +250,8 @@
 
 - (void) cmdSetDspAnf:(NSNumber *)state {
     NSString *cmd = [NSString stringWithFormat:@"slice set %i anf=%i",
-                     [self.thisSliceNumber integerValue],
-                     [state integerValue]];
+                     [self.thisSliceNumber intValue],
+                     [state intValue]];
     
     [self.radio commandToRadio:cmd];
     self.sliceAnfEnabled = state;
@@ -259,8 +259,8 @@
 
 - (void) cmdSetDspApf:(NSNumber *)state {
     NSString *cmd = [NSString stringWithFormat:@"slice set %i apf=%i",
-                     [self.thisSliceNumber integerValue],
-                     [state integerValue]];
+                     [self.thisSliceNumber intValue],
+                     [state intValue]];
     
     [self.radio commandToRadio:cmd];
     self.sliceApfEnabled = state;
@@ -268,8 +268,8 @@
 
 - (void) cmdSetDspNbLevel:(NSNumber *)level {
     NSString *cmd = [NSString stringWithFormat:@"slice set %i nb_level=%i",
-                     [self.thisSliceNumber integerValue],
-                     [level integerValue]];
+                     [self.thisSliceNumber intValue],
+                     [level intValue]];
     
     [self.radio commandToRadio:cmd];
     self.sliceNbLevel = level;
@@ -277,8 +277,8 @@
 
 - (void) cmdSetDspNrLevel:(NSNumber *)level {
     NSString *cmd = [NSString stringWithFormat:@"slice set %i nr_level=%i",
-                     [self.thisSliceNumber integerValue],
-                     [level integerValue]];
+                     [self.thisSliceNumber intValue],
+                     [level intValue]];
     
     [self.radio commandToRadio:cmd];
     self.sliceNrLevel = level;
@@ -286,8 +286,8 @@
 
 - (void) cmdSetDspAnfLevel:(NSNumber *)level {
     NSString *cmd = [NSString stringWithFormat:@"slice set %i anf_level=%i",
-                     [self.thisSliceNumber integerValue],
-                     [level integerValue]];
+                     [self.thisSliceNumber intValue],
+                     [level intValue]];
     
     [self.radio commandToRadio:cmd];
     self.sliceAnfLevel = level;
@@ -295,8 +295,8 @@
 
 - (void) cmdSetDspApfLevel:(NSNumber *)level {
     NSString *cmd = [NSString stringWithFormat:@"slice set %i apf=%i apf_level=%i",
-                     [self.thisSliceNumber integerValue], [self.sliceApfEnabled boolValue],
-                     [level integerValue]];
+                     [self.thisSliceNumber intValue], [self.sliceApfEnabled boolValue],
+                     [level intValue]];
     
     [self.radio commandToRadio:cmd];
     self.sliceApfLevel = level;
@@ -304,7 +304,7 @@
 
 - (void) cmdSetXitEnable:(NSNumber *)state {
     NSString *cmd = [NSString stringWithFormat:@"slice set %i xit_on=%i",
-                     [self.thisSliceNumber integerValue],
+                     [self.thisSliceNumber intValue],
                      [state boolValue]];
     
     [self.radio commandToRadio:cmd];
@@ -313,7 +313,7 @@
 
 - (void) cmdSetRitEnable:(NSNumber *)state {
     NSString *cmd = [NSString stringWithFormat:@"slice set %i rit_on=%i",
-                     [self.thisSliceNumber integerValue],
+                     [self.thisSliceNumber intValue],
                      [state boolValue]];
     
     [self.radio commandToRadio:cmd];
@@ -322,8 +322,8 @@
 
 - (void) cmdSetXitOffset:(NSNumber *)offset {
     NSString *cmd = [NSString stringWithFormat:@"slice set %i xit_freq=%i",
-                     [self.thisSliceNumber integerValue],
-                     [offset integerValue]];
+                     [self.thisSliceNumber intValue],
+                     [offset intValue]];
     
     [self.radio commandToRadio:cmd];
     self.sliceXitOffset = offset;
@@ -331,8 +331,8 @@
 
 - (void) cmdSetRitOffset:(NSNumber *)offset {
     NSString *cmd = [NSString stringWithFormat:@"slice set %i rit_freq=%i",
-                     [self.thisSliceNumber integerValue],
-                     [offset integerValue]];
+                     [self.thisSliceNumber intValue],
+                     [offset intValue]];
     
     [self.radio commandToRadio:cmd];
     self.sliceRitOffset = offset;
@@ -340,8 +340,8 @@
 
 - (void) cmdSetDaxEnable:(NSNumber *)channel {
     NSString *cmd = [NSString stringWithFormat:@"slice set %i dax=%i",
-                     [self.thisSliceNumber integerValue],
-                     [channel integerValue]];
+                     [self.thisSliceNumber intValue],
+                     [channel intValue]];
     
     [self.radio commandToRadio:cmd];
     self.sliceDax = channel;
@@ -349,9 +349,9 @@
 
 - (void) cmdSetFilter:(NSNumber *)filterLo filterHi:(NSNumber *)filterHi {
     NSString *cmd = [NSString stringWithFormat:@"filt %i %i %i",
-                     [self.thisSliceNumber integerValue],
-                     [filterLo integerValue],
-                     [filterHi integerValue]];
+                     [self.thisSliceNumber intValue],
+                     [filterLo intValue],
+                     [filterHi intValue]];
     
     // Ignore zero filter widths
     if ([filterHi floatValue] == [filterLo floatValue])
@@ -367,11 +367,31 @@
         return;
     
     NSString *cmd = [NSString stringWithFormat:@"slice set %i active=%i",
-                     [self.thisSliceNumber integerValue],
-                     [state integerValue]];
+                     [self.thisSliceNumber intValue],
+                     [state intValue]];
     [self.radio commandToRadio:cmd];
     
     self.sliceActive = state;
+}
+
+
+- (void) cmdSetQRPlayback:(NSNumber *)state {
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i play=%i",
+                     [self.thisSliceNumber intValue],
+                     [state intValue]];
+    [self.radio commandToRadio:cmd];
+    
+    self.slicePlaybackEnabled = state;
+}
+
+
+- (void) cmdSetQRRecord:(NSNumber *)state {
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i record=%i",
+                     [self.thisSliceNumber intValue],
+                     [state intValue]];
+    [self.radio commandToRadio:cmd];
+    
+    self.sliceRecordEnabled = state;
 }
 
 
@@ -379,7 +399,7 @@
 #pragma mark Utility Functions (Internal)
 
 - (NSInteger) freqStringToHertz:(NSString *)freq {
-    NSInteger cAfterDP;
+    int cAfterDP;
     
     // We need to get this into Hz...
     // ..
@@ -389,7 +409,7 @@
         // No DP found - must be an integer number of MHZ
         cAfterDP = 0;
     } else
-        cAfterDP = [freq length] - ([freq rangeOfString:@"."].location + 1);
+        cAfterDP = (int)[freq length] - (int)([freq rangeOfString:@"."].location + 1);
     
     NSString *freqMinusDP = [freq stringByReplacingOccurrencesOfString:@"." withString:@""];
     NSInteger fInHz = [freqMinusDP integerValue];
