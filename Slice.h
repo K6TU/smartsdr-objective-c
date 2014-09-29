@@ -64,6 +64,13 @@
 @property (strong, nonatomic) NSNumber *sliceRecordEnabled;         // Quick record record is active - BOOL
 @property (strong, nonatomic) NSNumber *sliceQRlength;              // Length of quick recording in seconds - FLOAT
 
+@property (strong, nonatomic) NSNumber *sliceDiversityEnabled;      // This slice is part of a diversity pair - BOOL
+@property (strong, nonatomic) NSNumber *sliceDiversityParent;       // True if this slice is the parent of the pair - BOOL
+@property (strong, nonatomic) NSNumber *sliceDiversityChild;        // True if this slice is the child of the pair - BOOL
+@property (strong, nonatomic) NSNumber *sliceDiversityIndex;        // Slice number of the other slice of the pair - INTEGER
+@property (strong, nonatomic) NSMutableArray *antList;              // Array of available antenna ports for this slice
+
+
 
 @property (strong, nonatomic) NSNumber *loopAEnabled;               // Loop A enabled - BOOL
 @property (strong, nonatomic) NSNumber *loopBEnabled;               // Loop B enabled - BOOL

@@ -14,7 +14,7 @@
     
 }
 
-- (NSInteger) freqStringToHertz: (NSString *) freq;
+- (long long int) freqStringToHertz: (NSString *) freq;
 - (NSString *) formatFrequencyNumberAsCommandString:(NSNumber *) frequency;
 
 @end
@@ -40,9 +40,9 @@
 
 
 - (NSString *) formatSliceFrequency {
-    int fInHz = (int)[self freqStringToHertz:self.sliceFrequency];
+    long long int fInHz = (long long int)[self freqStringToHertz:self.sliceFrequency];
     NSString *fmtFreq = [NSString stringWithFormat:@"%i.%03i.%03i",
-                         fInHz / 1000000, fInHz / 1000 % 1000, fInHz % 1000 ];
+                         (int)(fInHz / 1000000), (int)(fInHz / 1000 % 1000), (int)(fInHz % 1000) ];
     return fmtFreq;
     
 }
@@ -71,14 +71,14 @@
 
 
 - (NSNumber *) formatSliceFrequencyAsNumber {
-    return [NSNumber numberWithInteger:[self freqStringToHertz:self.sliceFrequency]];
+    return [NSNumber numberWithLongLong:[self freqStringToHertz:self.sliceFrequency]];
 }
 
 
 - (NSString *) formatFrequencyNumberAsCommandString:(NSNumber *) frequency {
-    int fInHz = (int)[frequency integerValue];
+    long long int fInHz = (long long int)[frequency longLongValue];
     NSString *fmtFreq = [NSString stringWithFormat:@"%i.%03i%03i",
-                         fInHz / 1000000, fInHz / 1000 % 1000, fInHz % 1000 ];
+                                  (int)(fInHz / 1000000), (int)(fInHz / 1000 % 1000), (int)(fInHz % 1000) ];
     return fmtFreq;
 }
 
@@ -398,7 +398,7 @@
 #pragma mark
 #pragma mark Utility Functions (Internal)
 
-- (NSInteger) freqStringToHertz:(NSString *)freq {
+- (long long int) freqStringToHertz:(NSString *)freq {
     int cAfterDP;
     
     // We need to get this into Hz...
@@ -412,7 +412,7 @@
         cAfterDP = (int)[freq length] - (int)([freq rangeOfString:@"."].location + 1);
     
     NSString *freqMinusDP = [freq stringByReplacingOccurrencesOfString:@"." withString:@""];
-    NSInteger fInHz = [freqMinusDP integerValue];
+    long long int fInHz = [freqMinusDP longLongValue];
     
     // We need 6 characters after the DP so we scale by 10 ** (6 - cAfterDP)
     

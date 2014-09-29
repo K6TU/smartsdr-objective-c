@@ -131,6 +131,7 @@ enum enumStatusInterlockStateTokens {
 enum enumStatusAtuTokens {
     enumStatusAtuTokensNone = 0,
     atuStatusToken,
+    atuEnabledToken,
 };
 
 enum enumStatusRadioTokens {
@@ -202,6 +203,14 @@ enum enumStatusTransmitTokens {
     daxTxEnabledToken,
     inhibitToken,
     showTxInWaterFallToken,
+    sidetoneToken,
+    sidetoneGainToken,
+    sidetonePanToken,
+    phMonitorToken,
+    monitorPHGainToken,
+    monitorPHPanToken,
+    cwlEnabledToken,
+    rawIQEnabledToken,
 };
 
 enum enumStatusSliceTokens {
@@ -249,6 +258,11 @@ enum enumStatusSliceTokens {
     recordToken,
     playToken,
     recordTimeToken,
+    diversityToken,
+    diversityParentToken,
+    diversityChildToken,
+    diversityIndexToken,
+    antListToken,
 };
 
 enum enumStatusMixerTokens {
@@ -270,6 +284,7 @@ enum enumStatusEqTokens {
     eqBand6Token,
     eqBand7Token,
 };
+
 
 
 @implementation Radio
@@ -364,6 +379,7 @@ NSNumber *txPowerLevel;
 - (void) initStatusAtuTokens {
     self.statusAtuTokens = [[NSDictionary alloc] initWithObjectsAndKeys:
                               [NSNumber numberWithInt:atuStatusToken],  @"status",
+                              [NSNumber numberWithInt:atuEnabledToken], @"atu_enabled",
                               nil];
 }
 
@@ -422,6 +438,14 @@ NSNumber *txPowerLevel;
                                  [NSNumber numberWithInt:daxTxEnabledToken], @"dax",
                                  [NSNumber numberWithInt:inhibitToken], @"inhibit",
                                  [NSNumber numberWithInt:showTxInWaterFallToken], @"show_tx_in_waterfall",
+                                 [NSNumber numberWithInt:sidetoneToken], @"sidetone",
+                                 [NSNumber numberWithInt:sidetoneGainToken], @"mon_gain_cw",
+                                 [NSNumber numberWithInt:sidetonePanToken], @"mon_pan_cw",
+                                 [NSNumber numberWithInt:phMonitorToken], @"sb_monitor",
+                                 [NSNumber numberWithInt:monitorPHGainToken], @"mon_gain_sb",
+                                 [NSNumber numberWithInt:monitorPHPanToken] , @"mon_pan_sb",
+                                 [NSNumber numberWithInt:cwlEnabledToken], @"cwl_enabled",
+                                 [NSNumber numberWithInt:rawIQEnabledToken], @"raw_iq_enable",
                                  nil];
 }
 
@@ -471,6 +495,11 @@ NSNumber *txPowerLevel;
                               [NSNumber numberWithInt:recordToken], @"record",
                               [NSNumber numberWithInt:playToken], @"play",
                               [NSNumber numberWithInt:recordTimeToken], @"record_time",
+                              [NSNumber numberWithInt:diversityToken], @"diversity",
+                              [NSNumber numberWithInt:diversityParentToken], @"diversity_parent",
+                              [NSNumber numberWithInt:diversityChildToken], @"diversity_child",
+                              [NSNumber numberWithInt:diversityIndexToken], @"diversity_index",
+                              [NSNumber numberWithInt:antListToken], @"ant_list",
                               nil];
 }
 
@@ -551,6 +580,16 @@ NSNumber *txPowerLevel;
                      [[FilterSpec alloc] initWithLabel:@"16 KHz" mode:@"AM" txFilterLo: 1 txFilterHi: 8000 filterLo:-8000 filterHi:8000],
                      [[FilterSpec alloc] initWithLabel:@"20 KHz" mode:@"AM" txFilterLo: 1 txFilterHi: 10000 filterLo:-10000 filterHi:10000],
                      nil], @"AM",
+                    [NSMutableArray arrayWithObjects:
+                     [[FilterSpec alloc] initWithLabel:@"5 KHz"  mode:@"SAM" txFilterLo: 1 txFilterHi: 2500 filterLo:-2500 filterHi:2500],
+                     [[FilterSpec alloc] initWithLabel:@"6 KHz"  mode:@"SAM" txFilterLo: 1 txFilterHi: 3000 filterLo:-3000 filterHi:3000],
+                     [[FilterSpec alloc] initWithLabel:@"8 KHz"  mode:@"SAM" txFilterLo: 1 txFilterHi: 4000 filterLo:-4000 filterHi:4000],
+                     [[FilterSpec alloc] initWithLabel:@"10 KHz" mode:@"SAM" txFilterLo: 1 txFilterHi: 5000 filterLo:-5000 filterHi:5000],
+                     [[FilterSpec alloc] initWithLabel:@"12 KHz" mode:@"SAM" txFilterLo: 1 txFilterHi: 6000 filterLo:-6000 filterHi:6000],
+                     [[FilterSpec alloc] initWithLabel:@"14 KHz" mode:@"SAM" txFilterLo: 1 txFilterHi: 7000 filterLo:-7000 filterHi:7000],
+                     [[FilterSpec alloc] initWithLabel:@"16 KHz" mode:@"SAM" txFilterLo: 1 txFilterHi: 8000 filterLo:-8000 filterHi:8000],
+                     [[FilterSpec alloc] initWithLabel:@"20 KHz" mode:@"SAM" txFilterLo: 1 txFilterHi: 10000 filterLo:-10000 filterHi:10000],
+                     nil], @"SAM",
                     nil];
 }
 
@@ -561,7 +600,7 @@ NSNumber *txPowerLevel;
     if (self) {
         self.radioInstance = thisRadio;
         socket = [[GCDAsyncSocket alloc] initWithDelegate:self delegateQueue:dispatch_get_main_queue()];
-        [socket setPreferIPv4OverIPv6:YES];
+        [socket setIPv4PreferredOverIPv6:YES];
         [socket setIPv6Enabled:NO];
         
         NSError *error = nil;
@@ -1062,6 +1101,7 @@ NSNumber *txPowerLevel;
 - (void) parseAtuToken: (NSScanner *) scan {
     NSString *token;
     NSString *stringVal;
+    NSInteger intVal;
     
     
     while (![scan isAtEnd]) {
@@ -1075,8 +1115,13 @@ NSNumber *txPowerLevel;
         
         switch (thisToken) {
             case atuStatusToken:
-                [scan scanUpToString:@"\n" intoString:&stringVal];
+                [scan scanUpToCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"] intoString:&stringVal];
                 self.atuStatus = [self.statusAtuStatusTokens objectForKey: stringVal];
+                break;
+                
+            case atuEnabledToken:
+                [scan scanInteger:&intVal];
+                self.atuEnabled = [NSNumber numberWithBool:intVal];
                 break;
                 
             default:
@@ -1228,12 +1273,12 @@ NSNumber *txPowerLevel;
 
             case monitorToken:
                 [scan scanInteger:&intVal];
-                self.monitorEnabled = [NSNumber numberWithInteger:intVal];
+                // Down rev radio - ignore
                 break;
 
             case monitorGainToken:
                 [scan scanInteger:&intVal];
-                self.monitorLevel = [NSNumber numberWithInteger:intVal];
+                // Down rev radio - ignore
                 break;
                 
             case voxToken:
@@ -1259,7 +1304,7 @@ NSNumber *txPowerLevel;
                 
             case monGainToken:
                 [scan scanInteger:&intVal];
-                self.monitorLevel = [NSNumber numberWithInteger:intVal];
+                // Down rev radio - ignore
                 break;
                 
             case tuneToken:
@@ -1295,6 +1340,46 @@ NSNumber *txPowerLevel;
             case showTxInWaterFallToken:
                 [scan scanInteger:&intVal];
                 // Nothing to do for us at present
+                break;
+                
+            case sidetoneToken:
+                [scan scanInteger:&intVal];
+                self.sidetone = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case sidetoneGainToken:
+                [scan scanInteger:&intVal];
+                self.sidetoneGain = [NSNumber numberWithInteger:intVal];
+                break;
+                
+            case sidetonePanToken:
+                [scan scanInteger:&intVal];
+                self.sidetonePan = [NSNumber numberWithInteger:intVal];
+                break;
+                
+            case phMonitorToken:
+                [scan scanInteger:&intVal];
+                self.phMonitor = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case monitorPHGainToken:
+                [scan scanInteger:&intVal];
+                self.monitorPHGain = [NSNumber numberWithInteger:intVal];
+                break;
+                
+            case monitorPHPanToken:
+                [scan scanInteger:&intVal];
+                self.monitorPHPan = [NSNumber numberWithInteger:intVal];
+                break;
+                
+            case cwlEnabledToken:
+                [scan scanInteger:&intVal];
+                self.cwlEnabled = [NSNumber numberWithBool:intVal];
+                break;
+
+            case rawIQEnabledToken:
+                [scan scanInteger:&intVal];
+                self.rawIQEnabled = [NSNumber numberWithBool:intVal];
                 break;
                 
             default:
@@ -1583,6 +1668,32 @@ NSNumber *txPowerLevel;
             case recordTimeToken:
                 [scan scanFloat:&floatVal];
                 thisSlice.sliceQRlength = [NSNumber numberWithFloat:floatVal];
+                break;
+                
+            case diversityToken:
+                [scan scanInteger:&intVal];
+                thisSlice.sliceDiversityEnabled = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case diversityParentToken:
+                [scan scanInteger:&intVal];
+                thisSlice.sliceDiversityParent = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case diversityChildToken:
+                [scan scanInteger:&intVal];
+                thisSlice.sliceDiversityChild = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case diversityIndexToken:
+                [scan scanInteger:&intVal];
+                thisSlice.sliceDiversityIndex = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case antListToken:
+                [scan scanUpToCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"]
+                                     intoString:&stringVal];
+                thisSlice.antList = [[NSMutableArray alloc] initWithArray:[stringVal componentsSeparatedByString:@","]];
                 break;
                 
             default:
@@ -2002,20 +2113,60 @@ NSNumber *txPowerLevel;
     self.cwBreakinDelay = level;
 }
 
-- (void) cmdSetMonitorEnabled:(NSNumber *)state {
+- (void) cmdSetSidetoneEnabled:(NSNumber *)state {
+    NSString *cmd = [NSString stringWithFormat:@"cw sidetone %i",
+                     [state boolValue]];
+    
+    [self commandToRadio:cmd];
+    self.sidetone = state;
+}
+
+- (void) cmdSetSidetoneGain:(NSNumber *)level {
+    NSString *cmd = [NSString stringWithFormat:@"transmit set mon_gain_cw=%i",
+                     [level intValue]];
+    
+    [self commandToRadio:cmd];
+    self.sidetoneGain = level;
+}
+
+- (void) cmdSetSidetonePan:(NSNumber *)level {
+    NSString *cmd = [NSString stringWithFormat:@"transmit set mon_pan_cw=%i",
+                     [level intValue]];
+    
+    [self commandToRadio:cmd];
+    self.sidetonePan = level;
+}
+
+- (void) cmdSetPHMonitorEnabled:(NSNumber *)state {
     NSString *cmd = [NSString stringWithFormat:@"transmit set mon=%i",
                      [state boolValue]];
     
     [self commandToRadio:cmd];
-    self.monitorEnabled = state;
+    self.phMonitor = state;
 }
 
-- (void) cmdSetMonitorLevel:(NSNumber *)level {
-    NSString *cmd = [NSString stringWithFormat:@"transmit set mon_gain=%i",
+- (void) cmdSetPHMonitorGain:(NSNumber *)level {
+    NSString *cmd = [NSString stringWithFormat:@"transmit set mon_gain_sb=%i",
                      [level intValue]];
     
     [self commandToRadio:cmd];
-    self.monitorLevel = level;
+    self.monitorPHGain = level;
+}
+
+- (void) cmdSetPHMonitorPan:(NSNumber *)level {
+    NSString *cmd = [NSString stringWithFormat:@"transmit set mon_pan_sb=%i",
+                     [level intValue]];
+    
+    [self commandToRadio:cmd];
+    self.monitorPHPan = level;
+}
+
+- (void) cmdSetCWLEnabled:(NSNumber *)state {
+    NSString *cmd = [NSString stringWithFormat:@"cw cwl_enabled %i",
+                     [state boolValue]];
+    
+    [self commandToRadio:cmd];
+    self.cwlEnabled = state;
 }
 
 - (void) cmdSetTx:(NSNumber *)state {
