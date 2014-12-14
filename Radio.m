@@ -1659,7 +1659,6 @@ NSNumber *txPowerLevel;
                 // Depending on whether the command was sent with "enabled" or "1", the reply will be
                 // similarly encoded...  SSDR sends enabled - we sent 1...
                 // Argh!
-                play = NO;
                 play = [stringVal isEqualToString:@"enabled"] || [stringVal isEqualToString:@"1"];
                 
                 thisSlice.slicePlaybackEnabled = [NSNumber numberWithBool:play];

@@ -48,9 +48,27 @@
 
 @property (strong, nonatomic) NSString *serialNum;
 
-// name: The user conffigurable name of this radio instance as a string.
+// name: The user configurable name of this radio instance as a string.
 
 @property (strong, nonatomic) NSString *name;
+
+// callsign: The user configurable callsign of this radio instance as a string
+
+@property (strong, nonatomic) NSString *callsign;
+
+// dpVersion: The version of the discovery protocol emitted by this radio
+
+@property (strong, nonatomic) NSString *dpVersion;
+
+// version: The version of software in this radio
+
+@property (strong, nonatomic) NSString *version;
+
+// status:  status of this radio instance
+
+@property (strong, nonatomic) NSString *status;
+
+
 
 // lastSeen:  The date and time of which a discovery message from this radio
 // instance was last received.
@@ -64,7 +82,11 @@
           port: (NSNumber *) port
          model: (NSString *) model
      serialNum: (NSString *) serialNum
-          name: (NSString *) name;
+          name: (NSString *) name
+      callsign: (NSString *) callsign
+     dpVersion: (NSString *) dpVersion
+       version: (NSString *) version
+        status: (NSString *) status;
 @end
 
 
