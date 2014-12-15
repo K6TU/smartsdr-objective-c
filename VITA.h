@@ -38,22 +38,21 @@ enum VitaTSF {
 };
 
 // Constant defines
-const UInt16 FRS_OUI = 0x12cd;
-const UInt16 VITA_PORT = 4991;
+
+#define FRS_OUI 0x12cd
+#define VITA_PORT 4991
 
 
-const UInt16 VS_Meter      = 0x8002;
-const UInt16 VS_PAN_FFT    = 0x8003;
-const UInt16 VS_Waterfall  = 0x8004;
-const UInt16 VS_Opus       = 0x8005;
-
-const UInt16 DAX_IQ_24Khz  = 0x00e3;
-const UInt16 DAX_IQ_48Khz  = 0x00e4;
-const UInt16 DAX_IQ_96Khz  = 0x00e5;
-const UInt16 DAX_IQ_192KHz = 0x00e6;
-const UInt16 VS_DAX_Audio  = 0x03e3;
-
-const UInt16 VS_Discovery  = 0xffff;
+#define  VS_Meter      0x8002
+#define  VS_PAN_FFT    0x8003
+#define  VS_Waterfall  0x8004
+#define  VS_Opus       0x8005
+#define  DAX_IQ_24Khz  0x00e3
+#define  DAX_IQ_48Khz  0x00e4
+#define  DAX_IQ_96Khz  0x00e5
+#define  DAX_IQ_192KHz 0x00e6
+#define  VS_DAX_Audio  0x03e3
+#define  VS_Discovery  0xffff
 
 @interface VITA : NSObject
 

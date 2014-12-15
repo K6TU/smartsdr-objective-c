@@ -30,6 +30,7 @@
         [[NSNotificationCenter defaultCenter] postNotificationName:@"SliceCreated" object:self];
     }
     
+    
     return self;
 }
 

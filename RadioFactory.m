@@ -129,7 +129,7 @@ enum vitaTokens {
 
 #ifdef DEBUG
     // Create a fake radio for testing...
-    RadioInstance *fake = [[RadioInstance alloc] initWithData:@"10.1.1.131"
+    RadioInstance *fake = [[RadioInstance alloc] initWithData:@"10.1.1.151"
                                                          port:[NSNumber numberWithInt:4992]
                                                         model:@"FLEX-6300"
                                                     serialNum:@"1340-1100-0001-0007"
@@ -149,7 +149,7 @@ enum vitaTokens {
                          [NSNumber numberWithInt:serialToken], @"serial",
                          [NSNumber numberWithInt:callsignToken], @"callsign",
                          [NSNumber numberWithInt:nameToken], @"nickname",
-                         [NSNumber numberWithInt:dpVersionToken], @"discovery_protocol_verison",
+                         [NSNumber numberWithInt:dpVersionToken], @"discovery_protocol_version",
                          [NSNumber numberWithInt:versionToken], @"version",
                          [NSNumber numberWithInt:statusToken], @"status"
                          , nil];
@@ -315,46 +315,52 @@ withFilterContext:(id)filterContext
         VITA *vita = [[VITA alloc]initWithPacket:data];
         RadioInstance *newRadio = [[RadioInstance alloc]init];
         
-        if (vita.classIdPresent && vita.informationClassCode == VS_Discovery) {
+        if (vita.classIdPresent && vita.packetClassCode == VS_Discovery) {
             // Vita encoded discovery packet - crack the payload and parse
-            // Payload is a series of strings separated by ','
-            NSString *ds = [[NSString alloc] initWithCharacters:vita.payload length:vita.payloadLength];
-            NSArray *fields = [ds componentsSeparatedByString:@","];
+            // Payload is a series of strings separated by ' '
+            NSString *ds = [[NSString alloc] initWithBytes:vita.payload length:vita.payloadLength encoding:NSASCIIStringEncoding];
+            NSArray *fields = [ds componentsSeparatedByString:@" "];
             
-            for (NSString *f in fields) {
-                int token = [self.parserTokens[f] intValue];
+            for (NSString *p in fields) {
+                NSArray *kv = [p componentsSeparatedByString:@"="];
+                NSString *k = kv[0];
+                NSString *v = kv[1];
+                int token = [self.parserTokens[k] intValue];
                 
                 switch (token) {
                     case ipToken:
-                        newRadio.ipAddress = f;
+                        newRadio.ipAddress = v;
                         break;
                         
                     case portToken:
-                        newRadio.port = [NSNumber numberWithInt:[f intValue]];
+                        newRadio.port = [NSNumber numberWithInt:[v intValue]];
                         break;
                         
                     case modelToken:
-                        newRadio.model = f;
+                        newRadio.model = v;
                         break;
                         
                     case serialToken:
-                        newRadio.serialNum = f;
+                        newRadio.serialNum = v;
                         break;
                         
                     case nameToken:
-                        newRadio.name = f;
+                        newRadio.name = v;
                         break;
                         
                     case callsignToken:
-                        newRadio.callsign = f;
+                        newRadio.callsign = v;
                         break;
                         
                     case dpVersionToken:
-                        newRadio.dpVersion = f;
+                        newRadio.dpVersion = v;
                         break;
                         
                     case versionToken:
-                        newRadio.version = f;
+                        newRadio.version = v;
+                        
+                    case statusToken:
+                        newRadio.status = v;
                         
                     default:
                         break;

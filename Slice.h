@@ -69,6 +69,15 @@
 @property (strong, nonatomic) NSNumber *sliceDiversityChild;        // True if this slice is the child of the pair - BOOL
 @property (strong, nonatomic) NSNumber *sliceDiversityIndex;        // Slice number of the other slice of the pair - INTEGER
 @property (strong, nonatomic) NSMutableArray *antList;              // Array of available antenna ports for this slice
+@property (strong, nonatomic) NSMutableArray *modeList;             // Array of NSStrings with available modes
+
+@property (strong, nonatomic) NSNumber *squelchEnabled;             // Squelch enabled - BOOL
+@property (strong, nonatomic) NSNumber *squelchLevel;               // Squelch level - INTEGER [0 - 100]
+@property (strong, nonatomic) NSString *fmToneMode;                 // FM CTCSS tone mode - STRING (ON | OFF)
+@property (strong, nonatomic) NSString *fmToneFreq;                 // FM CTCSS tone frequency - FLOAT
+@property (strong, nonatomic) NSString *fmRepeaterOffset;           // FM repeater offset - FLOAT
+@property (strong, nonatomic) NSString *txOffsetFreq;               // TX Offset Frequency - FLOAT
+@property (strong, nonatomic) NSString *repeaterOffsetDir;          // Repeater offset direction - STRING (DOWN, UP, SIMPLEX)
 
 
 

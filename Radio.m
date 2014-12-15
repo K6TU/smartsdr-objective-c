@@ -63,6 +63,9 @@
 - (void) parseDisplayToken: (NSScanner *) scan;
 - (void) parseMeterToken: (NSScanner *) scan;
 - (void) parseEqToken: (NSScanner *) scan selfStatus: (BOOL) selfStatus;
+- (void) parseGpsToken: (NSScanner *) scan;
+- (void) parseProfileToken: (NSScanner *) scan;
+- (void) parseCwxToken: (NSScanner *) scan;
 
 @end
 
@@ -81,6 +84,8 @@ enum enumStatusTokens {
     meterToken,
     eqToken,
     gpsToken,
+    profileToken,
+    cwxToken,
 };
 
 enum enumStatusInterlockTokens {
@@ -103,6 +108,7 @@ enum enumStatusInterlockTokens {
     tx2EnabledToken,
     tx3EnabledToken,
     accTxEnabledToken,
+    txAllowedToken,
 };
 
 enum enumStatusInterlockReasonTokens {
@@ -148,6 +154,8 @@ enum enumStatusRadioTokens {
     calFreqToken,
     tnfEnabledToken,
     snapTuneEnabledToken,
+    nicknameToken,
+    callsignToken,
 };
 
 
@@ -211,6 +219,10 @@ enum enumStatusTransmitTokens {
     monitorPHPanToken,
     cwlEnabledToken,
     rawIQEnabledToken,
+    txFilterChangesAllowedToken,
+    txRfPowerChangesAllowedToken,
+    synccwxToken,
+    monAvailableToken,
 };
 
 enum enumStatusSliceTokens {
@@ -263,6 +275,14 @@ enum enumStatusSliceTokens {
     diversityChildToken,
     diversityIndexToken,
     antListToken,
+    squelchToken,
+    squelchLevelToken,
+    modeListToken,
+    fmToneModeToken,
+    fmToneValueToken,
+    fmRepeaterOffsetToken,
+    txOffsetFreqToken,
+    repeaterOffsetDirToken,
 };
 
 enum enumStatusMixerTokens {
@@ -303,6 +323,8 @@ NSNumber *txPowerLevel;
                          [NSNumber numberWithInt:meterToken], @"meter",
                          [NSNumber numberWithInt:eqToken], @"eq",
                          [NSNumber numberWithInt:gpsToken], @"gps",
+                         [NSNumber numberWithBool:profileToken], @"profile",
+                         [NSNumber numberWithBool:cwxToken], @"cwx",
                          nil];
 }
 
@@ -327,6 +349,7 @@ NSNumber *txPowerLevel;
                                   [NSNumber numberWithInt:tx2EnabledToken], @"tx2_enabled",
                                   [NSNumber numberWithInt:tx3EnabledToken], @"tx3_enabled",
                                   [NSNumber numberWithInt:accTxEnabledToken], @"acc_tx_enabled",
+                                  [NSNumber numberWithInt:txAllowedToken], @"tx_allowed",
                                   nil];
 }
 
@@ -372,6 +395,8 @@ NSNumber *txPowerLevel;
                               [NSNumber numberWithInt:calFreqToken], @"cal_freq",
                               [NSNumber numberWithInt:tnfEnabledToken], @"tnf_enabled",
                               [NSNumber numberWithInt:snapTuneEnabledToken], @"snap_tune_enabled",
+                              [NSNumber numberWithInt:nicknameToken], @"nickname",
+                              [NSNumber numberWithInt:callsignToken], @"callsign",
                               nil];
 }
 
@@ -446,6 +471,10 @@ NSNumber *txPowerLevel;
                                  [NSNumber numberWithInt:monitorPHPanToken] , @"mon_pan_sb",
                                  [NSNumber numberWithInt:cwlEnabledToken], @"cwl_enabled",
                                  [NSNumber numberWithInt:rawIQEnabledToken], @"raw_iq_enable",
+                                 [NSNumber numberWithInt:txFilterChangesAllowedToken], @"tx_filter_changes_allowed",
+                                 [NSNumber numberWithInt:txRfPowerChangesAllowedToken], @"tx_rf_power_changes_allowed",
+                                 [NSNumber numberWithInt:synccwxToken], @"synccwx",
+                                 [NSNumber numberWithInt:monAvailableToken], @"mon_available",
                                  nil];
 }
 
@@ -500,6 +529,14 @@ NSNumber *txPowerLevel;
                               [NSNumber numberWithInt:diversityChildToken], @"diversity_child",
                               [NSNumber numberWithInt:diversityIndexToken], @"diversity_index",
                               [NSNumber numberWithInt:antListToken], @"ant_list",
+                              [NSNumber numberWithInt:squelchToken] , @"squelch",
+                              [NSNumber numberWithInt:squelchLevelToken], @"squelch_level",
+                              [NSNumber numberWithInt:modeListToken], @"mode_list",
+                              [NSNumber numberWithInt:fmToneModeToken], @"fm_tone_mode",
+                              [NSNumber numberWithInt:fmToneValueToken], @"fm_tone_value",
+                              [NSNumber numberWithInt:fmRepeaterOffsetToken], @"fm_repeater_offset_freq",
+                              [NSNumber numberWithInt:txOffsetFreqToken], @"tx_offset_freq",
+                              [NSNumber numberWithInt:repeaterOffsetDirToken], @"repeater_offset_dir",
                               nil];
 }
 
@@ -834,6 +871,14 @@ NSNumber *txPowerLevel;
             [self parseGpsToken: scan];
             break;
             
+        case profileToken:
+            [self parseProfileToken: scan];
+            break;
+            
+        case cwxToken:
+            [self parseCwxToken: scan];
+            break;
+            
         default:
             NSLog(@"Unexpected token in parseStatusType - %@", sourceToken);
             break;
@@ -999,6 +1044,11 @@ NSNumber *txPowerLevel;
                 self.accTxEnabled = [NSNumber numberWithBool:intVal];
                 break;
                 
+            case txAllowedToken:
+                [scan scanInteger:&intVal];
+                self.txAllowed = [NSNumber numberWithBool:intVal];
+                break;
+                
             default:
                 // Unknown token and therefore an unknown argument type
                 // Eat until the next space or \n
@@ -1016,6 +1066,7 @@ NSNumber *txPowerLevel;
 
 - (void) parseRadioToken: (NSScanner *) scan {
     NSString *token;
+    NSString *value;
     NSInteger intVal;
     float floatVal;
     
@@ -1082,6 +1133,16 @@ NSNumber *txPowerLevel;
                 
             case snapTuneEnabledToken:
                 [scan scanInteger:&intVal];
+                break;
+                
+            case nicknameToken:
+                [scan scanUpToCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"] intoString:&value];
+                self.radioName = value;
+                break;
+                
+            case callsignToken:
+                [scan scanUpToCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"] intoString:&value];
+                self.radioCallsign = value;
                 break;
 
             default:
@@ -1380,6 +1441,26 @@ NSNumber *txPowerLevel;
             case rawIQEnabledToken:
                 [scan scanInteger:&intVal];
                 self.rawIQEnabled = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case txFilterChangesAllowedToken:
+                [scan scanInteger:&intVal];
+                self.txFilterChangesAllowed= [NSNumber numberWithBool:intVal];
+                break;
+                
+            case txRfPowerChangesAllowedToken:
+                [scan scanInteger:&intVal];
+                self.txRfPowerChangesAllowed = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case synccwxToken:
+                [scan scanInteger:&intVal];
+                self.syncCWX = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case monAvailableToken:
+                [scan scanInteger:&intVal];
+                self.monAvailable = [NSNumber numberWithBool:intVal];
                 break;
                 
             default:
@@ -1695,6 +1776,53 @@ NSNumber *txPowerLevel;
                 thisSlice.antList = [[NSMutableArray alloc] initWithArray:[stringVal componentsSeparatedByString:@","]];
                 break;
                 
+            case squelchToken:
+                [scan scanInteger:&intVal];
+                thisSlice.squelchEnabled = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case squelchLevelToken:
+                [scan scanInteger:&intVal];
+                thisSlice.squelchLevel = [NSNumber numberWithInteger:intVal];
+                break;
+                
+            case modeListToken:
+                [scan scanUpToCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"]
+                                     intoString:&stringVal];
+                thisSlice.modeList = [[NSMutableArray alloc] initWithArray:[stringVal componentsSeparatedByString:@","]];
+                break;
+                
+            case fmToneModeToken:
+                [scan scanUpToCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"]
+                                     intoString:&stringVal];
+                thisSlice.fmToneMode = stringVal;
+                break;
+                
+            case fmToneValueToken:
+                [scan scanUpToCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"]
+                                     intoString:&stringVal];
+                thisSlice.fmToneFreq = stringVal;
+                break;
+                
+            case fmRepeaterOffsetToken:
+                [scan scanUpToCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"]
+                                     intoString:&stringVal];
+                thisSlice.fmRepeaterOffset = stringVal;
+                break;
+                
+            case txOffsetFreqToken:
+                [scan scanUpToCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"]
+                                     intoString:&stringVal];
+                thisSlice.txOffsetFreq = stringVal;
+                break;
+                
+            case repeaterOffsetDirToken:
+                [scan scanUpToCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"]
+                                     intoString:&stringVal];
+                thisSlice.repeaterOffsetDir = stringVal;
+                break;
+                
+                
             default:
                 // Unknown token and therefore an unknown argument type
                 // Eat until the next space or \n
@@ -1828,6 +1956,17 @@ NSNumber *txPowerLevel;
 - (void) parseGpsToken: (NSScanner *) scan {
     
 }
+
+
+- (void) parseProfileToken: (NSScanner *) scan {
+    
+}
+
+
+- (void) parseCwxToken: (NSScanner *) scan {
+    
+}
+
 
 
 // Currently there is only one issued command for which a response is waited - info

@@ -12,15 +12,15 @@
 
 #import "VITA.h"
 
-#define VH_PKT_TYPE(x)      ((x & 0x40000000) >> 28)
-#define VH_C(x)             ((x & 0x08000000) >> 27)
-#define VH_T(x)             ((x & 0x04000000) >> 26)
-#define VH_TSI(x)           ((x & 0x00c00000) >> 22)
-#define VH_TSF(x)           ((x & 0x00300000) >> 20)
+#define VH_PKT_TYPE(x)      ((x & 0xF0000000) >> 28)
+#define VH_C(x)             ((x & 0x08000000) >> 26)
+#define VH_T(x)             ((x & 0x04000000) >> 25)
+#define VH_TSI(x)           ((x & 0x00c00000) >> 21)
+#define VH_TSF(x)           ((x & 0x00300000) >> 19)
 #define VH_PKT_CNT(x)       ((x & 0x000f0000) >> 16)
 #define VH_PKT_SIZE(x)      (x & 0x0000ffff)
 
-#define V_SWAP32(x,y)       CFSwapInt32BigToHost(* (UInt32 *) x + y)
+#define V_SWAP32(x,y)       CFSwapInt32BigToHost(*(UInt32 *)(x+y))
 
 // Minimum number of bytes for a valdid VITA packet
 
