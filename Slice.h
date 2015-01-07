@@ -74,9 +74,9 @@
 @property (strong, nonatomic) NSNumber *squelchEnabled;             // Squelch enabled - BOOL
 @property (strong, nonatomic) NSNumber *squelchLevel;               // Squelch level - INTEGER [0 - 100]
 @property (strong, nonatomic) NSString *fmToneMode;                 // FM CTCSS tone mode - STRING (ON | OFF)
-@property (strong, nonatomic) NSString *fmToneFreq;                 // FM CTCSS tone frequency - FLOAT
-@property (strong, nonatomic) NSString *fmRepeaterOffset;           // FM repeater offset - FLOAT
-@property (strong, nonatomic) NSString *txOffsetFreq;               // TX Offset Frequency - FLOAT
+@property (strong, nonatomic) NSNumber *fmToneFreq;                 // FM CTCSS tone frequency - FLOAT
+@property (strong, nonatomic) NSNumber *fmRepeaterOffset;           // FM repeater offset - FLOAT
+@property (strong, nonatomic) NSNumber *txOffsetFreq;               // TX Offset Frequency - FLOAT
 @property (strong, nonatomic) NSString *repeaterOffsetDir;          // Repeater offset direction - STRING (DOWN, UP, SIMPLEX)
 
 
@@ -101,6 +101,7 @@
 - (void) cmdSetTx: (NSNumber *) state;                              // Set this slice as reference for Transmit - BOOL
 
 - (void) cmdTuneSlice: (NSNumber *) frequency;                      // Tune this slice to frequency in Hertz - INTEGER
+- (void) cmdTuneSlice:(NSNumber *)frequency autopan: (BOOL) autopan;// Tune this slice to frequency in Hertz - INTEGER with autopan ON|OFF
 - (void) cmdSetMode: (NSString *) mode;                             // Set mode for this slice - STRING
 - (void) cmdSetRxAnt: (NSString *) antenna;                         // Set RX antenna port - STRING
 - (void) cmdSetTxAnt: (NSString *) antenna;                         // Set TX antenna port - STIRNG
@@ -132,6 +133,14 @@
 - (void) cmdSetSliceActive: (NSNumber *) state;                     // Set this slice to be active slice - BOOL
 - (void) cmdSetQRPlayback: (NSNumber *) state;                      // Set the state of quick record playback
 - (void) cmdSetQRRecord: (NSNumber *) state;                        // Set the state of quick record record
+
+- (void) cmdSetSquelch: (NSNumber *) state;                         // Set SQUELCH state - BOOL
+- (void) cmdSetSquelchThreshold: (NSNumber *) level;                // Set Squelch threshold - INTEGER [0-100]
+- (void) cmdSetFmToneMode: (NSString *) value;                      // Set CTCSS Tone - OFF | CTCSS_TX
+- (void) cmdSetFmToneFreq: (NSNumber *) value;                      // FM CTCSS tone (FLOAT)
+- (void) cmdSetFmRepeaterOffset: (NSNumber *) value;                // FM repeater offset (FLOAT)
+- (void) cmdSetFmRepeaterOffsetDir: (NSString *) value;             // FM repeater offset direction (STRING) - SIMPLEX | UP | DOWN
+- (void) cmdsetTxOffsetFreq: (NSNumber *) value;                    // Set TX offset frequency - FLOAT
 
 - (void) cmdSetFilter:(NSNumber *) filterLo
              filterHi: (NSNumber *) filterHi;

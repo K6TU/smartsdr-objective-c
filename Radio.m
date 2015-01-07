@@ -323,7 +323,7 @@ NSNumber *txPowerLevel;
                          [NSNumber numberWithInt:meterToken], @"meter",
                          [NSNumber numberWithInt:eqToken], @"eq",
                          [NSNumber numberWithInt:gpsToken], @"gps",
-                         [NSNumber numberWithBool:profileToken], @"profile",
+                         [NSNumber numberWithInt:profileToken], @"profile",
                          [NSNumber numberWithBool:cwxToken], @"cwx",
                          nil];
 }
@@ -1801,19 +1801,19 @@ NSNumber *txPowerLevel;
             case fmToneValueToken:
                 [scan scanUpToCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"]
                                      intoString:&stringVal];
-                thisSlice.fmToneFreq = stringVal;
+                thisSlice.fmToneFreq = [NSNumber numberWithFloat:[stringVal floatValue]];
                 break;
                 
             case fmRepeaterOffsetToken:
                 [scan scanUpToCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"]
                                      intoString:&stringVal];
-                thisSlice.fmRepeaterOffset = stringVal;
+                thisSlice.fmRepeaterOffset = [NSNumber numberWithFloat:[stringVal floatValue]];
                 break;
                 
             case txOffsetFreqToken:
                 [scan scanUpToCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"]
                                      intoString:&stringVal];
-                thisSlice.txOffsetFreq = stringVal;
+                thisSlice.txOffsetFreq = [NSNumber numberWithFloat:[stringVal floatValue]];
                 break;
                 
             case repeaterOffsetDirToken:
@@ -1859,8 +1859,9 @@ NSNumber *txPowerLevel;
     NSString *stringVal;
     Equalizer *eq;
     BOOL firstUpdate = NO;
+    BOOL eqSc = NO;
     
-    // First parameter after eq is rx|tx
+    // First parameter after eq is rx|tx or rxsc|txsc
     [scan scanUpToString:@" " intoString:&stringVal];
     [scan scanString:@" " intoString:nil];
     
@@ -1870,10 +1871,12 @@ NSNumber *txPowerLevel;
         // ignore...
         return;
     
-    if ([stringVal isEqualToString:@"rx"])
+    if ([stringVal isEqualToString:@"rx"] || [stringVal isEqualToString:@"rxsc"])
         eqNum = 0;
     else
         eqNum = 1;
+    
+    eqSc = [stringVal rangeOfString:@"sc"].location != NSNotFound;
     
     if ([self.equalizers[eqNum] isKindOfClass:[NSNull class]]) {
         // Allocate an equalizer
@@ -1908,42 +1911,42 @@ NSNumber *txPowerLevel;
                 
             case eqBand0Token:
                 [scan scanInteger:&intVal];
-                eq.eqBand0Value = [NSNumber numberWithInteger:intVal];
+                eq.eqBand0Value = [NSNumber numberWithInteger:eqSc ? intVal+10 : intVal];
                 break;
                 
             case eqBand1Token:
                 [scan scanInteger:&intVal];
-                eq.eqBand1Value = [NSNumber numberWithInteger:intVal];
+                eq.eqBand1Value = [NSNumber numberWithInteger:eqSc ? intVal+10 : intVal];
                 break;
                 
             case eqBand2Token:
                 [scan scanInteger:&intVal];
-                eq.eqBand2Value = [NSNumber numberWithInteger:intVal];
+                eq.eqBand2Value = [NSNumber numberWithInteger:eqSc ? intVal+10 : intVal];
                 break;
                 
             case eqBand3Token:
                 [scan scanInteger:&intVal];
-                eq.eqBand3Value = [NSNumber numberWithInteger:intVal];
+                eq.eqBand3Value = [NSNumber numberWithInteger:eqSc ? intVal+10 : intVal];
                 break;
                 
             case eqBand4Token:
                 [scan scanInteger:&intVal];
-                eq.eqBand4Value = [NSNumber numberWithInteger:intVal];
+                eq.eqBand4Value = [NSNumber numberWithInteger:eqSc ? intVal+10 : intVal];
                 break;
                 
             case eqBand5Token:
                 [scan scanInteger:&intVal];
-                eq.eqBand5Value = [NSNumber numberWithInteger:intVal];
+                eq.eqBand5Value = [NSNumber numberWithInteger:eqSc ? intVal+10 : intVal];
                 break;
                 
             case eqBand6Token:
                 [scan scanInteger:&intVal];
-                eq.eqBand6Value = [NSNumber numberWithInteger:intVal];
+                eq.eqBand6Value = [NSNumber numberWithInteger:eqSc ? intVal+10 : intVal];
                 break;
                 
             case eqBand7Token:
                 [scan scanInteger:&intVal];
-                eq.eqBand7Value = [NSNumber numberWithInteger:intVal];
+                eq.eqBand7Value = [NSNumber numberWithInteger:eqSc ? intVal+10 : intVal];
                 break;
         }
         // Scanner is either at a space or at the end - eat either

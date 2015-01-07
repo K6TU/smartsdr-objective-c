@@ -33,7 +33,7 @@ const UInt16 VITAmin = 28;
 // Crack the VITA frame and grab the appropriate fields into our properties
 
 - (VITA *)initWithPacket:(NSData *)packet {
-    (void)[self init];
+    self = [super init];
     
     self.buffer = packet;
     
