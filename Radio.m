@@ -2190,7 +2190,7 @@ NSNumber *txPowerLevel;
 
 - (void) cmdSetVoxDelay:(NSNumber *)level {
     NSString *cmd = [NSString stringWithFormat:@"transmit set vox_delay=%i",
-                     [level intValue] * 20];
+                     [level intValue]];
     
     [self commandToRadio:cmd];
     self.voxDelay = level;
