@@ -9,6 +9,7 @@
 // the specific approval of Stu Phillips, K6TU.
 
 #import "RadioFactory.h"
+#import "VITA.h"
 #import "arpa/inet.h"
 
 #define FLEX_DISCOVERY  4992
@@ -17,24 +18,49 @@
 
 #pragma mark Radio Instance
 
+// Enum definition for VITA formed discovery message parser
+enum vitaTokens {
+    nullToken = 0,
+    ipToken,
+    portToken,
+    modelToken,
+    serialToken,
+    callsignToken,
+    nameToken,
+    dpVersionToken,
+    versionToken,
+    statusToken,
+};
+
+
 
 
 @implementation RadioInstance
 
-- (id)initWithData:(NSString *)ipAddress
-              port:(NSNumber *)port
-             model:(NSString *)model
-         serialNum:(NSString *)serialNum
-              name:(NSString *)name {
+
+- (id) initWithData: (NSString *) ipAddress
+               port: (NSNumber *) port
+              model: (NSString *) model
+          serialNum: (NSString *) serialNum
+               name: (NSString *) name
+           callsign: (NSString *) callsign
+          dpVersion: (NSString *) dpVersion
+            version: (NSString *) version
+             status: (NSString *) status {
     self = [super init];
     self.ipAddress = ipAddress;
     self.port = port;
     self.model = model;
     self.serialNum = serialNum;
     self.name = name;
+    if (callsign)  self.callsign = callsign;
+    if (dpVersion) self.dpVersion = dpVersion;
+    if (version)   self.version = version;
+    if (status) self.status = status;
     self.lastSeen = [NSDate date];
     return self;
 }
+
 
 - (BOOL) isEqual:(id)object {
     RadioInstance *radio = (RadioInstance *)object;
@@ -42,8 +68,7 @@
     if ([self.ipAddress isEqualToString:radio.ipAddress] &&
         [self.port isEqualToNumber:radio.port] &&
         [self.model isEqualToString:radio.model] &&
-        [self.serialNum isEqualToString:radio.serialNum] &&
-        [self.name isEqualToString:radio.name]) {
+        [self.serialNum isEqualToString:radio.serialNum]) {
         return YES;
     }
     return NO;
@@ -61,6 +86,7 @@
 
 @property (strong, nonatomic) NSMutableDictionary *discoveredRadios;
 @property (strong, nonatomic) NSTimer *timeoutTimer;
+@property (strong, nonatomic) NSDictionary *parserTokens;
 
 - (void) radioFound: (RadioInstance *) radio;
 - (void) radioTimeoutCheck: (NSTimer *) timer;
@@ -103,14 +129,30 @@
 
 #ifdef DEBUG
     // Create a fake radio for testing...
-    RadioInstance *fake = [[RadioInstance alloc] initWithData:@"10.1.1.131"
+    RadioInstance *fake = [[RadioInstance alloc] initWithData:@"10.1.1.151"
                                                          port:[NSNumber numberWithInt:4992]
                                                         model:@"FLEX-6300"
                                                     serialNum:@"1340-1100-0001-0007"
-                                                         name:@"K6TU"];
+                                                         name:@"K6TU"
+                                                     callsign:nil
+                                                    dpVersion:nil
+                                                      version:nil
+                                                       status:nil];
     [self radioFound:fake];
 #endif
     
+    // Initialize parser tokens
+    self.parserTokens = [[NSDictionary alloc] initWithObjectsAndKeys:
+                         [NSNumber numberWithInt:ipToken] , @"ip",
+                         [NSNumber numberWithInt:portToken], @"port",
+                         [NSNumber numberWithInt:modelToken], @"model",
+                         [NSNumber numberWithInt:serialToken], @"serial",
+                         [NSNumber numberWithInt:callsignToken], @"callsign",
+                         [NSNumber numberWithInt:nameToken], @"nickname",
+                         [NSNumber numberWithInt:dpVersionToken], @"discovery_protocol_version",
+                         [NSNumber numberWithInt:versionToken], @"version",
+                         [NSNumber numberWithInt:statusToken], @"status"
+                         , nil];
     return self;
 }
 
@@ -258,8 +300,75 @@ withFilterContext:(id)filterContext
         NSString *serialNum = [NSString stringWithUTF8String:thisRadio->serial];
         NSString *name = [NSString stringWithUTF8String:thisRadio->name];
         
-        RadioInstance *newRadio = [[RadioInstance alloc] initWithData:host port:cPort model:model serialNum:serialNum name:name];
+        RadioInstance *newRadio = [[RadioInstance alloc] initWithData:host
+                                                                 port:cPort
+                                                                model:model
+                                                            serialNum:serialNum
+                                                                 name:name
+                                                             callsign:nil
+                                                            dpVersion:nil
+                                                              version:nil
+                                                               status:nil];
         [self radioFound:newRadio];
+    } else {
+        // Could be a VITA encoded discovery packet - sent on the same UDP Port
+        VITA *vita = [[VITA alloc]initWithPacket:data];
+        RadioInstance *newRadio = [[RadioInstance alloc]init];
+        
+        if (vita.classIdPresent && vita.packetClassCode == VS_Discovery) {
+            // Vita encoded discovery packet - crack the payload and parse
+            // Payload is a series of strings separated by ' '
+            NSString *ds = [[NSString alloc] initWithBytes:vita.payload length:vita.payloadLength encoding:NSASCIIStringEncoding];
+            NSArray *fields = [ds componentsSeparatedByString:@" "];
+            
+            for (NSString *p in fields) {
+                NSArray *kv = [p componentsSeparatedByString:@"="];
+                NSString *k = kv[0];
+                NSString *v = kv[1];
+                int token = [self.parserTokens[k] intValue];
+                
+                switch (token) {
+                    case ipToken:
+                        newRadio.ipAddress = v;
+                        break;
+                        
+                    case portToken:
+                        newRadio.port = [NSNumber numberWithInt:[v intValue]];
+                        break;
+                        
+                    case modelToken:
+                        newRadio.model = v;
+                        break;
+                        
+                    case serialToken:
+                        newRadio.serialNum = v;
+                        break;
+                        
+                    case nameToken:
+                        newRadio.name = v;
+                        break;
+                        
+                    case callsignToken:
+                        newRadio.callsign = v;
+                        break;
+                        
+                    case dpVersionToken:
+                        newRadio.dpVersion = v;
+                        break;
+                        
+                    case versionToken:
+                        newRadio.version = v;
+                        
+                    case statusToken:
+                        newRadio.status = v;
+                        
+                    default:
+                        break;
+                }
+            }
+            
+            [self radioFound:newRadio];
+        }
     }
 	
     // Post a new read

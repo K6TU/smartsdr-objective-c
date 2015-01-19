@@ -19,8 +19,7 @@
 @implementation Equalizer
 
 - (id) init {
-    if (! self)
-        self = [super init];
+    self = [super init];
     
     self.eqBand0Value = [NSNumber numberWithInt:0];
     self.eqBand1Value = [NSNumber numberWithInt:0];

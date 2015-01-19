@@ -121,6 +121,7 @@ enum radioAtuState {
 @property (strong, nonatomic) NSNumber *interlockTimeoutValue;      // Interlock timeout value in milliseconds - INTEGER
 @property (strong, nonatomic) NSNumber *interlockState;             // Interlock state - ENUM radioInterlockState
 @property (strong, nonatomic) NSString *interlockReason;            // Reason for the interlock - STRING
+@property (strong, nonatomic) NSNumber *txAllowed;                  // TX allowed - BOOL
 @property (strong, nonatomic) NSString *pttSource;                  // PTT Source - STRING
 @property (strong, nonatomic) NSNumber *accTxReqEnable;             // ACC TX Request Enable - BOOL
 @property (strong, nonatomic) NSNumber *rcaTxReqEnable;             // RCA TX Request Enable - BOOL
@@ -145,6 +146,10 @@ enum radioAtuState {
 @property (strong, nonatomic) NSNumber *txInhibit;                  // TX Inhibit - BOOL
 @property (strong, nonatomic) NSNumber *cwlEnabled;                 // CWL offset enabled - BOOL
 @property (strong, nonatomic) NSNumber *rawIQEnabled;               // Transmission of RAW IQ data - BOOL
+@property (strong, nonatomic) NSNumber *txFilterChangesAllowed;     // TX filter changes allowed - BOOL
+@property (strong, nonatomic) NSNumber *txRfPowerChangesAllowed;    // TX RF Power level changes allowed - BOOL
+@property (strong, nonatomic) NSNumber *syncCWX;                    // Synchronize CWX - BOOL
+@property (strong, nonatomic) NSNumber *monAvailable;               // Monitor available - BOOL
 
 // NOTE:  The values provided in the next three properties will change TYPE - likely at the next
 // release (from STRINGS to INTEGER.

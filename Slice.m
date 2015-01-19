@@ -30,6 +30,7 @@
         [[NSNotificationCenter defaultCenter] postNotificationName:@"SliceCreated" object:self];
     }
     
+    
     return self;
 }
 
@@ -44,7 +45,6 @@
     NSString *fmtFreq = [NSString stringWithFormat:@"%i.%03i.%03i",
                          (int)(fInHz / 1000000), (int)(fInHz / 1000 % 1000), (int)(fInHz % 1000) ];
     return fmtFreq;
-    
 }
 
 
@@ -101,6 +101,18 @@
                      cmdF];
     [self.radio commandToRadio: cmd];
     self.sliceFrequency = cmdF;    
+}
+
+- (void) cmdTuneSlice:(NSNumber *)frequency autopan: (BOOL) autopan {
+    NSString *cmdF = [self formatFrequencyNumberAsCommandString:frequency];
+    
+    NSString *cmd = [NSString stringWithFormat: @"slice tune %i %@ autopan=%i",
+                     [self.thisSliceNumber intValue],
+                     cmdF,
+                     autopan];
+    
+    [self.radio commandToRadio: cmd];
+    self.sliceFrequency = cmdF;
 }
 
 - (void) cmdSetMode:(NSString *)mode {
@@ -392,6 +404,76 @@
     [self.radio commandToRadio:cmd];
     
     self.sliceRecordEnabled = state;
+}
+
+
+- (void) cmdSetSquelch: (NSNumber *) state {
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i squelch=%i",
+                     [self.thisSliceNumber intValue],
+                     [state intValue]];
+    [self.radio commandToRadio:cmd];
+    
+    self.squelchEnabled = state;
+}
+
+
+- (void) cmdSetSquelchThreshold: (NSNumber *) level {
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i squelch_level=%i",
+                     [self.thisSliceNumber intValue],
+                     [level intValue]];
+    [self.radio commandToRadio:cmd];
+    
+    self.squelchLevel = level;
+}
+
+
+- (void) cmdSetFmToneMode: (NSString *) value {
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i fm_tone_mode=%@",
+                     [self.thisSliceNumber intValue],
+                     value];
+    [self.radio commandToRadio:cmd];
+    
+    self.fmToneMode = value;
+}
+
+
+- (void) cmdSetFmToneFreq: (NSNumber *) value {
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i fm_tone_value=%.1f",
+                     [self.thisSliceNumber intValue],
+                     [value floatValue ]];
+    [self.radio commandToRadio:cmd];
+    
+    self.fmToneFreq = value;
+}
+
+
+- (void) cmdSetFmRepeaterOffset: (NSNumber *) value {
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i fm_repeater_offset_freq=%.3f",
+                     [self.thisSliceNumber intValue],
+                     [value floatValue]];
+    [self.radio commandToRadio:cmd];
+    
+    self.fmRepeaterOffset = value;
+}
+
+
+- (void) cmdSetFmRepeaterOffsetDir: (NSString *) value {
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i repeater_offset_dir=%@",
+                     [self.thisSliceNumber intValue],
+                     value];
+    [self.radio commandToRadio:cmd];
+    
+    self.repeaterOffsetDir = value;
+}
+
+- (void) cmdsetTxOffsetFreq: (NSNumber *) value {
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i tx_offset_freq=%f",
+                     [self.thisSliceNumber intValue],
+                     [value floatValue]];
+    
+    [self.radio commandToRadio:cmd];
+    
+    self.txOffsetFreq = value;
 }
 
 
