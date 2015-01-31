@@ -16,17 +16,22 @@
 // of each slice.
 
 
-@interface Slice : NSObject
+@interface Slice : NSObject <RadioParser>
 
 // Pointer to the object which created this Slice
-@property (strong, nonatomic) Radio *radio;
+@property (weak, nonatomic, readonly) Radio *radio;
 
-// All the following properties are KVO compliant for READ
+// Pointer to private run queue for Radio
+@property (strong, nonatomic, readonly) dispatch_queue_t sliceRunQueue;
 
-@property (strong, nonatomic) NSNumber *thisSliceNumber;            // Reference id of this slice - INTEGER [0 - 7]
-@property (strong, nonatomic) NSNumber *sliceInUse;                 // Slice in use - BOOL
+// All the following properties are KVO compliant for READ and WRITE except where marked READONLY
+
+@property (strong, nonatomic, readonly) NSNumber *thisSliceNumber;  // Reference id of this slice - INTEGER [0 - 7]
+@property (strong, nonatomic, readonly) NSNumber *sliceInUse;       // Slice in use - BOOL
 @property (strong, nonatomic) NSString *sliceFrequency;             // Slice frequency in MHz - STRING (e.g: 14.225001)
 @property (strong, nonatomic) NSString *sliceRxAnt;                 // RX Antenna port for this slice - STRING (ANT1, ANT2, RX_A, RX_B, XVTR)
+@property (strong, nonatomic) NSString *sliceTxAnt;                 // TX Antenna port for this slice - STRING (ANT1, ANT2, XVTR)
+
 @property (strong, nonatomic) NSNumber *sliceXitEnabled;            // XIT state ON|OFF - BOOL
 @property (strong, nonatomic) NSNumber *sliceXitOffset;             // XIT offset value - INTEGER
 @property (strong, nonatomic) NSNumber *sliceRitEnabled;            // RIT state ON|OFF - BOOL
@@ -46,7 +51,6 @@
 @property (strong, nonatomic) NSString *sliceAgcMode;               // Slice AGC mode - STRING (FAST, MED, SLOW, OFF)
 @property (strong, nonatomic) NSNumber *sliceAgcThreshold;          // Slice AGC Threshold level - INTEGER (0 - 100)
 @property (strong, nonatomic) NSNumber *sliceAgcOffLevel;           // Slice AGC Off level
-@property (strong, nonatomic) NSString *sliceTxAnt;                 // TX Antenna port for this slice - STRING (ANT1, ANT2, XVTR)
 @property (strong, nonatomic) NSNumber *sliceTxEnabled;             // TX on ths slice frequency/mode - BOOL
 @property (strong, nonatomic) NSNumber *sliceActive;                // Slice active - This is the active slice = BOOL
 @property (strong, nonatomic) NSNumber *sliceLocked;                // Slice frequency locked - BOOL
@@ -95,21 +99,26 @@
 - (NSString *) formatSliceFrequency;                                // Return slice RF frequency as STRING (e.g: 14.225.001)
 - (NSNumber *) formatSliceFrequencyAsNumber;                        // Return slice RF frequency as INTEGER (e.g: 14225001)
 - (NSString *) formatSliceFilterBandwidth;                          // Return slice filter bandwidth as STRING (e:g: 500 Hz, 1.0 KHz)
+- (NSString *) formatFrequencyNumberAsString:(NSNumber *) frequency;// Return slice RF frequenct as STRINF (e.g: 14.225001)
 
 // Slice command functions - use these commands to change specific functions of this slice
+- (void) setSliceFrequency:(NSString *)sliceFrequency
+                   autopan: (BOOL) autopan;                         // Set property sliceFrequency - STRING (e.g: 14.225001) with autopan ON|OFF
 
+/*
 - (void) cmdSetTx: (NSNumber *) state;                              // Set this slice as reference for Transmit - BOOL
 
-- (void) cmdTuneSlice: (NSNumber *) frequency;                      // Tune this slice to frequency in Hertz - INTEGER
-- (void) cmdTuneSlice:(NSNumber *)frequency autopan: (BOOL) autopan;// Tune this slice to frequency in Hertz - INTEGER with autopan ON|OFF
-- (void) cmdSetMode: (NSString *) mode;                             // Set mode for this slice - STRING
-- (void) cmdSetRxAnt: (NSString *) antenna;                         // Set RX antenna port - STRING
-- (void) cmdSetTxAnt: (NSString *) antenna;                         // Set TX antenna port - STIRNG
+// - (void) cmdTuneSlice: (NSNumber *) frequency;                      // Tune this slice to frequency in Hertz - INTEGER
 
-- (void) cmdSetMute: (NSNumber *) state;                            // Set MUTE for this slice - BOOL
-- (void) cmdSetLock: (NSNumber *) state;                            // Set LOCK state for this slice - BOOL
-- (void) cmdSetAfLevel: (NSNumber *) level;                         // Set AF level for this slice - INTEGER
-- (void) cmdSetAfPan: (NSNumber *) level;                           // Set PAN for this slice - FLOAT
+
+- (void) cmdSetMode: (NSString *) mode;                             // Set mode for this slice - STRING
+// - (void) cmdSetRxAnt: (NSString *) antenna;                         // Set RX antenna port - STRING
+// - (void) cmdSetTxAnt: (NSString *) antenna;                         // Set TX antenna port - STIRNG
+
+// - (void) cmdSetMute: (NSNumber *) state;                            // Set MUTE for this slice - BOOL
+// - (void) cmdSetLock: (NSNumber *) state;                            // Set LOCK state for this slice - BOOL
+// - (void) cmdSetAfLevel: (NSNumber *) level;                         // Set AF level for this slice - INTEGER
+// - (void) cmdSetAfPan: (NSNumber *) level;                           // Set PAN for this slice - FLOAT
 
 - (void) cmdSetAgcMode: (NSString *) mode;                          // Set AGC mode for this slice - STRING
 - (void) cmdSetAgcLevel: (NSNumber *) level;                        // Set AGC threshold for this slice - INTEGER
@@ -124,11 +133,11 @@
 - (void) cmdSetDspAnfLevel: (NSNumber *) level;                     // Set DSP ANF level - INTEGER
 - (void) cmdSetDspApfLevel: (NSNumber *) level;                     // Set DSP APF level - INTEGER
 
-- (void) cmdSetXitEnable: (NSNumber *) state;                       // Set XIT state ON|OFF - BOOL
-- (void) cmdSetRitEnable: (NSNumber *) state;                       // Set RIT state ON|OFF - BOOL
+// - (void) cmdSetXitEnable: (NSNumber *) state;                       // Set XIT state ON|OFF - BOOL
+// - (void) cmdSetRitEnable: (NSNumber *) state;                       // Set RIT state ON|OFF - BOOL
 - (void) cmdSetDaxEnable: (NSNumber *) channel;                     // Set DAX channel - INTEGER [0-8]
-- (void) cmdSetXitOffset: (NSNumber *) offset;                      // Set XIT offset - INTEGER
-- (void) cmdSetRitOffset: (NSNumber *) offset;                      // Set RIT offset - INTEGER
+// - (void) cmdSetXitOffset: (NSNumber *) offset;                      // Set XIT offset - INTEGER
+// - (void) cmdSetRitOffset: (NSNumber *) offset;                      // Set RIT offset - INTEGER
 
 - (void) cmdSetSliceActive: (NSNumber *) state;                     // Set this slice to be active slice - BOOL
 - (void) cmdSetQRPlayback: (NSNumber *) state;                      // Set the state of quick record playback
@@ -144,5 +153,6 @@
 
 - (void) cmdSetFilter:(NSNumber *) filterLo
              filterHi: (NSNumber *) filterHi;
+*/
 
 @end

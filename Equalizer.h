@@ -30,15 +30,18 @@
 #define EQ_GAIN_TO_VAL(x)   (x + 10)
 #define EQ_VAL_TO_GAIN(x)   (x - 10)
 
-@interface Equalizer : NSObject
+@interface Equalizer : NSObject <RadioParser>
+
+// Pointer to private run queue for Radio
+@property (strong, nonatomic, readonly) dispatch_queue_t eqRunQueue;
 
 // Radio object to which this Equalizer belongs
-@property (strong, nonatomic) Radio *radio;
+@property (strong, nonatomic, readonly) Radio *radio;
 
 // Type of this equalizer (rx or tx) as NSString
-@property (strong, nonatomic) NSString *eqType;
+@property (strong, nonatomic, readonly) NSString *eqType;
 
-// Property for each band so KVO compliant
+// Property for each band is KVO compliant
 @property (strong, nonatomic) NSNumber *eqBand0Value;       // Value from 0 (-10 dB) to 20 (+10 dB) per band
 @property (strong, nonatomic) NSNumber *eqBand1Value;
 @property (strong, nonatomic) NSNumber *eqBand2Value;
@@ -54,6 +57,7 @@
 - (NSArray *) eqBandNames;
 - (NSArray *) eqBandValues;
 
-- (void) cmdEqSetValue:(NSInteger) bandNum value: (NSNumber *) value;
-- (void) cmdEqSetEnabled: (NSNumber *) state;
+- (id) initWithTypeAndRadio:(NSString *) type radio:(Radio *) radio;
+- (void) cmdEqUpdateRadio:(Radio *) radio;
+
 @end

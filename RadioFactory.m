@@ -129,7 +129,7 @@ enum vitaTokens {
 
 #ifdef DEBUG
     // Create a fake radio for testing...
-    RadioInstance *fake = [[RadioInstance alloc] initWithData:@"10.1.1.151"
+    RadioInstance *fake = [[RadioInstance alloc] initWithData:@"10.1.1.155"
                                                          port:[NSNumber numberWithInt:4992]
                                                         model:@"FLEX-6300"
                                                     serialNum:@"1340-1100-0001-0007"
@@ -323,6 +323,12 @@ withFilterContext:(id)filterContext
             
             for (NSString *p in fields) {
                 NSArray *kv = [p componentsSeparatedByString:@"="];
+                
+                // One field report of a malformed discovery packet from a 6300 with a null value k/v pair
+                // So check in case this is the case (no pun intended) here...
+                if( kv.count < 2 )
+                    continue;	// Don’t parse an invalid pair
+                
                 NSString *k = kv[0];
                 NSString *v = kv[1];
                 int token = [self.parserTokens[k] intValue];

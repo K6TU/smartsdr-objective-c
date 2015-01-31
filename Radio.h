@@ -12,6 +12,7 @@
 #import "RadioFactory.h"
 
 
+
 // This model class is depedent on the AysncTCPSocket class developed by
 // Robbie Hansen.  It is part of the CocoaAsyncSocket project which can
 // be found on github at:
@@ -76,6 +77,17 @@ enum radioAtuState {
 
 @end
 
+
+// Internal process used between Radio and related objects to provide the related object
+// with radio gerneated status messages relevant to the object e.g: Slice, Equalizer
+
+@protocol RadioParser <NSObject>
+
+- (void) statusParser: (NSScanner *) scan selfStatus: (BOOL) selfStatus;
+
+@end
+
+
 #define MAX_SLICES_PER_RADIO    8
 
 // Radio is the primary model for the interface to the FlexRadio 6000 series.
@@ -112,12 +124,13 @@ enum radioAtuState {
 @property (strong, nonatomic) NSMutableArray *rxAntennaPorts;       // Array of strings with name for each RX antenna Port
 @property (strong, nonatomic) NSMutableArray *txAntennaPorts;       // Same for TX antenna ports
 
-// All the following properties are KVO compliant for READ
-@property (strong, nonatomic) NSString *apiVersion;                 // NSString of format VM.m.x.y of Version of API
-@property (strong, nonatomic) NSString *apiHandle;                  // NSString of our API handle
+// All the following properties are KVO compliant
 
-@property (strong, nonatomic) NSNumber *availableSlices;            // Number of available slices which can be created - INTEGER
-@property (strong, nonatomic) NSNumber *availablePanadapters;       // Number of available panadaptors which can be created - INTEGER
+@property (strong, readonly, nonatomic) NSString *apiVersion;                 // NSString of format VM.m.x.y of Version of API
+@property (strong, readonly, nonatomic) NSString *apiHandle;                  // NSString of our API handle
+@property (strong, readonly, nonatomic) NSNumber *availableSlices;            // Number of available slices which can be created - INTEGER
+@property (strong, readonly, nonatomic) NSNumber *availablePanadapters;       // Number of available panadaptors which can be created - INTEGER
+
 @property (strong, nonatomic) NSNumber *interlockTimeoutValue;      // Interlock timeout value in milliseconds - INTEGER
 @property (strong, nonatomic) NSNumber *interlockState;             // Interlock state - ENUM radioInterlockState
 @property (strong, nonatomic) NSString *interlockReason;            // Reason for the interlock - STRING
@@ -158,11 +171,11 @@ enum radioAtuState {
 @property (strong, nonatomic) NSString *transmitFilterLo;           // Transmit filter low frequency in MHz - STRING (e.g: -0.0028)
 @property (strong, nonatomic) NSString *transmitFilterHi;           // Transmit filter high frequency in MHz - STRING (e.g: 0.0028)
 
-@property (strong, nonatomic) NSNumber *atuStatus;                  // ATU operation status - ENUM radioAtuState
-@property (strong, nonatomic) NSNumber *atuEnabled;                 // ATU enabled - BOOL
+@property (strong, readonly, nonatomic) NSNumber *atuStatus;        // ATU operation status - ENUM radioAtuState
+@property (strong, readonly, nonatomic) NSNumber *atuEnabled;       // ATU enabled - BOOL
 
 @property (strong, nonatomic) NSNumber *txState;                    // State of tranmsitter on/off - BOOL
-@property (strong, atomic)    NSNumber *tuneEnabled;                // State of TUNE on/off - BOOL
+@property (strong, nonatomic) NSNumber *tuneEnabled;                // State of TUNE on/off - BOOL
 @property (strong, nonatomic) NSNumber *rfPowerLevel;               // RF power level in Watts - INTEGER
 @property (strong, nonatomic) NSNumber *tunePowerLevel;             // TUNE power level in Watts - INTEGER
 @property (strong, nonatomic) NSNumber *amCarrierLevel;             // AM Carrier level in Watts - INTEGER
@@ -227,83 +240,9 @@ enum radioAtuState {
 // DO NOT USE DIRECTLY - same proviso as above
 - (int) commandToRadio:(NSString *) cmd notify: (id<RadioDelegate>) notifyMe;
 
-- (void) cmdSetTxBandwidth: (NSNumber *) lo high: (NSNumber *) hi;  // Set TX bandwidth
-- (void) cmdSetRfPowerLevel: (NSNumber *) level;                    // Set RF power level in Watts - INTEGER
-- (void) cmdSetAmCarrierLevel: (NSNumber *) level;                  // Set AM Carrier power level in Watts - INTEGER
-
-- (void) cmdSetDaxSource: (NSNumber *) state;                       // Set DAX as TX audio input - BOOL
-- (void) cmdSetMicSelection: (NSString *) source;                   // Set MIC selection source - STRING
-- (void) cmdSetMicLevel: (NSNumber *) level;                        // Set MIC gain level - INTEGER
-- (void) cmdSetMicBias: (NSNumber *) state;                         // Set state of MIC Bias - BOOL
-- (void) cmdSetMicBoost: (NSNumber *) state;                        // Set state of MIC Boost - BOOL
-- (void) cmdSetAccEnabled: (NSNumber *) state;                      // Set state of MIC via ACC connector - BOOL
-- (void) cmdSetCompander: (NSNumber *) state;                       // Set state of Compander - BOOL
-- (void) cmdSetCompanderLevel: (NSNumber *) level;                  // Set Compander Level - INTEGER
-- (void) cmdSetSpeechProcEnabled: (NSNumber *) state;               // Set state of Speech Processor - BOOL
-- (void) cmdSetSpeechProcLevel: (NSNumber *) level;                 // Set Speech Processor Level - INTEGER (0 - 2)
-- (void) cmdSetVoxEnabled: (NSNumber *) state;                      // Set state of VOX - BOOL
-- (void) cmdSetVoxLevel: (NSNumber *) level;                        // Set VOX gain - INTEGER
-- (void) cmdSetVoxDelay: (NSNumber *) level;                        // Set VOX delay - INTEGER
-
-- (void) cmdSetCwPitch: (NSNumber *) level;                         // Set CW pitch in Hertz - INTEGER
-- (void) cmdSetCwSpeed: (NSNumber *) level;                         // Set CW keyer speed in WPM - INTEGER
-- (void) cmdSetCwSwapPaddles: (NSNumber *) state;                   // Set Swap CW paddles - BOOL (F = Dot/Dash, T = Dash/Dot)
-- (void) cmdSetIambicEnabled: (NSNumber *) state;                   // Set state of Iambic - BOOL
-- (void) cmdSetIambicMode: (NSString *) mode;                       // Iambic mode - STRING "A" or "B"
-- (void) cmdSetBreakinEnabled: (NSNumber *) state;                  // Set state of QSK - BOOL
-- (void) cmdSetQskDelay: (NSNumber *) level;                        // Set QSK delay in milliseconds - INTEGER
-
-- (void) cmdSetTxDelay: (NSNumber *) delay;                         // Set TX Delay in milliseconds - INTEGER
-- (void) cmdSetTx1Delay: (NSNumber *) delay;                        // Set RCA TX1 Delay in milliseconds - INTEGER
-- (void) cmdSetTx2Delay: (NSNumber *) delay;                        // Set RCA TX2 Delay in milliseconds - INTEGER
-- (void) cmdSetTx3Delay: (NSNumber *) delay;                        // Set RCA TX3 Delay in milliseconds - INTEGER
-- (void) cmdSetAccTxDelay: (NSNumber *) delay;                      // Set ACC TX Delay in milliseconds - INTEGER
-
-- (void) cmdSetTx1Enabled: (NSNumber *) state;                      // Set RCA TX1 Enabled - BOOL
-- (void) cmdSetTx2Enabled: (NSNumber *) state;                      // Set RCA TX2 Enabled - BOOL
-- (void) cmdSetTx3Enabled: (NSNumber *) state;                      // Set RCA TX3 Enabled - BOOL
-- (void) cmdSetAccTxEnabled: (NSNumber *) state;                    // Set ACC TX Enabled - BOOL
-- (void) cmdSetCWLEnabled: (NSNumber *) state;                      // Set CWL Enabled - BOOL
-
-- (void) cmdSetSidetoneEnabled: (NSNumber *) state;                 // Set state of CW Sidetone - BOOL
-- (void) cmdSetSidetoneGain: (NSNumber *) level;                    // Set level of CW Sidetone - INTEGER [0 - 100]
-- (void) cmdSetSidetonePan: (NSNumber *) level;                     // Set pan level of CW Sidetone - INTEGER [0 - 100]
-- (void) cmdSetPHMonitorEnabled: (NSNumber *) state;                // Set state of Phone monitor - BOOL
-- (void) cmdSetPHMonitorGain: (NSNumber *) level;                   // Set level of Phone monitor - INTEGER [0 - 100]
-- (void) cmdSetPHMonitorPan: (NSNumber *) level;                    // Set pan level of Phone monitor - INTEGER [0 - 100]
-
-
-- (void) cmdSetTx: (NSNumber *) state;                              // Set TX state (on/off) - BOOL
+// Command methods for non-property based radio attributes
 - (void) cmdSetAtuTune: (NSNumber *) state;                         // Set ATU command state (on/off) - BOOL
 - (void) cmdSetBypass;                                              // Set ATU bypass
-- (void) cmdSetTune: (NSNumber *) state;                            // Set TUNE state (on/off) - BOOL
-
-- (void) cmdSetMasterSpeakerGain: (NSNumber *) level;               // Set mixer master speaker AF level - INTEGER
-- (void) cmdSetMasterHeadsetGain: (NSNumber *) level;               // Set mixer master headset AF level - INTEGER
-
-- (void) cmdSetMasterSpeakerMute: (NSNumber *) state;               // Set mixer master speaker mute - BOOL
-- (void) cmdSetMasterHeadsetMute: (NSNumber *) state;               // Set mixer master headset mute - BOOL
-
-- (void) cmdSetRemoteOnEnabled: (NSNumber *) state;                 // Set remote on enabled - BOOL
-- (void) cmdSetTxInhibit: (NSNumber *) state;                       // Set TX inhibit - BOOL
-- (void) cmdSetHwAlcEnabled: (NSNumber *) state;                    // Set HW ALC enabled - BOOL
-
-- (void) cmdSetRcaTxInterlockEnabled: (NSNumber *) state;           // Set RCA Interlock enabled - BOOL
-- (void) cmdSetRcaTXInterlockPolarity: (NSNumber *) state;          // Set RCA Interlock Polarity - BOOL (F = active lo, T = active hi)
-
-- (void) cmdSetAccTxInterlockEnabled: (NSNumber *) state;           // Set ACC Interlock enabled - BOOL
-- (void) cmdSetAccTxInterlockPolarity: (NSNumber *) state;          // Set ACC Interlock Polarity - BOOL (F = active lo, T = active hi)
-
-- (void) cmdSetInterlockTimeoutValue: (NSNumber *) value;           // Set Interlock timeout in minutes - INTEGER
-
-- (void) cmdSetRadioScreenSaver: (NSString *) source;               // Set display source (model | callsign | name) - STRING
-- (void) cmdSetRadioCallsign: (NSString *) callsign;                // Set callsign value - STRING max length 16
-- (void) cmdSetRadioName: (NSString *) name;                        // Set name value - STRING max length 16
-
-- (void) cmdSetSyncActiveSlice: (NSNumber *) state;                 // Client should sync active slice with radio
-
-// NOTE:  The cmdNewSlice will change to add the ability to specify frequency, mode and antenna selections
-// in some upcoming release.
 
 - (void) cmdNewSlice;                                               // Create a new slice (14.150, USB, ANT1 - hardcoded)
 - (void) cmdNewSlice: (NSString *) frequency
