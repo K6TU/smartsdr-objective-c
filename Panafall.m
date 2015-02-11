@@ -7,13 +7,13 @@
 //
 
 #import "Panafall.h"
-
+#import "Waterfall.h"
 
 @interface Panafall ()
 
 @property (weak, readwrite, nonatomic) Radio *radio;                         // The Radio which owns this panadaptor
 @property (strong, readwrite, nonatomic) NSString *streamId;                 // Identifier of this panadapator (STRING)
-@property (weak, readwrite, nonatomic) Waterfall *waterfall;                 // The Waterfall linked to this panadaptor (if any)
+@property (weak, readwrite, nonatomic) Waterfall <PanafallWaterfallData> *waterfall;     // The Waterfall linked to this panadaptor (if any)
 @property (readwrite, nonatomic) BOOL wide;                                  // State of preselector for associated SCU (BOOL)
 @property (strong, readwrite, nonatomic) NSString *band;                     // Band encompassed by this pan (STRING)
 @property (readwrite, nonatomic) int capacity;                               // Capacity maximum indicator (INT)
@@ -224,6 +224,7 @@ enum panafallToken {
                 if (self.userSetSize.width == [v floatValue]) {
                     dim.width = [v floatValue];
                     updateWithNotify(@"panDimensions", _panDimensions, dim);
+                    [self.waterfall updateXPixelSize:(int)[v integerValue]];
                 }
 
                 break;

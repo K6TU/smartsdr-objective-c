@@ -62,7 +62,7 @@
 
 @property (weak, readonly, nonatomic) Radio *radio;                         // The Radio which owns this panadaptor
 @property (strong, readonly, nonatomic) NSString *streamId;                 // Identifier of this panadapator (STRING)
-@property (weak, readonly, nonatomic) Waterfall *waterfall;                 // The Waterfall linked to this panadaptor (if any)
+@property (weak, readonly, nonatomic) Waterfall <PanafallWaterfallData>*waterfall;  // The Waterfall linked to this panadaptor (if any)
 @property (nonatomic) CGSize panDimensions;                                 // Size of this panadaptor in pixels (CGSIZE)
 @property (nonatomic) Float32 center;                                       // Center of the panadaptor in MHz (FLOAT)
 @property (nonatomic) Float32 bandwidth;                                    // Bandwidth of panadapor in MHz (FLOAT)

@@ -16,9 +16,6 @@
 #import "WaterfallTile.h"
 
 
-// Forward definition for Panadaptor
-@class Panafall;
-@class Waterfall;
 
 //
 // Protocol used between model and View Controller when data is available for

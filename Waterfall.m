@@ -95,8 +95,22 @@ enum waterfallToken {
 #pragma mark
 #pragma mark PanafallWaterfallData protocol handler
 
+
+
+// Private Macro
+//
+// Macro to perform inline update on an ivar with KVO notification
+
+#define updateWithNotify(key,ivar,value)  \
+    {    dispatch_sync(dispatch_get_main_queue(), ^(void) { \
+        [self willChangeValueForKey:(key)]; \
+        (ivar) = (value); \
+        [self didChangeValueForKey:(key)]; \
+        }); \
+    }
+
 - (void)updateXPixelSize:(int)x {
-    self.xPixels = x;
+    updateWithNotify(@"xPixels", _xPixels, x);
 }
 
 
@@ -174,18 +188,6 @@ enum waterfallToken {
 #pragma mark
 #pragma mark Radio Parser Support
 
-
-// Private Macro
-//
-// Macro to perform inline update on an ivar with KVO notification
-
-#define updateWithNotify(key,ivar,value)  \
-    {    dispatch_sync(dispatch_get_main_queue(), ^(void) { \
-        [self willChangeValueForKey:(key)]; \
-        (ivar) = (value); \
-        [self didChangeValueForKey:(key)]; \
-        }); \
-    }
 
 
 - (void) statusParser:(NSScanner *)scan selfStatus:(BOOL)selfStatus {
