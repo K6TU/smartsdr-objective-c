@@ -40,4 +40,31 @@ Radio instance.  A Slice is a logical receiver and is connected to an antenna
 port.  Each slice has unique attributes such as receive mode, audio & DSP
 controls etc which are maintained as properties.
 
-The properties of Radio and Slice classes are KVO compliant and should be considered READ ONLY.  Use the cmd actions for each class to change their attributes.
+There are MANY changes from version 1.6 (current top of master) so be warned...
+
+THIS CODE IS ALPHA LEVEL, will break your existing applicaiton using any earlier
+version and isn't fully tested.
+
+"Don't say I didn't say I didn't warn ya!'" - Taylor Swift, Blank Space from 1989
+
+Major Changes:
+
+1. The majority of command methods on both Radio and Slice have been eliminated
+   and replaced by commands to the radio being generated from setter methods of 
+   appropriate properties.  So for example, use self.sliceFrequency = freq to 
+   change the frequency of the slice.
+
+2. Radio and Slice properties are still in object form - ie NSNumber instead of 
+   the underlying numbers.  This *may* change in the future...
+
+3. Almost all of the models now run on private run queues but signal KVO changes
+   on the main default run queue.
+
+4. Models now exist for Meters, Panafall and Waterfall streams.  In the case of 
+   the Meter, incoming meters are processed on the VitaManager's private run queue
+   and the meter is updated on the default queue.  Both Panafall and Waterfall
+   expect to run on a run queue other than the default run queue and a delegate
+   may provide their own run queue.  Updating the delegate and the runqueue uses
+   syncrhonized and should be thread safe.
+
+

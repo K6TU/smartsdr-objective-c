@@ -1,3 +1,4 @@
+
 //
 //  Radio.m
 //
@@ -9,18 +10,22 @@
 // the specific approval of Stu Phillips, K6TU.
 
 #import "Radio.h"
+#import "Meter.h"
 #import "Slice.h"
 #import "Equalizer.h"
 #import "FilterSpec.h"
+#import "VitaManager.h"
+#import "Panafall.h"
+#import "Waterfall.h"
 
-@interface Radio () {
-    GCDAsyncSocket *socket;
-    UInt16 seqNum;
-    BOOL verbose;
-    enum radioConnectionState connectionState;
-}
+@interface Radio ()
 
 @property (strong, nonatomic) NSObject<RadioDelegate> *delegate;
+
+@property (strong, readwrite, nonatomic) VitaManager *vitaManager;
+@property (strong, readwrite, nonatomic) NSMutableDictionary *meters;
+@property (strong, readwrite, nonatomic) NSMutableDictionary *panafalls;
+@property (strong, readwrite, nonatomic) NSMutableDictionary *waterfalls;
 
 @property (strong, readwrite, nonatomic) NSString *apiVersion;                 // NSString of format VM.m.x.y of Version of API
 @property (strong, readwrite, nonatomic) NSString *apiHandle;                  // NSString of our API handle
@@ -40,6 +45,7 @@
 @property (strong, nonatomic) NSDictionary *statusAtuTokens;
 @property (strong, nonatomic) NSDictionary *statusAtuStatusTokens;
 
+@property (strong, nonatomic) NSMutableDictionary *responseCallbacks;         // Radio response callbacks within self
 
 @property (strong, nonatomic) NSMutableDictionary *notifyList;
 @property (strong, nonatomic) dispatch_queue_t radioRunQueue;
@@ -60,7 +66,7 @@
 - (void) parseVersionType: (NSString *) payload;
 - (void) parseResponseType: (NSString *) payload;
 - (void) parseMixerToken: (NSScanner *) scan;
-- (void) parseDisplayToken: (NSScanner *) scan;
+- (void) parseDisplayToken: (NSScanner *) scan selfStatus: (BOOL) selfStatus;
 - (void) parseMeterToken: (NSScanner *) scan;
 - (void) parseGpsToken: (NSScanner *) scan;
 - (void) parseProfileToken: (NSScanner *) scan;
@@ -68,11 +74,12 @@
 - (void) parseInterlockToken: (NSScanner *) scan;
 - (void) parseEqToken: (NSScanner *) scan selfStatus: (BOOL) selfStatus;
 
-
+- (int) commandToRadio:(NSString *) cmd notifySel:(SEL) callback;
 
 @end
 
-#pragma mark    
+
+#pragma mark
 #pragma mark Parser Enum Definitions
 
 enum enumStatusTokens {
@@ -236,6 +243,11 @@ enum enumStatusInterlockStateTokens {
 
 @implementation Radio
 
+GCDAsyncSocket *radioSocket;
+UInt16 seqNum;
+BOOL verbose;
+enum radioConnectionState connectionState;
+BOOL subscribedToDisplays = NO;
 
 #pragma mark
 #pragma mark Parser Token Initializers
@@ -500,13 +512,14 @@ enum enumStatusInterlockStateTokens {
         NSString *qName = @"com.k6tu.RadioQueue";
         self.radioRunQueue = dispatch_queue_create([qName UTF8String], NULL);
         
-        socket = [[GCDAsyncSocket alloc] initWithDelegate:self delegateQueue:self.radioRunQueue];
-        [socket setIPv4PreferredOverIPv6:YES];
-        [socket setIPv6Enabled:NO];
+        radioSocket = [[GCDAsyncSocket alloc] initWithDelegate:self delegateQueue:self.radioRunQueue];
+
+        [radioSocket setIPv4PreferredOverIPv6:YES];
+        [radioSocket setIPv6Enabled:NO];
         
         NSError *error = nil;
         
-        if (![socket connectToHost:self.radioInstance.ipAddress
+        if (![radioSocket connectToHost:self.radioInstance.ipAddress
                             onPort:[self.radioInstance.port unsignedIntegerValue]
                        withTimeout:5.0
                              error:&error]) {
@@ -525,6 +538,8 @@ enum enumStatusInterlockStateTokens {
         [self initStatusTransmitTokens];
         [self initFilterSpecs];
         
+        self.responseCallbacks = [[NSMutableDictionary alloc]init];
+        
         // Set TX ports - same for 6300, 6500 and 6700
         self.txAntennaPorts = [[NSMutableArray alloc] initWithObjects:@"ANT1", @"ANT2", @"XVTR", nil];
         
@@ -540,6 +555,13 @@ enum enumStatusInterlockStateTokens {
         for (int i=0; i < MAX_SLICES_PER_RADIO; i++) {
             [self.slices insertObject:[NSNull null] atIndex:i];
         }
+        
+        // Set up the blank meter dictionary
+        self.meters = [[NSMutableDictionary alloc]init];
+        
+        // Set up the blank panafall dictionary and waterfall dictionary
+        self.panafalls = [[NSMutableDictionary alloc]init];
+        self.waterfalls = [[NSMutableDictionary alloc]init];
         
         self.equalizers = [[NSMutableArray alloc] initWithCapacity:2];
         self.equalizers[0] = [[NSNull alloc] init];
@@ -582,8 +604,8 @@ enum enumStatusInterlockStateTokens {
     }
     
     // Close the socket
-    [socket disconnectAfterWriting];
-    [socket setDelegate:nil];
+    [radioSocket disconnectAfterWriting];
+    [radioSocket setDelegate:nil];
 }
 
 
@@ -609,16 +631,27 @@ enum enumStatusInterlockStateTokens {
 // Sends the initialize requests to the radio and posts our first read
 
 - (void) initializeRadio {
+    // We are connected to the radio - create the VitaManager for this radio
+    self.vitaManager = [[VitaManager alloc]init];
+    if (![self.vitaManager handleRadio:self])
+        // Failed to connect to a UDP port - drop the manager
+        self.vitaManager = nil;
+    
     // Post initial commands
     [self commandToRadio:@"client program K6TUControl"];
     [self commandToRadio:@"sub tx all"];
     [self commandToRadio:@"sub atu all"];
+    [self commandToRadio:@"sub meter all"];
     [self commandToRadio:@"sub slice all"];
     [self commandToRadio:@"eq rx info"];
     [self commandToRadio:@"eq tx info"];
-    [self commandToRadio:@"info" notify:self];
     
-    [socket readDataToData:[GCDAsyncSocket LFData] withTimeout:-1 tag:0];
+    if (self.vitaManager)
+        [self commandToRadio:[NSString stringWithFormat:@"client udpport %i", (int)self.vitaManager.vitaPort]];
+    
+    [self commandToRadio:@"info" notifySel:@selector(infoResponseCallback:)];
+    
+    [radioSocket readDataToData:[GCDAsyncSocket LFData] withTimeout:-1 tag:0];
 }
 
 
@@ -630,7 +663,7 @@ enum enumStatusInterlockStateTokens {
 #ifdef DEBUG
     NSLog(@"Data sent - %@", cmdline);
 #endif
-    [socket writeData: [cmdline dataUsingEncoding:NSUTF8StringEncoding] withTimeout:-1 tag:(long)seqNum];
+    [radioSocket writeData: [cmdline dataUsingEncoding:NSUTF8StringEncoding] withTimeout:-1 tag:(long)seqNum];
 }
 
 
@@ -643,10 +676,15 @@ enum enumStatusInterlockStateTokens {
 #ifdef DEBUG
     NSLog(@"Data sent - %@", cmdline);
 #endif
-    [socket writeData: [cmdline dataUsingEncoding:NSUTF8StringEncoding] withTimeout:-1 tag:(long)seqNum];
+    [radioSocket writeData: [cmdline dataUsingEncoding:NSUTF8StringEncoding] withTimeout:-1 tag:(long)seqNum];
     return seqNum;
 }
 
+- (int) commandToRadio:(NSString *)cmd notifySel:(SEL)callback {
+    int seq = [self commandToRadio:cmd notify:self];
+    [self.responseCallbacks setValue:[NSValue valueWithPointer:callback] forKey:[NSString stringWithFormat:@"%i", seq]];
+    return seq;
+}
 
 
 // Private Macro
@@ -663,15 +701,29 @@ enum enumStatusInterlockStateTokens {
 }
 
 
-// Currently there is only one issued command for which a response is waited - info
-// to recover the settings for the Model, Callsign and Name which may be displayed
-// as the "screensaver" on the 6500/6700 front panel display.
 //
-// If others are added here in the Radio model, then this should be modified to take
-// the sequence number of the response, look it up to a selector of the appropriate
-// response processor and then invoke it.
+// For the radio, we have our own table of which selectors to call for the
+// callback
+//
+
 
 - (void) radioCommandResponse:(int)seqNum response:(NSString *)cmdResponse {
+    NSString *key = [NSString stringWithFormat:@"%i", seqNum];
+    SEL callback = [[self.responseCallbacks objectForKey:key] pointerValue];
+
+    [self.responseCallbacks removeObjectForKey:key];
+    
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+    [self performSelector:callback withObject:cmdResponse];
+#pragma clang diagnostic pop
+}
+
+
+#pragma mark
+#pragma mark Reponse Callback Handlers
+
+- (void) infoResponseCallback:(NSString *)cmdResponse {
     NSScanner *scan = [[NSScanner alloc] initWithString:[cmdResponse substringFromIndex:1]];
     [scan setCharactersToBeSkipped:nil];
     
@@ -732,6 +784,44 @@ enum enumStatusInterlockStateTokens {
     }    
 }
 
+
+- (void) panafallCreateCallback:(NSString *)cmdResponse {
+    // Incoming scanner is pointing to the | separator after the response number
+    // So we have |<code>|<pan streamid>,<waterfall streamid>
+    NSScanner *scan = [[NSScanner alloc] initWithString:[cmdResponse substringFromIndex:0]];
+    [scan setCharactersToBeSkipped:nil];
+    
+    // First up is the response error code... grab it and skip the |
+    NSString *errorNumAsString;
+    [scan scanUpToString:@"|" intoString:&errorNumAsString];
+    [scan scanString:@"|" intoString:nil];
+    
+    if ([errorNumAsString integerValue])
+        // Anything other than 0 is an error and we return
+        return;
+    
+    NSString *response;
+    [scan scanUpToString:@"\n" intoString:&response];
+
+    // Split reponse on the ,
+    NSArray *streamIds = [response componentsSeparatedByString:@","];
+    
+    // Create the panafall and waterfall so they are ready to handle status messages
+    Panafall *pan = [[Panafall alloc]init];
+    [pan attachedRadio:self streamId:streamIds[0]];
+    [self.panafalls setObject:pan forKey:streamIds[0]];
+
+    Waterfall *wf = [[Waterfall alloc]init];
+    [wf attachedRadio:self streamId:streamIds[1]];
+    [self.waterfalls setObject:wf forKey:streamIds[1]];
+
+    [pan updateWaterfallRef:wf];
+    [wf updatePanafallRef:pan];
+    
+    dispatch_async(dispatch_get_main_queue(), ^(void) {
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"PanafallCreated" object:pan];
+    });
+}
 
 #pragma mark
 #pragma mark Parser Handlers
@@ -820,7 +910,7 @@ enum enumStatusInterlockStateTokens {
             break;
             
         case displayToken:
-            [self parseDisplayToken: scan];
+            [self parseDisplayToken: scan selfStatus:selfStatus];
             break;
             
         case meterToken:
@@ -907,14 +997,80 @@ enum enumStatusInterlockStateTokens {
 };
 
 
-- (void) parseDisplayToken: (NSScanner *) scan {
+- (void) parseDisplayToken: (NSScanner *) scan selfStatus:(BOOL)selfStatus {
+    // Ignore status updates that are not our own - at least until panafall
+    // mirroring is supported
+    if (!selfStatus) return;
     
-};
+    NSString *dest, *streamId;
+    BOOL removed;
+    
+    // we have the scanner at either pan or waterfall followed by the stream id
+    [scan scanUpToString:@" " intoString:&dest];
+    [scan scanString:@" " intoString:nil];
+    [scan scanUpToString:@" " intoString:&streamId];
+    
+    // Is this stream being removed?
+    removed = !([[scan string]rangeOfString:@"removed"].location == NSNotFound);
+    
+    if (removed) {
+        if ([self.panafalls objectForKey:streamId]) {
+            Panafall *thisPan = self.panafalls[streamId];
+            dispatch_async(dispatch_get_main_queue(), ^(void) {
+                [[NSNotificationCenter defaultCenter] postNotificationName:@"PanafallDeleted" object:thisPan];
+            });
+            [thisPan willRemoveDisplay];
+            [self.panafalls removeObjectForKey:streamId];
+            
+        } else if ([self.waterfalls objectForKey:streamId]) {
+            Waterfall *thisWf = self.waterfalls[streamId];
+            [thisWf willRemoveDisplay];
+            [self.waterfalls removeObjectForKey:streamId];
+        }
+
+        return;
+    }
+    
+    // Dispatch to the display
+    if ([self.panafalls objectForKey:streamId]) {
+        Panafall *pan = self.panafalls[streamId];
+        [pan statusParser:scan selfStatus:selfStatus];
+       
+    } else if ([self.waterfalls objectForKey:streamId]) {
+        Waterfall *wf = self.waterfalls[streamId];
+        [wf statusParser:scan selfStatus:selfStatus];
+     }
+}
 
 
 - (void) parseMeterToken: (NSScanner *) scan {
+    NSScanner *localScan = [scan copy];
+    NSInteger meternum;
+    BOOL removed;
+    Meter *thisMeter;
     
-};
+    // Extract the meter number
+    [localScan scanInteger:&meternum];
+    NSString *mKey = [NSString stringWithFormat:@"%i", (int) meternum];
+    removed = !([[localScan string]rangeOfString:@"removed"].location == NSNotFound);
+    
+    if (removed) {
+        // If this is a meter for a slice, we should be able to just remove the
+        // Meter from our own list - at which point, the strong reference in the slice
+        // will still hold the object until the slice itself is removed (which is in process
+        // as the meters removed notifications come before the slice in_user=0 is sent
+        
+        [self.meters removeObjectForKey:mKey];
+        return;
+    }
+
+    // Meter is being created
+    thisMeter = [[Meter alloc]init];
+    [self.meters setObject:thisMeter forKey:mKey];
+
+    // Pass meter status string to the meter to have it set itself up
+    [thisMeter setupMeter:self scan:scan];
+}
 
 
 
@@ -1525,6 +1681,17 @@ enum enumStatusInterlockStateTokens {
     if (![(thisSlice = self.slices[thisSliceNum]) isKindOfClass:[Slice class]]) {
         self.slices[thisSliceNum] = [[Slice alloc] initWithRadio:self sliceNumber: thisSliceNum];
         thisSlice = self.slices[thisSliceNum];
+        
+        // Slice is created - scan the meters looking for the meters associated with this
+        // slice and tell the slice to add them to its own list.  We can run this on our own
+        // queue since as the slice has just been created, there won't yet be any observers
+        
+        for (id key in self.meters) {
+            Meter *m = self.meters[key];
+            if (m.meterSource == sliceSource && m.sliceNum == thisSliceNum)
+                [thisSlice addMeter:m];
+        }
+        
         dispatch_async(dispatch_get_main_queue(), ^(void) {
             [[NSNotificationCenter defaultCenter] postNotificationName:@"SliceCreated" object:thisSlice];
         });
@@ -1563,6 +1730,20 @@ enum enumStatusInterlockStateTokens {
         /* Send the command to the radio on our private queue */ \
         [self commandToRadio:(cmd)]; \
     });
+
+
+- (BOOL) cmdNewPanafall {
+    if (self.availablePanadapters && ![self.availablePanadapters integerValue])
+        return NO;
+    
+    if (!subscribedToDisplays) {
+        subscribedToDisplays = YES;
+        [self commandToRadio:@"sub display all"];
+    }
+    
+    [self commandToRadio:@"display panafall create x=100 y=100" notifySel:@selector(panafallCreateCallback:)];
+    return YES;
+}
 
 
 - (void) cmdNewSlice {
@@ -2112,7 +2293,7 @@ enum enumStatusInterlockStateTokens {
         [self parseRadioStream: payload];
     }
     
-    [socket readDataToData:[GCDAsyncSocket LFData] withTimeout:-1 tag:0];
+    [radioSocket readDataToData:[GCDAsyncSocket LFData] withTimeout:-1 tag:0];
 }
 
 

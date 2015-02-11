@@ -9,14 +9,17 @@
 // the specific approval of Stu Phillips, K6TU.
 
 #import <Foundation/Foundation.h>
-#import "Radio.h"
+
+// Forward class definitions
+@class Radio;
+@class Meter;
 
 // Slice is the model for a unique slice in the Radio model - notifications are sent
 // via the default notification center on creation (SliceCreated) and deletion (SliceDeleted)
 // of each slice.
 
 
-@interface Slice : NSObject <RadioParser>
+@interface Slice : NSObject <RadioSliceMeter, RadioParser>
 
 // Pointer to the object which created this Slice
 @property (weak, nonatomic, readonly) Radio *radio;
@@ -26,6 +29,7 @@
 
 // All the following properties are KVO compliant for READ and WRITE except where marked READONLY
 
+@property (strong, nonatomic, readonly) NSMutableDictionary *meters;// Dictionary of meters keyed by their short name
 @property (strong, nonatomic, readonly) NSNumber *thisSliceNumber;  // Reference id of this slice - INTEGER [0 - 7]
 @property (strong, nonatomic, readonly) NSNumber *sliceInUse;       // Slice in use - BOOL
 @property (strong, nonatomic) NSString *sliceFrequency;             // Slice frequency in MHz - STRING (e.g: 14.225001)

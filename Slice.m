@@ -8,14 +8,17 @@
 // is still under consideration.  For now, use of this software requires
 // the specific approval of Stu Phillips, K6TU.
 
+#import "Radio.h"
 #import "Slice.h"
+#import "Meter.h"
 
 
-@interface Slice()
+@interface Slice() <RadioParser, RadioSliceMeter>
     
 @property (nonatomic, strong, readwrite) NSNumber *thisSliceNumber;
 @property (nonatomic, strong, readwrite) NSNumber *sliceInUse;
 @property (readwrite, weak, nonatomic) Radio *radio;
+@property (readwrite, strong, nonatomic) NSMutableDictionary *meters;
 @property (readwrite, strong, nonatomic) dispatch_queue_t sliceRunQueue;
 @property (strong, nonatomic) NSDictionary *statusSliceTokens;
 
@@ -48,6 +51,7 @@
     _sliceNrEnabled = [NSNumber numberWithBool:NO];
     [self initStatusSliceTokens];
     
+    self.meters = [[NSMutableDictionary alloc]init];
     return self;
 }
 
@@ -106,6 +110,19 @@
                                   (int)(fInHz / 1000000), (int)(fInHz / 1000 % 1000), (int)(fInHz % 1000) ];
     return fmtFreq;
 }
+
+
+#pragma mark
+#pragma mark RadioSliceMeter Protocol handlers
+
+- (void) addMeter:(Meter *)meter {
+    self.meters[meter.shortName] = meter;
+}
+
+- (void) removeMeter:(Meter *)meter {
+    [self.meters removeObjectForKey:meter.shortName];
+}
+
 
 #pragma mark
 #pragma Setters
@@ -951,7 +968,7 @@ enum enumStatusSliceTokens {
             case fmToneValueToken:
                 [scan scanUpToCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"]
                                      intoString:&stringVal];
-                updateWithNotify(@"fmToneFreq",_fmToneFreq,[NSNumber numberWithFloat:floatVal]);
+                updateWithNotify(@"fmToneFreq",_fmToneFreq,[NSNumber numberWithFloat:[stringVal floatValue]]);
                 break;
                 
             case fmRepeaterOffsetToken:

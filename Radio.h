@@ -11,8 +11,6 @@
 #import <Foundation/Foundation.h>
 #import "RadioFactory.h"
 
-
-
 // This model class is depedent on the AysncTCPSocket class developed by
 // Robbie Hansen.  It is part of the CocoaAsyncSocket project which can
 // be found on github at:
@@ -65,8 +63,12 @@ enum radioAtuState {
 };
 
 
-// Radio class protocol options
+// forward class definitions
 @class Radio;
+@class Meter;
+@class VitaManager;
+@class Panafall;
+@class Waterfall;
 
 @protocol RadioDelegate <NSObject>
 @optional
@@ -87,6 +89,33 @@ enum radioAtuState {
 
 @end
 
+// Internal process used between Radio and Meter to update meter value
+
+@protocol RadioMeter <NSObject>
+
+- (void) setupMeter:(Radio *) radio scan:(NSScanner *) scan;
+
+@end
+
+// Internal protocol used between Radio and Slice to add and remove meters
+
+@protocol RadioSliceMeter <NSObject>
+
+- (void) addMeter:(Meter *)meter;
+
+@end
+
+// Internal protocol used between Radio and Displays
+
+@protocol RadioDisplay <NSObject>
+- (void)attachedRadio:(Radio *)radio streamId:(NSString *) streamId;
+- (void)willRemoveDisplay;
+
+@optional
+- (void) updatePanafallRef:(Panafall *) pan;
+- (void) updateWaterfallRef:(Waterfall *) waterfall;
+@end
+
 
 #define MAX_SLICES_PER_RADIO    8
 
@@ -102,6 +131,23 @@ enum radioAtuState {
 
 // The RadioInstance this Radio was set up to access.
 @property (strong, nonatomic) RadioInstance *radioInstance;
+
+// The VitaManager which handles all incoming VITA encoded streams except
+// for VITA_DISCOVERY (see RadioFactory).  The VitaManager is only created
+// once the radio is connected.
+
+@property (strong, readonly, nonatomic) VitaManager *vitaManager;
+
+// Mutable Dictionary to handle the meters for the radio and related objects
+// Key is the meter number as an NSString
+
+@property (strong, readonly, nonatomic) NSMutableDictionary *meters;
+
+// Mutable Dictionary to handle the panafall objects for the radio
+// Key is the stream id as a hex encoded string - like 0x40000000
+
+@property (strong, readonly, nonatomic) NSMutableDictionary *panafalls;
+@property (strong, readonly, nonatomic) NSMutableDictionary *waterfalls;
 
 // Array to handle each slice for a radio - indexed by slice number
 // with an entry set to NSNULL if the slice does not exist.
@@ -250,6 +296,8 @@ enum radioAtuState {
                 mode: (NSString *) mode;                            // Create a new slice withthe specified mode, frequency and port
 
 - (void) cmdRemoveSlice: (NSNumber *) sliceNum;                     // Remove slice N - INTEGER
+
+- (BOOL) cmdNewPanafall;                                            // Create a new panadaptor on the radio
 
 
 @end
