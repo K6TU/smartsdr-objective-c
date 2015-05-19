@@ -5,9 +5,34 @@
 //  Created by STU PHILLIPS on 2/6/15.
 //  Copyright (c) 2015 STU PHILLIPS. All rights reserved.
 //
-// NOTE: THe license under which this software will be generally released
-// is still under consideration.  For now, use of this software requires
-// the specific approval of Stu Phillips, K6TU.
+// LICENSE TERMS:
+// Stu Phillips, K6TU is the author and copyright of this software.
+// Copyright is assigned to Ridgelift, VC LLC.
+//
+// All rights are reserved.  Third parties may use this software under
+// the following terms:
+//
+// Educational, Non-commercial and Open Source use:
+// ------------------------------------------------
+// Any individual(s) or educational institutions may use this software at
+// no charge subject to the following conditions:
+// - K6TU Copyright is clearly acknowledged in the software
+//
+// If the software is developed other than for personal use and is distributed
+// in any form;
+// - Software incoporating the K6TU code is provided free of charge to end users
+// - Source code of the package/software including the K6TU code must be Open Source
+// - Source code of the package/software including the k6TU code must be publicly
+//   available on the Internet via github or similar repository system
+//
+// Commercial Use
+// --------------
+// The incorporation of the K6TU software in a proprietary product regardless of
+// whether the product is sold for a fee, bundled with another product at no cost
+// or in any use by a for-profit organization is expressly prohibited without a
+// specific license agreement from Stu Phillips, K6TU and Ridgelift VC, LLC.
+//
+// Violation of these Copyright terms will be protected by US & International law.
 //
 
 #import "VitaManager.h"
@@ -16,6 +41,7 @@
 #import "Meter.h"
 #import "Panafall.h"
 #import "Waterfall.h"
+#import "DAXAudio.h"
 
 
 @interface VitaManager () <GCDAsyncUdpSocketDelegate>
@@ -41,19 +67,20 @@
 
 @implementation VitaManager
 
-GCDAsyncUdpSocket *vitaSocket;
+GCDAsyncUdpSocket *vitaRxSocket;
+GCDAsyncUdpSocket *vitaTxSocket;
 
 - (id) init {
     self = [super init];
     
     // Create a private run queue for us to run on
-    NSString *qName = @"com.k6tu.VitaQueue";
+    NSString *qName = @"net.k6tu.VitaQueue";
     self.vitaRunQueue = dispatch_queue_create([qName UTF8String], NULL);
     
-    vitaSocket = [[GCDAsyncUdpSocket alloc] initWithDelegate:self delegateQueue:self.vitaRunQueue];
-    [vitaSocket setPreferIPv4];
-    [vitaSocket setIPv6Enabled:NO];
-    [vitaSocket enableBroadcast:NO error:nil];
+    vitaRxSocket = [[GCDAsyncUdpSocket alloc] initWithDelegate:self delegateQueue:self.vitaRunQueue];
+    [vitaRxSocket setPreferIPv4];
+    [vitaRxSocket setIPv6Enabled:NO];
+    [vitaRxSocket enableBroadcast:NO error:nil];
     
     return self;
 }
@@ -68,9 +95,9 @@ GCDAsyncUdpSocket *vitaSocket;
     // Find a port for us - we scan from the default port up looking for an available port
     
     for (int i=0; i<20; i++) {
-        if ([vitaSocket bindToPort:portNum error:&error]) {
+        if ([vitaRxSocket bindToPort:portNum error:&error]) {
             socketSuccess = YES;
-            if (![vitaSocket connectToHost:self.radio.radioInstance.ipAddress onPort:0 error:&error])
+            if (![vitaRxSocket connectToHost:self.radio.radioInstance.ipAddress onPort:0 error:&error])
                 NSLog(@"VitaManager: Error connecting to host - %@", error);
             
             break;
@@ -86,12 +113,27 @@ GCDAsyncUdpSocket *vitaSocket;
         return NO;
     }
     
+    // Grab the tx socket for sending streams to the radio
+    vitaTxSocket = [[GCDAsyncUdpSocket alloc] initWithDelegate:self delegateQueue:self.vitaRunQueue];
+    [vitaTxSocket setPreferIPv4];
+    [vitaTxSocket setIPv6Enabled:NO];
+    [vitaTxSocket enableBroadcast:NO error:nil];
+    
+    if (![vitaTxSocket connectToHost:self.radio.radioInstance.ipAddress onPort:VITA_DEFAULT_PORT error:&error])
+        NSLog(@"VitaManager: Error connecting to tx host - %@", error);
+    
     // Record our socket
     self.vitaPort = portNum;
    
     // Post a read
-    [vitaSocket receiveOnce:&error];
+    [vitaRxSocket receiveOnce:&error];
     return YES;
+}
+
+
+- (void) txStreamPacket:(NSData *)vitaPacket {
+    // Send this VITA encoded frame to the radio
+    [vitaTxSocket sendData:vitaPacket withTimeout:-1 tag:0];
 }
 
 
@@ -106,6 +148,7 @@ GCDAsyncUdpSocket *vitaSocket;
     NSString *streamId;
     Panafall *pan;
     Waterfall *wf;
+    DAXAudio *sh;
     
     // TODO:
     // Packet statistics - received, dropped
@@ -120,20 +163,54 @@ GCDAsyncUdpSocket *vitaSocket;
                     
                 case VS_PAN_FFT:
                     streamId = [NSString stringWithFormat:@"0x%08X", vitaPacket.streamId];
-                    pan = self.radio.panafalls[streamId];
+                    
+                    @synchronized (self.radio.panafalls) {
+                        pan = self.radio.panafalls[streamId];
+                    }
+                    
                     [pan streamHandler:vitaPacket];
                     break;
                     
                 case VS_Waterfall:
                     streamId = [NSString stringWithFormat:@"0x%08X", vitaPacket.streamId];
-                    wf = self.radio.waterfalls[streamId];
+                    
+                    @synchronized (self.radio.waterfalls) {
+                        wf = self.radio.waterfalls[streamId];
+                    }
+                    
                     [wf streamHandler:vitaPacket];
                     break;
+                    
+                case VS_DAX_Audio:
+                    streamId = [NSString stringWithFormat:@"0x%08X", vitaPacket.streamId];
+
+                    @synchronized (self.radio.daxAudioStreamToStreamHandler) {
+                        sh = self.radio.daxAudioStreamToStreamHandler[streamId];
+                    }
+                    
+                    [sh streamHandler:vitaPacket];
+                    break;
+                    
+                case VS_Opus:
+                    streamId = [NSString stringWithFormat:@"0x%08X", vitaPacket.streamId];
+
+                    break;
             }
+            break;
+            
+        case IF_DATA_WITH_STREAM:
+            // IF Data with stream - this is DAX IQ data...
+            streamId = [NSString stringWithFormat:@"0x%08X", vitaPacket.streamId];
+
+            break;
+            
+        default:
+            // Ignore any other packetTypes we don't process
+            break;
     }
     
     // Post the next read
-    [vitaSocket receiveOnce:&error];
+    [vitaRxSocket receiveOnce:&error];
 }
 
 
@@ -144,13 +221,16 @@ GCDAsyncUdpSocket *vitaSocket;
     NSInteger nMeters = vitaPacket.payloadLength / 4;
     NSInteger meterNum, meterValue;
     void *ptr = vitaPacket.payload;
+    Meter *thisMeter;
     
     for (int i = 0 ; i < nMeters; i++) {
         meterNum = (short)CFSwapInt16BigToHost(*(short *)ptr);
         meterValue = (short)CFSwapInt16BigToHost(*(short *)(ptr+2));
         
         // Find the meter
-        Meter *thisMeter = self.radio.meters[[NSString stringWithFormat:@"%i", (int)meterNum]];
+        @synchronized (self.radio.meters) {
+            thisMeter = self.radio.meters[[NSString stringWithFormat:@"%i", (int)meterNum]];
+        }
         
         if (!thisMeter) continue;
         

@@ -4,9 +4,35 @@
 //  Created by STU PHILLIPS, K6TU on 8/3/13.
 //  Copyright (c) 2013 STU PHILLIPS. All rights reserved.
 //
-// NOTE: THe license under which this software will be generally released
-// is still under consideration.  For now, use of this software requires
-// the specific approval of Stu Phillips, K6TU.
+// LICENSE TERMS:
+// Stu Phillips, K6TU is the author and copyright of this software.
+// Copyright is assigned to Ridgelift, VC LLC.
+//
+// All rights are reserved.  Third parties may use this software under
+// the following terms:
+//
+// Educational, Non-commercial and Open Source use:
+// ------------------------------------------------
+// Any individual(s) or educational institutions may use this software at
+// no charge subject to the following conditions:
+// - K6TU Copyright is clearly acknowledged in the software
+//
+// If the software is developed other than for personal use and is distributed
+// in any form;
+// - Software incoporating the K6TU code is provided free of charge to end users
+// - Source code of the package/software including the K6TU code must be Open Source
+// - Source code of the package/software including the k6TU code must be publicly
+//   available on the Internet via github or similar repository system
+//
+// Commercial Use
+// --------------
+// The incorporation of the K6TU software in a proprietary product regardless of
+// whether the product is sold for a fee, bundled with another product at no cost
+// or in any use by a for-profit organization is expressly prohibited without a
+// specific license agreement from Stu Phillips, K6TU and Ridgelift VC, LLC.
+//
+// Violation of these Copyright terms will be protected by US & International law.
+//
 
 #import <Foundation/Foundation.h>
 #import "RadioFactory.h"
@@ -69,6 +95,7 @@ enum radioAtuState {
 @class VitaManager;
 @class Panafall;
 @class Waterfall;
+@class DAXAudio;
 
 @protocol RadioDelegate <NSObject>
 @optional
@@ -107,9 +134,9 @@ enum radioAtuState {
 
 // Internal protocol used between Radio and Displays
 
-@protocol RadioDisplay <NSObject>
+@protocol RadioStreamProcessor <NSObject>
 - (void)attachedRadio:(Radio *)radio streamId:(NSString *) streamId;
-- (void)willRemoveDisplay;
+- (void)willRemoveStreamProcessor;
 
 @optional
 - (void) updatePanafallRef:(Panafall *) pan;
@@ -148,6 +175,11 @@ enum radioAtuState {
 
 @property (strong, readonly, nonatomic) NSMutableDictionary *panafalls;
 @property (strong, readonly, nonatomic) NSMutableDictionary *waterfalls;
+
+// Mutable dictionary to handle the Audio Stream (Dax Audio) handlers
+// for the radio.  Key is the stream id
+
+@property (strong, readonly, nonatomic) NSMutableDictionary *daxAudioStreamToStreamHandler;
 
 // Array to handle each slice for a radio - indexed by slice number
 // with an entry set to NSNULL if the slice does not exist.
@@ -271,7 +303,7 @@ enum radioAtuState {
 
 // initWithRadioUInstanceAndDelegate: Invoke with the RadioInstance of the radio to be
 // commanded.
-- (id) initWithRadioInstanceAndDelegate: (RadioInstance *) thisRadio delegate: (id) theDelegate;
+- (id) initWithRadioInstanceAndDelegate: (RadioInstance *) thisRadio delegate: (id) theDelegate clientId:(NSString *) clientId;
 
 // close: Call to disconnect from this Radio and release all resources.
 - (void) close;
@@ -289,15 +321,14 @@ enum radioAtuState {
 // Command methods for non-property based radio attributes
 - (void) cmdSetAtuTune: (NSNumber *) state;                         // Set ATU command state (on/off) - BOOL
 - (void) cmdSetBypass;                                              // Set ATU bypass
-
 - (void) cmdNewSlice;                                               // Create a new slice (14.150, USB, ANT1 - hardcoded)
 - (void) cmdNewSlice: (NSString *) frequency
              antenna: (NSString *) antennaPort
                 mode: (NSString *) mode;                            // Create a new slice withthe specified mode, frequency and port
-
 - (void) cmdRemoveSlice: (NSNumber *) sliceNum;                     // Remove slice N - INTEGER
-
-- (BOOL) cmdNewPanafall;                                            // Create a new panadaptor on the radio
-
+- (BOOL) cmdNewPanafall:(CGSize) size;                              // Create a new panadaptor on the radio
+- (void) cmdRemovePanafall:(Panafall *) pan;                        // Remove this panafall from the radio
+- (void) cmdNewAudioStream:(int) daxChannel;                        // Create a new audio stream handler for the specified DAX channel
+- (void) cmdRemoveAudioStreamHandler:(DAXAudio *) streamProcessor;  // Remove the audio stream handler from the radio
 
 @end

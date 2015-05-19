@@ -5,10 +5,35 @@
 //  Created by STU PHILLIPS on 10/30/14.
 //  Copyright (c) 2014 STU PHILLIPS. All rights reserved.
 //
+// LICENSE TERMS:
+// Stu Phillips, K6TU is the author and copyright of this software.
+// Copyright is assigned to Ridgelift, VC LLC.
 //
-// NOTE: THe license under which this software will be generally released
-// is still under consideration.  For now, use of this software requires
-// the specific approval of Stu Phillips, K6TU.
+// All rights are reserved.  Third parties may use this software under
+// the following terms:
+//
+// Educational, Non-commercial and Open Source use:
+// ------------------------------------------------
+// Any individual(s) or educational institutions may use this software at
+// no charge subject to the following conditions:
+// - K6TU Copyright is clearly acknowledged in the software
+//
+// If the software is developed other than for personal use and is distributed
+// in any form;
+// - Software incoporating the K6TU code is provided free of charge to end users
+// - Source code of the package/software including the K6TU code must be Open Source
+// - Source code of the package/software including the k6TU code must be publicly
+//   available on the Internet via github or similar repository system
+//
+// Commercial Use
+// --------------
+// The incorporation of the K6TU software in a proprietary product regardless of
+// whether the product is sold for a fee, bundled with another product at no cost
+// or in any use by a for-profit organization is expressly prohibited without a
+// specific license agreement from Stu Phillips, K6TU and Ridgelift VC, LLC.
+//
+// Violation of these Copyright terms will be protected by US & International law.
+//
 
 #import "VITA.h"
 
@@ -105,6 +130,77 @@ const UInt16 VITAmin = 28;
     self.payloadLength = (self.packetSize * 4) - offset - (self.trailerPresent ? 4 : 0);
     
     return self;
+}
+
+
+//
+// encodeVitaPacket:
+//
+// Expects all the fields in the VITA to be set appropriately and the NSDATA object
+// held by the buffer property to already have space for the VITA header and contain
+// the payload in the appropriate byte order for the radio.
+//
+// This method takes and encodes the VITA fields from the object into their bit
+// stuffed and correct endianism at the front of the payload - and if specified,
+// the trailer.  The trailer word if supplied is expected to be correctly encoded
+// and in host bit order (aka, it will be swapped!)
+//
+
+
+- (void) encodeVitaPacket:(VITA *)vitaPacket {
+    UInt32 *buffer = (UInt32 *)vitaPacket.buffer.bytes;
+    UInt32 word = 0;
+    UInt32 offset = 0;
+    
+    
+    // Build up the Header word - one byte value at a time and then shift
+    word = (u_char)vitaPacket.packetType << 4 |
+           (u_char)vitaPacket.classIdPresent << 3 |
+    (u_char)vitaPacket.trailerPresent << 2;
+    
+    word <<= 8;
+    
+    word |= (u_char)vitaPacket.tsi << 6 |
+            (u_char)vitaPacket.tsf << 4 |
+    (u_char)vitaPacket.packetCount;
+    
+    word <<= 8;
+    
+    word |= (u_char)vitaPacket.packetSize >> 8;
+    
+    word <<= 8;
+    
+    word |= (u_char)(vitaPacket.packetSize & 0xff);
+    
+    // Place in the buffer
+    buffer[offset++] = CFSwapInt32HostToBig(word);;
+    
+    // Next up - stream id...
+    buffer[offset++] = CFSwapInt32HostToBig(vitaPacket.streamId);
+    
+    // Now  Class Id if present
+    if (vitaPacket.classIdPresent) {
+        buffer[offset++] = CFSwapInt32HostToBig(vitaPacket.oui);
+        
+        word = vitaPacket.informationClassCode << 16 | vitaPacket.packetClassCode;
+        buffer[offset++] = CFSwapInt32HostToBig(word);
+    }
+    
+    // Integer time stamp...
+    if (vitaPacket.tsi != TSI_NONE) {
+        buffer[offset++] = CFSwapInt32HostToBig(vitaPacket.fracTimeStamp0);
+    }
+    
+    // Fractional time stamp...
+    if (vitaPacket.tsf != TSI_NONE) {
+        buffer[offset++] = CFSwapInt32HostToBig(vitaPacket.fracTimeStamp1);
+    }
+    
+    // Last but not least, Trailer...
+    if (vitaPacket.trailerPresent) {
+        offset += vitaPacket.payloadLength;
+        buffer[offset] = CFSwapInt32HostToBig(vitaPacket.trailer);
+    }
 }
 
 @end

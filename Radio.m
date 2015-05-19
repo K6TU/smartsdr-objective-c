@@ -5,9 +5,35 @@
 //  Created by STU PHILLIPS on 8/3/13.
 //  Copyright (c) 2013 STU PHILLIPS. All rights reserved.
 //
-// NOTE: THe license under which this software will be generally released
-// is still under consideration.  For now, use of this software requires
-// the specific approval of Stu Phillips, K6TU.
+// LICENSE TERMS:
+// Stu Phillips, K6TU is the author and copyright of this software.
+// Copyright is assigned to Ridgelift, VC LLC.
+//
+// All rights are reserved.  Third parties may use this software under
+// the following terms:
+//
+// Educational, Non-commercial and Open Source use:
+// ------------------------------------------------
+// Any individual(s) or educational institutions may use this software at
+// no charge subject to the following conditions:
+// - K6TU Copyright is clearly acknowledged in the software
+//
+// If the software is developed other than for personal use and is distributed
+// in any form;
+// - Software incoporating the K6TU code is provided free of charge to end users
+// - Source code of the package/software including the K6TU code must be Open Source
+// - Source code of the package/software including the k6TU code must be publicly
+//   available on the Internet via github or similar repository system
+//
+// Commercial Use
+// --------------
+// The incorporation of the K6TU software in a proprietary product regardless of
+// whether the product is sold for a fee, bundled with another product at no cost
+// or in any use by a for-profit organization is expressly prohibited without a
+// specific license agreement from Stu Phillips, K6TU and Ridgelift VC, LLC.
+//
+// Violation of these Copyright terms will be protected by US & International law.
+//
 
 #import "Radio.h"
 #import "Meter.h"
@@ -17,6 +43,7 @@
 #import "VitaManager.h"
 #import "Panafall.h"
 #import "Waterfall.h"
+#import "DAXAudio.h"
 
 @interface Radio ()
 
@@ -26,6 +53,7 @@
 @property (strong, readwrite, nonatomic) NSMutableDictionary *meters;
 @property (strong, readwrite, nonatomic) NSMutableDictionary *panafalls;
 @property (strong, readwrite, nonatomic) NSMutableDictionary *waterfalls;
+@property (strong, readwrite, nonatomic) NSMutableDictionary *daxAudioStreamToStreamHandler;     
 
 @property (strong, readwrite, nonatomic) NSString *apiVersion;                 // NSString of format VM.m.x.y of Version of API
 @property (strong, readwrite, nonatomic) NSString *apiHandle;                  // NSString of our API handle
@@ -49,6 +77,8 @@
 
 @property (strong, nonatomic) NSMutableDictionary *notifyList;
 @property (strong, nonatomic) dispatch_queue_t radioRunQueue;
+@property (strong, nonatomic) NSString *clientId;
+
 
 - (void) initStatusTokens;
 - (void) initStatusRadioTokens;
@@ -67,6 +97,7 @@
 - (void) parseResponseType: (NSString *) payload;
 - (void) parseMixerToken: (NSScanner *) scan;
 - (void) parseDisplayToken: (NSScanner *) scan selfStatus: (BOOL) selfStatus;
+- (void) parseAudioStreamToken:(NSScanner *) scan selfStatus: (BOOL) selfStatus;
 - (void) parseMeterToken: (NSScanner *) scan;
 - (void) parseGpsToken: (NSScanner *) scan;
 - (void) parseProfileToken: (NSScanner *) scan;
@@ -96,6 +127,8 @@ enum enumStatusTokens {
     gpsToken,
     profileToken,
     cwxToken,
+    waveformToken,
+    audioStreamToken,
 };
 
 enum enumStatusMixerTokens {
@@ -266,6 +299,8 @@ BOOL subscribedToDisplays = NO;
                          [NSNumber numberWithInt:gpsToken], @"gps",
                          [NSNumber numberWithInt:profileToken], @"profile",
                          [NSNumber numberWithBool:cwxToken], @"cwx",
+                         [NSNumber numberWithInt:waveformToken], @"waveform",
+                         [NSNumber numberWithInt:audioStreamToken], @"audio_stream",
                          nil];
     self.notifyList = [[NSMutableDictionary alloc]init];
 }
@@ -502,14 +537,15 @@ BOOL subscribedToDisplays = NO;
 #pragma mark
 #pragma mark Radio Model Methods
 
-- (id) initWithRadioInstanceAndDelegate:(RadioInstance *)thisRadio delegate: (NSObject<RadioDelegate> *) theDelegate {
+- (id) initWithRadioInstanceAndDelegate:(RadioInstance *)thisRadio delegate: (NSObject<RadioDelegate> *) theDelegate clientId:(NSString *)clientId {
     self = [super init];
     
     if (self) {
         self.radioInstance = thisRadio;
+        self.clientId = clientId;
         
         // Create a private run queue for us to run on
-        NSString *qName = @"com.k6tu.RadioQueue";
+        NSString *qName = @"net.k6tu.RadioQueue";
         self.radioRunQueue = dispatch_queue_create([qName UTF8String], NULL);
         
         radioSocket = [[GCDAsyncSocket alloc] initWithDelegate:self delegateQueue:self.radioRunQueue];
@@ -562,6 +598,9 @@ BOOL subscribedToDisplays = NO;
         // Set up the blank panafall dictionary and waterfall dictionary
         self.panafalls = [[NSMutableDictionary alloc]init];
         self.waterfalls = [[NSMutableDictionary alloc]init];
+        
+        // Set up mapping tables for Audio Stream processing
+        self.daxAudioStreamToStreamHandler = [[NSMutableDictionary alloc]init];
         
         self.equalizers = [[NSMutableArray alloc] initWithCapacity:2];
         self.equalizers[0] = [[NSNull alloc] init];
@@ -638,13 +677,14 @@ BOOL subscribedToDisplays = NO;
         self.vitaManager = nil;
     
     // Post initial commands
-    [self commandToRadio:@"client program K6TUControl"];
+    [self commandToRadio:[NSString stringWithFormat:@"client program %@", self.clientId]];
     [self commandToRadio:@"sub tx all"];
     [self commandToRadio:@"sub atu all"];
     [self commandToRadio:@"sub meter all"];
     [self commandToRadio:@"sub slice all"];
     [self commandToRadio:@"eq rx info"];
     [self commandToRadio:@"eq tx info"];
+    [self commandToRadio:@"sub audio_stream all"];
     
     if (self.vitaManager)
         [self commandToRadio:[NSString stringWithFormat:@"client udpport %i", (int)self.vitaManager.vitaPort]];
@@ -723,11 +763,42 @@ BOOL subscribedToDisplays = NO;
 #pragma mark
 #pragma mark Reponse Callback Handlers
 
+// Utility methods for hex conversion of stream ids
+
+- (unsigned int)intFromHexString:(NSString *) hexStr {
+    unsigned int hexInt = 0;
+    
+    // Create scanner
+    NSScanner *scanner = [NSScanner scannerWithString:hexStr];
+    
+    // Tell scanner to skip the # character if any
+    [scanner setCharactersToBeSkipped:[NSCharacterSet characterSetWithCharactersInString:@"#"]];
+    
+    // Scan hex value
+    [scanner scanHexInt:&hexInt];
+    
+    return hexInt;
+}
+
+- (NSString *) hexStringFormatFromInt:(unsigned int) val {
+    return [NSString stringWithFormat:@"0x%08X", val];
+}
+
+- (NSString *) reformatStreamId:(NSString *) streamId {
+    return [self hexStringFormatFromInt:[self intFromHexString:streamId]];
+}
+
+
 - (void) infoResponseCallback:(NSString *)cmdResponse {
+    // cmdResponse is the full response including the R<seqnum>|
     NSScanner *scan = [[NSScanner alloc] initWithString:[cmdResponse substringFromIndex:1]];
     [scan setCharactersToBeSkipped:nil];
     
-    // First up is the response error code... grab it and skip the |
+    // Skip the sequence number and the following |
+    [scan scanInteger:nil];
+    [scan scanString:@"|" intoString:nil];
+    
+    // Now up is the response error code... grab it and skip the |
     NSString *errorNumAsString;
     [scan scanUpToString:@"|" intoString:&errorNumAsString];
     [scan scanString:@"|" intoString:nil];
@@ -786,12 +857,16 @@ BOOL subscribedToDisplays = NO;
 
 
 - (void) panafallCreateCallback:(NSString *)cmdResponse {
-    // Incoming scanner is pointing to the | separator after the response number
-    // So we have |<code>|<pan streamid>,<waterfall streamid>
-    NSScanner *scan = [[NSScanner alloc] initWithString:[cmdResponse substringFromIndex:0]];
+    // cmdResponse is the full response including the R<seqnum>|
+    NSScanner *scan = [[NSScanner alloc] initWithString:[cmdResponse substringFromIndex:1]];
     [scan setCharactersToBeSkipped:nil];
     
-    // First up is the response error code... grab it and skip the |
+    // Skip the sequence number and the following |
+    [scan scanInteger:nil];
+    [scan scanString:@"|" intoString:nil];
+    
+    // So now we have  <code>|<pan streamid>,<waterfall streamid>
+    // Next up is the response error code... grab it and skip the |
     NSString *errorNumAsString;
     [scan scanUpToString:@"|" intoString:&errorNumAsString];
     [scan scanString:@"|" intoString:nil];
@@ -805,23 +880,76 @@ BOOL subscribedToDisplays = NO;
 
     // Split reponse on the ,
     NSArray *streamIds = [response componentsSeparatedByString:@","];
+    NSString *streamIdPan = [self reformatStreamId:streamIds[0]];
+    NSString *streamIdWf = [self reformatStreamId:streamIds[1]];
     
     // Create the panafall and waterfall so they are ready to handle status messages
     Panafall *pan = [[Panafall alloc]init];
-    [pan attachedRadio:self streamId:streamIds[0]];
-    [self.panafalls setObject:pan forKey:streamIds[0]];
-
+    [pan attachedRadio:self streamId:streamIdPan];
+    
     Waterfall *wf = [[Waterfall alloc]init];
-    [wf attachedRadio:self streamId:streamIds[1]];
-    [self.waterfalls setObject:wf forKey:streamIds[1]];
-
+    [wf attachedRadio:self streamId:streamIdWf];
+    
     [pan updateWaterfallRef:wf];
     [wf updatePanafallRef:pan];
+    
+    // Add them to the list of Panafalls and Waterfalls
+    @synchronized (self.panafalls) {
+        [self.panafalls setObject:pan forKey:streamIdPan];
+    }
+    
+    @synchronized (self.waterfalls) {
+        [self.waterfalls setObject:wf forKey:streamIdWf];
+    }
     
     dispatch_async(dispatch_get_main_queue(), ^(void) {
         [[NSNotificationCenter defaultCenter] postNotificationName:@"PanafallCreated" object:pan];
     });
 }
+
+
+- (void) audioStreamCreateCallback:(NSString *)cmdResponse {
+    // cmdResponse is the full response including the R<seqnum>|
+    NSScanner *scan = [[NSScanner alloc] initWithString:[cmdResponse substringFromIndex:1]];
+    [scan setCharactersToBeSkipped:nil];
+    
+    // Grab the response number, skip it and the trailing |
+    [scan scanInteger:nil];
+    [scan scanString:@"|" intoString:nil];
+    
+    // So now we have <code>|<audio streamid>
+    // Next up is the response error code... grab it and skip the |
+    NSString *errorNumAsString;
+    [scan scanUpToString:@"|" intoString:&errorNumAsString];
+    [scan scanString:@"|" intoString:nil];
+    
+    if ([errorNumAsString integerValue]) {
+        // Anything other than 0 is an error and we return
+        return;
+    }
+    
+    // Grab the streamId and set things up...
+    DAXAudio *streamHandler =  [[DAXAudio alloc]init];
+    NSString *streamId;
+    
+    [scan scanUpToString:@"\n" intoString:&streamId];
+    streamId = [self reformatStreamId:streamId];
+    
+    // Update the streamHandler with the streamId
+    [streamHandler attachedRadio:self streamId:streamId];
+    
+    @synchronized (self.daxAudioStreamToStreamHandler) {
+        // Add to dictionary of handlers for this stream id...
+        [self.daxAudioStreamToStreamHandler setObject:streamHandler forKey:streamId];
+    }
+    
+    // Finally, fire off the notification that the stream was created
+    dispatch_async(dispatch_get_main_queue(), ^(void) {
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"AudioStreamCreated" object:streamHandler];
+    });
+}
+
+
 
 #pragma mark
 #pragma mark Parser Handlers
@@ -933,6 +1061,14 @@ BOOL subscribedToDisplays = NO;
             [self parseCwxToken: scan];
             break;
             
+        case waveformToken:
+            [self parseWaveformToken: scan];
+            break;
+            
+        case audioStreamToken:
+            [self parseAudioStreamToken: scan selfStatus:selfStatus];
+            break;
+            
         default:
             NSLog(@"Unexpected token in parseStatusType - %@", sourceToken);
             break;
@@ -974,16 +1110,11 @@ BOOL subscribedToDisplays = NO;
     // First up is the sequence number... grab it and skip the |
     NSString *seqNumAsString;
     [scan scanUpToString:@"|" intoString:&seqNumAsString];
-    [scan scanString:@"|" intoString:nil];
     id<RadioDelegate> notifyIt = self.notifyList[seqNumAsString];
     
     if (notifyIt) {
-        // Someone waiting for the response...
-        NSString *responseString;
-        [scan scanUpToString:@"\n" intoString:&responseString];
-        
         if ([notifyIt respondsToSelector:@selector(radioCommandResponse:response:)])
-            [notifyIt radioCommandResponse:[seqNumAsString intValue] response:responseString];
+            [notifyIt radioCommandResponse:[seqNumAsString intValue] response:payload];
         
         // Remove the object for the notification list
         [self.notifyList removeObjectForKey:seqNumAsString];
@@ -1019,12 +1150,12 @@ BOOL subscribedToDisplays = NO;
             dispatch_async(dispatch_get_main_queue(), ^(void) {
                 [[NSNotificationCenter defaultCenter] postNotificationName:@"PanafallDeleted" object:thisPan];
             });
-            [thisPan willRemoveDisplay];
+            [thisPan willRemoveStreamProcessor];
             [self.panafalls removeObjectForKey:streamId];
             
         } else if ([self.waterfalls objectForKey:streamId]) {
             Waterfall *thisWf = self.waterfalls[streamId];
-            [thisWf willRemoveDisplay];
+            [thisWf willRemoveStreamProcessor];
             [self.waterfalls removeObjectForKey:streamId];
         }
 
@@ -1060,16 +1191,21 @@ BOOL subscribedToDisplays = NO;
         // will still hold the object until the slice itself is removed (which is in process
         // as the meters removed notifications come before the slice in_user=0 is sent
         
-        [self.meters removeObjectForKey:mKey];
+        @synchronized (self.meters) {
+            [self.meters removeObjectForKey:mKey];
+        }
         return;
     }
 
     // Meter is being created
     thisMeter = [[Meter alloc]init];
-    [self.meters setObject:thisMeter forKey:mKey];
 
     // Pass meter status string to the meter to have it set itself up
     [thisMeter setupMeter:self scan:scan];
+    
+    @synchronized (self.meters) {
+        [self.meters setObject:thisMeter forKey:mKey];
+    }
 }
 
 
@@ -1147,7 +1283,7 @@ BOOL subscribedToDisplays = NO;
                 
             case panadaptersToken:
                 [scan scanInteger:&intVal];
-                updateWithNotify(@"availablePanadaters", _availablePanadapters, [NSNumber numberWithInteger:intVal]);
+                updateWithNotify(@"availablePanadapters", _availablePanadapters, [NSNumber numberWithInteger:intVal]);
                 break;
                 
             case lineoutGainToken:
@@ -1715,6 +1851,45 @@ BOOL subscribedToDisplays = NO;
 }
 
 
+- (void) parseWaveformToken:(NSScanner *) scan {
+    // For now, ignore
+}
+
+
+- (void) parseAudioStreamToken:(NSScanner *) scan selfStatus:(BOOL)selfStatus{
+    NSString *streamId;
+    BOOL removed;
+    
+    // we have the scanner at  the stream id
+    [scan scanUpToString:@" " intoString:&streamId];
+    
+    streamId = [self reformatStreamId:streamId];
+    
+    // Is this stream being removed?
+    removed = !([[scan string]rangeOfString:@"in_use=0"].location == NSNotFound);
+    
+    if (removed) {
+        if ([self.daxAudioStreamToStreamHandler objectForKey:streamId]) {
+            DAXAudio *streamHandler = self.daxAudioStreamToStreamHandler[streamId];
+            dispatch_async(dispatch_get_main_queue(), ^(void) {
+                [[NSNotificationCenter defaultCenter] postNotificationName:@"AudioStreamDeleted" object:streamHandler];
+            });
+         
+            @synchronized (self.daxAudioStreamToStreamHandler) {
+                [self.daxAudioStreamToStreamHandler removeObjectForKey:streamId];
+            }
+        }
+        
+        return;
+    }
+    
+    // Dispatch to the stream Handler
+    if ([self.daxAudioStreamToStreamHandler objectForKey:streamId]) {
+        DAXAudio *streamHandler = self.daxAudioStreamToStreamHandler[streamId];
+        [streamHandler statusParser:scan selfStatus:selfStatus];
+    }
+}
+
 #pragma mark
 #pragma mark Radio Setter methods
 
@@ -1732,17 +1907,51 @@ BOOL subscribedToDisplays = NO;
     });
 
 
-- (BOOL) cmdNewPanafall {
+- (void) cmdNewAudioStream:(int)daxChannel {
+    NSString *cmd = [NSString stringWithFormat:@"stream create dax=%i", daxChannel];
+    [self commandToRadio:cmd notifySel:@selector(audioStreamCreateCallback:)];
+}
+
+
+- (void) cmdRemoveAudioStreamHandler:(DAXAudio *)streamProcessor {
+    // Workaround until FlexRadio bug fixes issue with remove status for the audio stream...
+    // We handle the removal here and issue the notification
+    
+    @synchronized (self.daxAudioStreamToStreamHandler) {
+        [self.daxAudioStreamToStreamHandler removeObjectForKey:streamProcessor.streamId];
+    }
+    
+    // Having remove the streamHandler, it will get no further stream updates from the VitaManager
+    // or parsed status updates...  Issue the deletion notification
+    [[NSNotificationCenter defaultCenter] postNotificationName:@"AudioStreamDeleted" object:streamProcessor];
+    
+    // Now tell the radio to remove this processor
+    NSString *cmd = [NSString stringWithFormat:@"stream remove %@", streamProcessor.streamId];
+    [self commandToRadio:cmd];
+}
+
+
+
+- (BOOL) cmdNewPanafall:(CGSize) size {
     if (self.availablePanadapters && ![self.availablePanadapters integerValue])
         return NO;
     
     if (!subscribedToDisplays) {
         subscribedToDisplays = YES;
-        [self commandToRadio:@"sub display all"];
+        [self commandToRadio:@"sub pan all"];
     }
     
-    [self commandToRadio:@"display panafall create x=100 y=100" notifySel:@selector(panafallCreateCallback:)];
+    [self commandToRadio:[NSString stringWithFormat:@"display panafall create x=%i y=%i",
+               (int)size.width, (int)size.height] notifySel:@selector(panafallCreateCallback:)];
     return YES;
+}
+
+- (void) cmdRemovePanafall:(Panafall *)pan {
+    NSString *cmd = [NSString stringWithFormat:@"stream remove %@", pan.streamId];
+    
+    // Fire off the commmand - we will get status messages that unwind the underlying
+    // objects
+    [self commandToRadio:cmd];
 }
 
 
@@ -2256,7 +2465,9 @@ BOOL subscribedToDisplays = NO;
         connectionState = disConnected;
     
     if ([self.delegate respondsToSelector:@selector(radioConnectionStateChange:state:)]) {
-        [self.delegate radioConnectionStateChange:self state:connectionState];
+        dispatch_async(dispatch_get_main_queue(), ^(void) {
+            [self.delegate radioConnectionStateChange:self state:connectionState];
+        });
     }
 }
 
@@ -2270,7 +2481,9 @@ BOOL subscribedToDisplays = NO;
     
     // Advise any delegate
     if ([self.delegate respondsToSelector:@selector(radioConnectionStateChange:state:)]) {
-        [self.delegate radioConnectionStateChange:self state:connectionState];
+        dispatch_async(dispatch_get_main_queue(), ^(void) {
+            [self.delegate radioConnectionStateChange:self state:connectionState];
+        });
     }
 
     [self initializeRadio];
