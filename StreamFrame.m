@@ -1,5 +1,5 @@
 //
-//  DAXFrame.h
+//  StreamFrame.m
 //  VITA Engine
 //
 //  Created by STU PHILLIPS on 2/15/15.
@@ -35,15 +35,14 @@
 // Violation of these Copyright terms will be protected by US & International law.
 //
 
-#import <Foundation/Foundation.h>
-#import "Radio.h"
-#import "VITA.h"
+#import "StreamFrame.h"
 
-@interface DAXFrame : NSObject
+@implementation StreamFrame
 
-@property (strong, readwrite, nonatomic) NSData *buffer;                     // Buffer holding the DAX frame
-@property (nonatomic) int numSamples;                                        // Number of samples in this frame
-@property (nonatomic) int sizeofSample;                                      // Size of each sample in bytes
-@property (nonatomic) void *samples;                                         // Samples in native endian form
+@synthesize buffer;
+@synthesize numSamples;
+@synthesize sizeofSample;
+@synthesize samples;
+
 
 @end

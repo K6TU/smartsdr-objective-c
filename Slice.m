@@ -69,15 +69,16 @@
         // Create a private run queue for us to run on
         NSString *qName = [NSString stringWithFormat:@"net.k6tu.sliceQueue-%i", (int)sliceNum];
         self.sliceRunQueue = dispatch_queue_create([qName UTF8String], NULL);
+        
+        
+        // Initialize some state that will get overriden by status updates from the radio
+        _sliceApfEnabled = [NSNumber numberWithBool:NO];
+        _sliceAnfEnabled = [NSNumber numberWithBool:NO];
+        _sliceNrEnabled = [NSNumber numberWithBool:NO];
+        [self initStatusSliceTokens];
+        
+        self.meters = [[NSMutableDictionary alloc]init];
     }
-    
-    // Initialize some state that will get overriden by status updates from the radio
-    _sliceApfEnabled = [NSNumber numberWithBool:NO];
-    _sliceAnfEnabled = [NSNumber numberWithBool:NO];
-    _sliceNrEnabled = [NSNumber numberWithBool:NO];
-    [self initStatusSliceTokens];
-    
-    self.meters = [[NSMutableDictionary alloc]init];
     return self;
 }
 
@@ -161,9 +162,10 @@
     (ivar) = (value); \
     [self didChangeValueForKey:key]; \
       \
+    __weak Slice *safeSelf = self; \
     dispatch_async(self.sliceRunQueue, ^(void) { \
         /* Send the command to the radio on our private queue */ \
-        [self.radio commandToRadio:(cmd)]; \
+        [safeSelf.radio commandToRadio:(cmd)]; \
          \
     });
 
@@ -552,6 +554,15 @@
 }
 
 
+- (void) setFmToneBurstEnabled:(NSNumber *)fmToneBurstEnabled {
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i fm_tone_burst=%i",
+                     [self.thisSliceNumber intValue], [fmToneBurstEnabled boolValue]];
+    NSNumber *refFmToneBurstEnabled = fmToneBurstEnabled;
+    
+    commandUpdateNotify(cmd, @"fmToneBurstEnabled", _fmToneBurstEnabled, refFmToneBurstEnabled);
+}
+
+
 #pragma mark
 #pragma mark Slice Parser
 
@@ -613,6 +624,7 @@ enum enumStatusSliceTokens {
     fmRepeaterOffsetToken,
     txOffsetFreqToken,
     repeaterOffsetDirToken,
+    fmToneBurstToken,
 };
 
 
@@ -674,6 +686,7 @@ enum enumStatusSliceTokens {
                               [NSNumber numberWithInt:fmRepeaterOffsetToken], @"fm_repeater_offset_freq",
                               [NSNumber numberWithInt:txOffsetFreqToken], @"tx_offset_freq",
                               [NSNumber numberWithInt:repeaterOffsetDirToken], @"repeater_offset_dir",
+                              [NSNumber numberWithInt:fmToneBurstToken], @"fm_tone_burst",
                               nil];
 }
 
@@ -683,10 +696,12 @@ enum enumStatusSliceTokens {
 // Macro to perform inline update on an ivar with KVO notification
 
 #define updateWithNotify(key,ivar,value)  \
-{    dispatch_async(dispatch_get_main_queue(), ^(void) { \
-        [self willChangeValueForKey:(key)]; \
+{    \
+     __weak Slice *safeSelf = self; \
+     dispatch_async(dispatch_get_main_queue(), ^(void) { \
+        [safeSelf willChangeValueForKey:(key)]; \
         (ivar) = (value); \
-        [self didChangeValueForKey:(key)]; \
+        [safeSelf didChangeValueForKey:(key)]; \
     }); \
 }
 
@@ -1011,6 +1026,10 @@ enum enumStatusSliceTokens {
                 updateWithNotify(@"repeaterOffsetDir",_repeaterOffsetDir,stringVal);
                 break;
                 
+            case fmToneBurstToken:
+                [scan scanInteger:&intVal];
+                updateWithNotify(@"fmtToneBurstEnabled", _fmToneBurstEnabled, [NSNumber numberWithBool:intVal]);
+                break;
                 
             default:
                 // Unknown token and therefore an unknown argument type

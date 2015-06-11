@@ -46,4 +46,9 @@
 @synthesize frameIndex;
 @synthesize bins;
 
+- (void) dealloc {
+    // release the buffer we are holding with a strong reference
+    self.buffer = nil;
+}
+
 @end

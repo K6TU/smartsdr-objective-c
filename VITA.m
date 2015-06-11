@@ -58,7 +58,8 @@ const UInt16 VITAmin = 28;
 // Crack the VITA frame and grab the appropriate fields into our properties
 
 - (VITA *)initWithPacket:(NSData *)packet {
-    self = [super init];
+    if (!self)
+        self = [super init];
     
     self.buffer = packet;
     
@@ -127,8 +128,9 @@ const UInt16 VITAmin = 28;
         self.trailer = V_SWAP32(packet.bytes, (self.packetSize - 1) * 4);
     }
 
-    self.payloadLength = (self.packetSize * 4) - offset - (self.trailerPresent ? 4 : 0);
-    
+    // self.payloadLength = (self.packetSize * 4) - offset - (self.trailerPresent ? 4 : 0);
+    self.payloadLength = ((UInt32)packet.length) - offset - (self.trailerPresent ? 4 : 0);
+
     return self;
 }
 

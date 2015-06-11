@@ -1,8 +1,8 @@
 //
-//  DAXAudio.h
-//  VITA Engine
+//  OpusAudio.h
+//  K6TU Remote
 //
-//  Created by STU PHILLIPS on 2/15/15.
+//  Created by STU PHILLIPS on 5/21/15.
 //  Copyright (c) 2015 STU PHILLIPS. All rights reserved.
 //
 // LICENSE TERMS:
@@ -37,28 +37,28 @@
 
 #import <Foundation/Foundation.h>
 #import "Radio.h"
-#import "Slice.h"
 #import "VitaManager.h"
 #import "StreamFrame.h"
 
 
 //
-// Protocol between stream handler and ultimate consumer of the data
+// Protocol used between stream handler and the ultimate consumer of the data
 //
 
-@protocol DaxAudioStreamHandler
+@protocol OpusStreamHandler
 
 - (void) streamReceive:(StreamFrame *) frame;
 
 @end
 
 
-@interface DAXAudio : NSObject <RadioParser, RadioStreamProcessor, VitaStreamHandler>
+
+@interface OpusAudio : NSObject <RadioParser, RadioStreamProcessor, VitaStreamHandler>
 @property (weak, readonly, nonatomic) Radio *radio;                         // The Radio which owns this audio stream
-@property (weak, readonly, nonatomic) Slice *slice;                         // Slice associated with this audio stream
 @property (strong, readonly, nonatomic) NSString *streamId;                 // Stream ID associated with this DAX instance
-@property (nonatomic, readonly) int daxChannel;                             // DAX channel number of this DAX instance
-@property (nonatomic) BOOL transmitEnabled;                                 // This stream is enabled as a transmitter audio source
+@property (nonatomic, readonly) BOOL opusRxStreamStopped;                   // Opus stream for RX has stopped
+@property (nonatomic) BOOL rxOn;                                            // Enable remote audio
+@property (nonatomic, readonly) BOOL txOn;                                  // This stream is enabled as a transmitter audio source
 @property (nonatomic) int rxGain;                                           // RX gain setting - 0-100
 @property (nonatomic) int txGain;                                           // TX gain setting - 0-100
 @property (nonatomic, readonly) NSInteger lostPacketCount;                  // Count of lost packets in this stream
@@ -68,12 +68,12 @@
 @property (nonatomic, readonly) NSInteger txBytes;                          // Count of TX bytes sent
 @property (nonatomic, readonly) NSInteger rxRate;                           // RX rate in bytes/second
 @property (nonatomic, readonly) NSInteger txRate;                           // TX rate in bytes/second
-@property (weak, nonatomic) id <DaxAudioStreamHandler> delegate;            // Delegate to handle the receive stream
-@property (strong, nonatomic) dispatch_queue_t runQueue;                    // Run queue for this Dax instance
+@property (weak, nonatomic) id <OpusStreamHandler> delegate;                // Delegate to handle the receive stream
+@property (strong, nonatomic) dispatch_queue_t runQueue;                    // Run queue for this Opus instance
 
-- (void) setDelegate:(id<DaxAudioStreamHandler>)delegate runQueue:(dispatch_queue_t) runQueue;
-- (void) streamSend:(Float32 *)buffer length:(int) length;
-- (id) initWithRadio:(Radio *)radio channel:(int) daxChannel;
+- (void) setDelegate:(id<OpusStreamHandler>)delegate runQueue:(dispatch_queue_t) runQueue;
+- (void) streamSend:(NSData *) frame;
+- (id) initWithRadio:(Radio *)radio streamId:(NSString *) streamId;
 - (void) closeStream;
 
 @end

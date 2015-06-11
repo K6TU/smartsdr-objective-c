@@ -42,6 +42,7 @@
 #import "Panafall.h"
 #import "Waterfall.h"
 #import "DAXAudio.h"
+#import "OpusAudio.h"
 
 
 @interface VitaManager () <GCDAsyncUdpSocketDelegate>
@@ -125,8 +126,8 @@ GCDAsyncUdpSocket *vitaTxSocket;
     // Record our socket
     self.vitaPort = portNum;
    
-    // Post a read
-    [vitaRxSocket receiveOnce:&error];
+    // Start receiving
+    [vitaRxSocket beginReceiving:nil];
     return YES;
 }
 
@@ -149,6 +150,7 @@ GCDAsyncUdpSocket *vitaTxSocket;
     Panafall *pan;
     Waterfall *wf;
     DAXAudio *sh;
+    OpusAudio *opus;
     
     // TODO:
     // Packet statistics - received, dropped
@@ -162,7 +164,7 @@ GCDAsyncUdpSocket *vitaTxSocket;
                     break;
                     
                 case VS_PAN_FFT:
-                    streamId = [NSString stringWithFormat:@"0x%08X", vitaPacket.streamId];
+                    streamId = [NSString stringWithFormat:@"0x%08X", (unsigned int)vitaPacket.streamId];
                     
                     @synchronized (self.radio.panafalls) {
                         pan = self.radio.panafalls[streamId];
@@ -172,7 +174,7 @@ GCDAsyncUdpSocket *vitaTxSocket;
                     break;
                     
                 case VS_Waterfall:
-                    streamId = [NSString stringWithFormat:@"0x%08X", vitaPacket.streamId];
+                    streamId = [NSString stringWithFormat:@"0x%08X", (unsigned int)vitaPacket.streamId];
                     
                     @synchronized (self.radio.waterfalls) {
                         wf = self.radio.waterfalls[streamId];
@@ -182,7 +184,7 @@ GCDAsyncUdpSocket *vitaTxSocket;
                     break;
                     
                 case VS_DAX_Audio:
-                    streamId = [NSString stringWithFormat:@"0x%08X", vitaPacket.streamId];
+                    streamId = [NSString stringWithFormat:@"0x%08X", (unsigned int)vitaPacket.streamId];
 
                     @synchronized (self.radio.daxAudioStreamToStreamHandler) {
                         sh = self.radio.daxAudioStreamToStreamHandler[streamId];
@@ -192,7 +194,13 @@ GCDAsyncUdpSocket *vitaTxSocket;
                     break;
                     
                 case VS_Opus:
-                    streamId = [NSString stringWithFormat:@"0x%08X", vitaPacket.streamId];
+                    streamId = [NSString stringWithFormat:@"0x%08X", (unsigned int)vitaPacket.streamId];
+                    
+                    @synchronized(self.radio.opusStreamToStreamHandler) {
+                        opus = self.radio.opusStreamToStreamHandler[streamId];
+                    }
+                    
+                    [opus streamHandler:vitaPacket];
 
                     break;
             }
@@ -200,7 +208,7 @@ GCDAsyncUdpSocket *vitaTxSocket;
             
         case IF_DATA_WITH_STREAM:
             // IF Data with stream - this is DAX IQ data...
-            streamId = [NSString stringWithFormat:@"0x%08X", vitaPacket.streamId];
+            streamId = [NSString stringWithFormat:@"0x%08X", (unsigned int)vitaPacket.streamId];
 
             break;
             
@@ -208,9 +216,6 @@ GCDAsyncUdpSocket *vitaTxSocket;
             // Ignore any other packetTypes we don't process
             break;
     }
-    
-    // Post the next read
-    [vitaRxSocket receiveOnce:&error];
 }
 
 

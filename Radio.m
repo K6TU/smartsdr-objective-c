@@ -44,6 +44,7 @@
 #import "Panafall.h"
 #import "Waterfall.h"
 #import "DAXAudio.h"
+#import "OpusAudio.h"
 
 @interface Radio ()
 
@@ -53,7 +54,8 @@
 @property (strong, readwrite, nonatomic) NSMutableDictionary *meters;
 @property (strong, readwrite, nonatomic) NSMutableDictionary *panafalls;
 @property (strong, readwrite, nonatomic) NSMutableDictionary *waterfalls;
-@property (strong, readwrite, nonatomic) NSMutableDictionary *daxAudioStreamToStreamHandler;     
+@property (strong, readwrite, nonatomic) NSMutableDictionary *daxAudioStreamToStreamHandler;
+@property (strong, readwrite, nonatomic) NSMutableDictionary *opusStreamToStreamHandler;
 
 @property (strong, readwrite, nonatomic) NSString *apiVersion;                 // NSString of format VM.m.x.y of Version of API
 @property (strong, readwrite, nonatomic) NSString *apiHandle;                  // NSString of our API handle
@@ -98,6 +100,7 @@
 - (void) parseMixerToken: (NSScanner *) scan;
 - (void) parseDisplayToken: (NSScanner *) scan selfStatus: (BOOL) selfStatus;
 - (void) parseAudioStreamToken:(NSScanner *) scan selfStatus: (BOOL) selfStatus;
+- (void) parseOpusStreamToken:(NSScanner *) scan selfStatus: (BOOL) selfStatus;
 - (void) parseMeterToken: (NSScanner *) scan;
 - (void) parseGpsToken: (NSScanner *) scan;
 - (void) parseProfileToken: (NSScanner *) scan;
@@ -129,6 +132,7 @@ enum enumStatusTokens {
     cwxToken,
     waveformToken,
     audioStreamToken,
+    opusStreamToken,
 };
 
 enum enumStatusMixerTokens {
@@ -152,12 +156,15 @@ enum enumStatusRadioTokens {
     snapTuneEnabledToken,
     nicknameToken,
     callsignToken,
+    binauralRxToken,
 };
 
 enum enumStatusAtuTokens {
     enumStatusAtuTokensNone = 0,
     atuStatusToken,
     atuEnabledToken,
+    atuMemoriesEnabledToken,
+    usingMemToken,
 };
 
 
@@ -301,6 +308,7 @@ BOOL subscribedToDisplays = NO;
                          [NSNumber numberWithBool:cwxToken], @"cwx",
                          [NSNumber numberWithInt:waveformToken], @"waveform",
                          [NSNumber numberWithInt:audioStreamToken], @"audio_stream",
+                         [NSNumber numberWithInt:opusStreamToken], @"opus_stream",
                          nil];
     self.notifyList = [[NSMutableDictionary alloc]init];
 }
@@ -322,6 +330,7 @@ BOOL subscribedToDisplays = NO;
                               [NSNumber numberWithInt:snapTuneEnabledToken], @"snap_tune_enabled",
                               [NSNumber numberWithInt:nicknameToken], @"nickname",
                               [NSNumber numberWithInt:callsignToken], @"callsign",
+                              [NSNumber numberWithInt:binauralRxToken], @"binaural_rx",
                               nil];
 }
 
@@ -329,6 +338,9 @@ BOOL subscribedToDisplays = NO;
     self.statusAtuTokens = [[NSDictionary alloc] initWithObjectsAndKeys:
                             [NSNumber numberWithInt:atuStatusToken],  @"status",
                             [NSNumber numberWithInt:atuEnabledToken], @"atu_enabled",
+                            [NSNumber numberWithInt:atuMemoriesEnabledToken], @"atu memories_enabled",
+                            [NSNumber numberWithInt:atuMemoriesEnabledToken], @"memories_enabled",
+                            [NSNumber numberWithInt:usingMemToken], @"using_mem",
                             nil];
 }
 
@@ -602,6 +614,9 @@ BOOL subscribedToDisplays = NO;
         // Set up mapping tables for Audio Stream processing
         self.daxAudioStreamToStreamHandler = [[NSMutableDictionary alloc]init];
         
+        // Set up mapping table for Opus Stream processing
+        self.opusStreamToStreamHandler = [[NSMutableDictionary alloc]init];
+        
         self.equalizers = [[NSMutableArray alloc] initWithCapacity:2];
         self.equalizers[0] = [[NSNull alloc] init];
         self.equalizers[1] = [[NSNull alloc] init];
@@ -678,16 +693,20 @@ BOOL subscribedToDisplays = NO;
     
     // Post initial commands
     [self commandToRadio:[NSString stringWithFormat:@"client program %@", self.clientId]];
+    // [self commandToRadio:[NSString stringWithFormat:@"client start_persistence off"]];
+    [self commandToRadio:@"remote_audio rx_on=0"];
+    
+    if (self.vitaManager)
+        [self commandToRadio:[NSString stringWithFormat:@"client udpport %i", (int)self.vitaManager.vitaPort]];
+    
     [self commandToRadio:@"sub tx all"];
     [self commandToRadio:@"sub atu all"];
     [self commandToRadio:@"sub meter all"];
     [self commandToRadio:@"sub slice all"];
+    [self commandToRadio:@"sub pan all"];
     [self commandToRadio:@"eq rx info"];
     [self commandToRadio:@"eq tx info"];
     [self commandToRadio:@"sub audio_stream all"];
-    
-    if (self.vitaManager)
-        [self commandToRadio:[NSString stringWithFormat:@"client udpport %i", (int)self.vitaManager.vitaPort]];
     
     [self commandToRadio:@"info" notifySel:@selector(infoResponseCallback:)];
     
@@ -733,10 +752,11 @@ BOOL subscribedToDisplays = NO;
 
 #define updateWithNotify(key,ivar,value)  \
 {  \
+    __weak Radio *safeSelf = self; \
     dispatch_async(dispatch_get_main_queue(), ^(void) { \
-        [self willChangeValueForKey:(key)]; \
+        [safeSelf willChangeValueForKey:(key)]; \
         (ivar) = (value); \
-        [self didChangeValueForKey:(key)]; \
+        [safeSelf didChangeValueForKey:(key)]; \
     }); \
 }
 
@@ -1069,6 +1089,10 @@ BOOL subscribedToDisplays = NO;
             [self parseAudioStreamToken: scan selfStatus:selfStatus];
             break;
             
+        case opusStreamToken:
+            [self parseOpusStreamToken: scan selfStatus:selfStatus];
+            break;
+            
         default:
             NSLog(@"Unexpected token in parseStatusType - %@", sourceToken);
             break;
@@ -1162,6 +1186,36 @@ BOOL subscribedToDisplays = NO;
         return;
     }
     
+    // There are multiple ways in which a pan can be added in addition to an explicit
+    // create by the client.  So...
+    //
+    // Check here to see if the pan objects have been created - if not, create one on
+    // the fly...
+    
+    BOOL wfCreated = NO;
+    
+    if ([dest containsString:@"pan"] && ![self.panafalls objectForKey:streamId]) {
+        // New pan - create and add to our list
+        
+        Panafall *pan = [[Panafall alloc]init];
+        [pan attachedRadio:self streamId:streamId];
+        
+        @synchronized(self.panafalls) {
+            [self.panafalls setObject:pan forKey:streamId];
+        }
+    } else if ([dest containsString:@"waterfall"] && ![self.waterfalls objectForKey:streamId]) {
+        // New waterfall - create and add to waterfall list
+        
+        Waterfall *wf = [[Waterfall alloc]init];
+        [wf attachedRadio:self streamId:streamId];
+        
+        @synchronized (self.waterfalls ) {
+            [self.waterfalls setObject:wf forKey:streamId];
+        }
+        
+        wfCreated = YES;
+    }
+    
     // Dispatch to the display
     if ([self.panafalls objectForKey:streamId]) {
         Panafall *pan = self.panafalls[streamId];
@@ -1170,7 +1224,29 @@ BOOL subscribedToDisplays = NO;
     } else if ([self.waterfalls objectForKey:streamId]) {
         Waterfall *wf = self.waterfalls[streamId];
         [wf statusParser:scan selfStatus:selfStatus];
-     }
+        
+        if (wfCreated) {
+            // The waterfall object is also created after the pan to which it refers so
+            // we should now figure out what the pan object stream id is, relate it to the
+            // panafall object for that stream and send out a PanafallCreated notification
+            
+            NSString *streamIdWf = [self reformatStreamId:streamId];
+            
+            for (NSString *panId in self.panafalls) {
+                Panafall *pan = self.panafalls[panId];
+                
+                if ([pan.waterfallId isEqualToString:streamIdWf]) {
+                    // Update each object to point to its cousin
+                    [pan updateWaterfallRef:wf];
+                    [wf updatePanafallRef:pan];
+                    
+                    dispatch_async(dispatch_get_main_queue(), ^(void) {
+                        [[NSNotificationCenter defaultCenter] postNotificationName:@"PanafallCreated" object:pan];
+                    });
+                }
+            }
+        }
+    }
 }
 
 
@@ -1341,6 +1417,11 @@ BOOL subscribedToDisplays = NO;
                 updateWithNotify(@"radioCallsign", _radioCallsign, value);
                 break;
                 
+            case binauralRxToken:
+                [scan scanInteger:&intVal];
+                updateWithNotify(@"binauralRx", _binauralRx, [NSNumber numberWithBool:intVal]);
+                break;
+                
             default:
                 // Unknown token and therefore an unknown argument type
                 // Eat until the next space or \n
@@ -1379,7 +1460,17 @@ BOOL subscribedToDisplays = NO;
                 
             case atuEnabledToken:
                 [scan scanInteger:&intVal];
-                self.atuEnabled = [NSNumber numberWithBool:intVal];
+                updateWithNotify(@"atuEnabled", _atuEnabled, [NSNumber numberWithBool:intVal]);
+                break;
+                
+            case atuMemoriesEnabledToken:
+                [scan scanInteger:&intVal];
+                updateWithNotify(@"atuMemoriesEnabled", _atuMemoriesEnabled, [NSNumber numberWithBool:intVal]);
+                break;
+                
+            case usingMemToken:
+                [scan scanInteger:&intVal];
+                updateWithNotify(@"atuUsingMemories", _atuUsingMemories, [NSNumber numberWithBool:intVal]);
                 break;
                 
             default:
@@ -1890,6 +1981,44 @@ BOOL subscribedToDisplays = NO;
     }
 }
 
+
+- (void) parseOpusStreamToken:(NSScanner *) scan selfStatus:(BOOL) selfStatus {
+    NSString *streamId;
+    
+    if (!selfStatus)
+        return;
+    
+    // we have the scanner at the stream id
+    [scan scanUpToString:@" " intoString:&streamId];
+    
+    streamId = [self reformatStreamId:streamId];
+
+    // Do we have a handler for this Opus stream?  It's a bit bloody moot for now
+    // as there is currently only ever one stream supported and its never removed
+    // however... that's how it goes!
+    
+    OpusAudio *opus =  [self.opusStreamToStreamHandler objectForKey:streamId];
+    
+    if (!opus) {
+        // Create the handler and set it up
+        opus = [[OpusAudio alloc]init];
+        [opus attachedRadio:self streamId:streamId];
+        
+        @synchronized(self.opusStreamToStreamHandler) {
+            self.opusStreamToStreamHandler[streamId] = opus;
+        }
+        
+        // Finally, fire off the notification that the stream was created
+        dispatch_async(dispatch_get_main_queue(), ^(void) {
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"OpusStreamCreated" object:opus];
+        });
+    }
+    
+    [opus statusParser:scan selfStatus:selfStatus];
+}
+
+
+
 #pragma mark
 #pragma mark Radio Setter methods
 
@@ -1901,9 +2030,10 @@ BOOL subscribedToDisplays = NO;
     (ivar) = (value); \
     [self didChangeValueForKey:(key)]; \
      \
+    __weak Radio *safeSelf = self; \
     dispatch_async(self.radioRunQueue, ^(void) { \
         /* Send the command to the radio on our private queue */ \
-        [self commandToRadio:(cmd)]; \
+        [safeSelf commandToRadio:(cmd)]; \
     });
 
 
@@ -1947,7 +2077,7 @@ BOOL subscribedToDisplays = NO;
 }
 
 - (void) cmdRemovePanafall:(Panafall *)pan {
-    NSString *cmd = [NSString stringWithFormat:@"stream remove %@", pan.streamId];
+    NSString *cmd = [NSString stringWithFormat:@"display pan remove %@", pan.streamId];
     
     // Fire off the commmand - we will get status messages that unwind the underlying
     // objects
@@ -2247,6 +2377,14 @@ BOOL subscribedToDisplays = NO;
     [self commandToRadio:cmd];
 }
 
+- (void) setAtuMemoriesEnabled:(NSNumber *)atuMemoriesEnabled {
+    NSString *cmd = [NSString stringWithFormat:@"atu set memories_enabled=%i",
+                     [atuMemoriesEnabled boolValue]];
+    NSNumber *refAtuMemoriesEnabled = atuMemoriesEnabled;
+    
+    commandUpdateNotify(cmd, @"atuMemoriesEnabled", _atuMemoriesEnabled, refAtuMemoriesEnabled);
+}
+
 - (void) setTuneEnabled:(NSNumber *)tuneEnabled {
     NSString *cmd = [NSString stringWithFormat:@"transmit tune %i",
                      [tuneEnabled boolValue]];
@@ -2447,12 +2585,42 @@ BOOL subscribedToDisplays = NO;
     commandUpdateNotify(cmd, @"radioName", _radioName, refRadioName);
 }
 
+- (void) setBinauralRx:(NSNumber *)binauralRx {
+    NSString *cmd = [NSString stringWithFormat:@"radio set binaural_rx=%i",
+                     [binauralRx boolValue]];
+    NSNumber *refBinauralRx = binauralRx;
+    
+    commandUpdateNotify(cmd, @"binarualRx", _binauralRx, refBinauralRx);
+}
+
 - (void) setSyncActiveSlice:(NSNumber *)syncActiveSlice {
     NSNumber *refSyncActiveSlice = syncActiveSlice;
     
     updateWithNotify(@"syncActiveSlice", _syncActiveSlice, refSyncActiveSlice);
 }
 
+- (void) setRemoteAudio:(NSNumber *)remoteAudio {
+    NSString *cmd = [NSString stringWithFormat:@"remote_audio rx_on %i",
+                     [remoteAudio boolValue]];
+    NSNumber *refRemoteAudio = remoteAudio;
+    
+    commandUpdateNotify(cmd, @"remoteAudio", _remoteAudio, refRemoteAudio);
+}
+
+- (void) setIsGui:(NSNumber *)isGui {
+    if (![isGui boolValue])
+        return;
+    
+    NSString *cmd = [NSString stringWithFormat:@"client gui"];
+    NSNumber *refIsGui = isGui;
+    
+    commandUpdateNotify(cmd, @"isGui", _isGui, refIsGui);
+    
+    if (self.vitaManager) {
+        NSString *cmd2 = [NSString stringWithFormat:@"client udpport %i", (int)self.vitaManager.vitaPort];
+        commandUpdateNotify(cmd2, @"isGui", _isGui, refIsGui);
+    }
+}
 
 #pragma mark
 #pragma mark Socket Delegates
@@ -2465,8 +2633,9 @@ BOOL subscribedToDisplays = NO;
         connectionState = disConnected;
     
     if ([self.delegate respondsToSelector:@selector(radioConnectionStateChange:state:)]) {
+        __weak Radio *safeSelf = self;
         dispatch_async(dispatch_get_main_queue(), ^(void) {
-            [self.delegate radioConnectionStateChange:self state:connectionState];
+            [safeSelf.delegate radioConnectionStateChange:self state:connectionState];
         });
     }
 }
@@ -2478,15 +2647,15 @@ BOOL subscribedToDisplays = NO;
 - (void)socket:(GCDAsyncSocket *)sock didConnectToHost:(NSString *)host port:(UInt16)port {
     // Connected to the radio
     connectionState = connected;
+    [self initializeRadio];
     
     // Advise any delegate
     if ([self.delegate respondsToSelector:@selector(radioConnectionStateChange:state:)]) {
+        __weak Radio *safeSelf = self;
         dispatch_async(dispatch_get_main_queue(), ^(void) {
-            [self.delegate radioConnectionStateChange:self state:connectionState];
+            [safeSelf.delegate radioConnectionStateChange:self state:connectionState];
         });
     }
-
-    [self initializeRadio];
 }
 
 

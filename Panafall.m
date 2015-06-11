@@ -101,6 +101,8 @@ enum panafallToken {
 
 @implementation Panafall
 
+
+
 - (void) initPanafallTokens {
     self.panafallTokens = [[NSDictionary alloc] initWithObjectsAndKeys:
                            [NSNumber numberWithInteger:xPixelsToken], @"x_pixels",
@@ -193,6 +195,10 @@ enum panafallToken {
         return;
     }
     
+    if (!self.delegate)
+        // No handler
+        return;
+    
     // Allocate PanafallFFTFrame
     PanafallFFTFrame *frame = [[PanafallFFTFrame alloc]init];
     
@@ -210,9 +216,13 @@ enum panafallToken {
     }
     
     // Pass the frame off to the delegate on the supplied run queue
+    // Create weak reference to self before the block
+    __weak Panafall *safeSelf = self;
     
     dispatch_async(self.runQueue, ^(void){
-        [self.delegate fftFrame:frame];
+        @autoreleasepool {
+            [safeSelf.delegate fftFrame:frame];
+        }
     });
 }
 
@@ -225,10 +235,12 @@ enum panafallToken {
 // Macro to perform inline update on an ivar with KVO notification
 
 #define updateWithNotify(key,ivar,value)  \
-    {    dispatch_async(dispatch_get_main_queue(), ^(void) { \
-            [self willChangeValueForKey:(key)]; \
+    {   \
+        __weak Panafall *safeSelf = self; \
+        dispatch_async(dispatch_get_main_queue(), ^(void) { \
+            [safeSelf willChangeValueForKey:(key)]; \
             (ivar) = (value); \
-            [self didChangeValueForKey:(key)]; \
+            [safeSelf didChangeValueForKey:(key)]; \
         }); \
     }
 
@@ -375,10 +387,11 @@ enum panafallToken {
     (ivar) = (value); \
     [self didChangeValueForKey:(key)]; \
     \
+    __weak Panafall *safeSelf = self; \
     @synchronized(self) {\
         dispatch_async(self.runQueue, ^(void) { \
             /* Send the command to the radio on our private queue */ \
-            [self.radio commandToRadio:(cmd)]; \
+            [safeSelf.radio commandToRadio:(cmd)]; \
         }); \
     }
 

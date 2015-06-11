@@ -112,6 +112,7 @@
 @property (strong, nonatomic) NSNumber *fmRepeaterOffset;           // FM repeater offset - FLOAT
 @property (strong, nonatomic) NSNumber *txOffsetFreq;               // TX Offset Frequency - FLOAT
 @property (strong, nonatomic) NSString *repeaterOffsetDir;          // Repeater offset direction - STRING (DOWN, UP, SIMPLEX)
+@property (strong, nonatomic) NSNumber *fmToneBurstEnabled;         // FM Tone Burst enabled - BOOL
 
 
 

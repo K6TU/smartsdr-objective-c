@@ -131,10 +131,12 @@ enum waterfallToken {
 // Macro to perform inline update on an ivar with KVO notification
 
 #define updateWithNotify(key,ivar,value)  \
-    {    dispatch_async(dispatch_get_main_queue(), ^(void) { \
-        [self willChangeValueForKey:(key)]; \
+    {    \
+        __weak Waterfall *safeSelf = self; \
+        dispatch_async(dispatch_get_main_queue(), ^(void) { \
+        [safeSelf willChangeValueForKey:(key)]; \
         (ivar) = (value); \
-        [self didChangeValueForKey:(key)]; \
+        [safeSelf didChangeValueForKey:(key)]; \
         }); \
     }
 
@@ -192,6 +194,10 @@ enum waterfallToken {
 
     self.timecode = thisTimeCode;
     
+    if (!self.delegate)
+        // No handler
+        return;
+    
     WaterfallTile *tile = [[WaterfallTile alloc]init];
     tile.buffer = vitaPacket.buffer;
     tile.firstPixelFreq = (Float64)CFSwapInt64BigToHost(*(uint64_t *)(vitaPacket.payload + OFFSET_FIRST_PIXEL_FREQ)) / 1.048576E12;
@@ -208,8 +214,13 @@ enum waterfallToken {
     for (int i=0; i < (tile.width * tile.height); i++)
         bins[i] = CFSwapInt16BigToHost(bins[i]);
     
+    // Create weak reference to self before the block
+    __weak Waterfall *safeSelf = self;
+    
     dispatch_async(self.runQueue, ^(void) {
-        [self.delegate waterfallTile:tile];
+        @autoreleasepool {
+            [safeSelf.delegate waterfallTile:tile];
+        }
     });
 }
 
@@ -291,10 +302,11 @@ enum waterfallToken {
     (ivar) = (value); \
     [self didChangeValueForKey:(key)]; \
     \
+    __weak Waterfall *safeSelf = self; \
     @synchronized(self) { \
         dispatch_async(self.runQueue, ^(void) { \
             /* Send the command to the radio on our private queue */ \
-            [self.radio commandToRadio:(cmd)]; \
+            [safeSelf.radio commandToRadio:(cmd)]; \
         }); \
     }
 

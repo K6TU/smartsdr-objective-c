@@ -1,8 +1,8 @@
 //
-//  DAXAudio.m
-//  VITA Engine
+//  OpusAudio.m
+//  K6TU Remote
 //
-//  Created by STU PHILLIPS on 2/15/15.
+//  Created by STU PHILLIPS on 5/21/15.
 //  Copyright (c) 2015 STU PHILLIPS. All rights reserved.
 //
 // LICENSE TERMS:
@@ -35,14 +35,14 @@
 // Violation of these Copyright terms will be protected by US & International law.
 //
 
-#import "DAXAudio.h"
+#import "OpusAudio.h"
 
-@interface DAXAudio ()
+@interface OpusAudio ()
 
 @property (weak, readwrite, nonatomic) Radio *radio;                         // The Radio which owns this panadaptor
-@property (weak, readwrite, nonatomic) Slice *slice;                         // Slice associated with this audio stream
 @property (strong, readwrite, nonatomic) NSString *streamId;                 // Stream ID associated with this DAX instance
-@property (nonatomic, readwrite) int daxChannel;                             // DAX channel number of this DAX instance
+@property (nonatomic, readwrite) BOOL opusRxStreamStopped;                   // Opus RX stream stopped
+@property (nonatomic, readwrite) BOOL txOn;                                  // This stream is enabled as a transmitter audio source
 @property (nonatomic, readwrite) NSInteger lostPacketCount;                  // Count of lost packets in this stream
 @property (nonatomic, readwrite) NSInteger rxPackets;                        // Count of received packets processed
 @property (nonatomic, readwrite) NSInteger txPackets;                        // Count of TX packets sent
@@ -67,17 +67,16 @@
 // Private methods
 - (void) initParserTokens;
 
+
 @end
 
 
-enum audioStreamTokens {
+
+enum opusStreamTokens {
     noneToken = 0,
-    daxToken,
-    inUseToken,
-    daxTxToken,
-    daxClientsToken,
-    sliceToken,
-    txStreamToken,
+    opusRxStreamStoppedToken,
+    rxOnToken,
+    txOnToken,
     ipToken,
     portToken,
 };
@@ -89,7 +88,7 @@ enum audioStreamTokens {
 
 #define updateWithNotify(key,ivar,value)  \
     {    \
-        __weak DAXAudio *safeSelf = self; \
+        __weak OpusAudio *safeSelf = self; \
         dispatch_async(dispatch_get_main_queue(), ^(void) { \
         [safeSelf willChangeValueForKey:(key)]; \
         (ivar) = (value); \
@@ -97,7 +96,9 @@ enum audioStreamTokens {
         }); \
     }
 
-@implementation DAXAudio
+
+@implementation OpusAudio
+
 
 - (id) init {
     if (!self)
@@ -107,7 +108,7 @@ enum audioStreamTokens {
     self.txSeq = 0;
     [self initParserTokens];
     
-    self.runQueue = dispatch_queue_create("DaxAudio", NULL);
+    self.runQueue = dispatch_queue_create("OpusAudio", NULL);
     
     // Start rate calculator timer on our queue
     [self startRateTimer];
@@ -124,7 +125,10 @@ enum audioStreamTokens {
     
     if (self.rateTimer) {
         dispatch_source_set_timer(self.rateTimer, dispatch_walltime(NULL, 0), 1 * NSEC_PER_SEC, 0);
-        dispatch_source_set_event_handler(self.rateTimer, ^(void) { [self rateCalculator]; });
+        
+        // Use weak self for the callback in the block
+        __weak OpusAudio *safeSelf = self;
+        dispatch_source_set_event_handler(self.rateTimer, ^(void) { [safeSelf rateCalculator]; });
         dispatch_resume(self.rateTimer);
     }
 }
@@ -136,23 +140,20 @@ enum audioStreamTokens {
     }
 }
 
-- (id) initWithRadio:(Radio *)radio channel:(int)daxChannel {
+- (id) initWithRadio:(Radio *)radio streamId:(NSString *)streamId {
     if (!self) {
         self = [super init];
         self = [self init];
     }
     
     self.radio = radio;
-    self.daxChannel = daxChannel;
-
-    // Ask the radio to set up the stream for us
-    [radio cmdNewAudioStream:daxChannel];
+    self.streamId = streamId;
     return self;
 }
 
 
 - (void) closeStream {
-    [self.radio cmdRemoveAudioStreamHandler:self];
+    // [self.radio cmdRemoveAudioStreamHandler:self];
 }
 
 
@@ -167,12 +168,9 @@ enum audioStreamTokens {
 
 - (void) initParserTokens {
     self.parserTokens = [[NSDictionary alloc]initWithObjectsAndKeys:
-                         [NSNumber numberWithInt:daxToken], @"dax",
-                         [NSNumber numberWithInt:inUseToken], @"in_use",
-                         [NSNumber numberWithInt:daxTxToken], @"dax_tx",
-                         [NSNumber numberWithInt:daxClientsToken], @"dax_clients",
-                         [NSNumber numberWithInt:sliceToken], @"slice",
-                         [NSNumber numberWithInt:txStreamToken], @"tx_stream",
+                         [NSNumber numberWithInt:opusRxStreamStoppedToken], @"opus_rx_stream_stopped",
+                         [NSNumber numberWithInt:rxOnToken], @"rx_on",
+                         [NSNumber numberWithInt:txOnToken], @"tx_on",
                          [NSNumber numberWithInt:ipToken], @"ip",
                          [NSNumber numberWithInt:portToken], @"port",
                          nil];
@@ -195,7 +193,7 @@ enum audioStreamTokens {
     self.rxBytes = self.rcRxBytes;
     self.txBytes = self.rcTxBytes;
     
-    NSLog(@"Rx: %li  RxR: %li  Lost:%li", (long)self.rcRxPackets, self.rxRate, self.rcLostPacketCount);
+    // NSLog(@"OPUS Rx: %li  RxR: %li  Lost:%li", (long)self.rcRxPackets, self.rxRate, self.rcLostPacketCount);
 }
 
 //
@@ -203,23 +201,24 @@ enum audioStreamTokens {
 // VITA packets
 //
 
-- (void) streamSend:(Float32 *)buffer length:(int)length {
-    if (!self.transmitEnabled || self.slice == nil)
+- (void) streamSend:(NSData *) frame {
+    if (!self.txOn)
         return;
     
     VITA *vita = [[VITA alloc]init];
     NSMutableData *vitaPacket;
-    int offset = 0;
-    int nSamples;
-    Float32 *samples;
+    unsigned long offset = 0;
+    unsigned long length = frame.length;
+    unsigned long nSamples;
+    unsigned char *samples;
+    
     
     while (offset < length) {
         // See how many samples to send
-        nSamples = MIN(256, (length - offset));
-        
+        nSamples = MIN(frame.length, (length - offset));
         // Allocate an NSMutableData object to hold the number of samples plus the VITA overhead
-        // nSamples * bytes per sample * channels + overhead
-        vitaPacket = [[NSMutableData alloc] initWithLength:(nSamples * 4 * 2 + VITA_HEADER_SIZE_BYTES)];
+        // nSamples * bytes converted into 4 byte words
+        vitaPacket = [[NSMutableData alloc] initWithLength:(nSamples + VITA_HEADER_SIZE_BYTES)];
         
         // Prepare the header
         vita.buffer = vitaPacket;
@@ -228,39 +227,25 @@ enum audioStreamTokens {
         vita.trailerPresent = NO;
         vita.tsi = TSI_OTHER;
         vita.tsf = TSF_SAMPLE_COUNT;
-        vita.streamId = [self intFromHexString:self.txStreamId];
+        vita.streamId = 0x4B000000;         // Hard coded for now
         vita.oui = FRS_OUI;
         vita.informationClassCode = 0x543c;
-        vita.packetClassCode = VS_DAX_Audio;
+        vita.packetClassCode = VS_Opus;
         vita.packetCount = self.txSeq;
-        vita.packetSize = nSamples + VITA_HEADER_SIZE_WORDS;
+        vita.packetSize = ceil(nSamples / 4.0f) + VITA_HEADER_SIZE_WORDS;
         
         // Increment the tx sequence number
         self.txSeq = ++self.txSeq % 16;
         
         // Set up the payload and copy the data byte swapping as we go...
         vita.payload = (void *)(vitaPacket.bytes + VITA_HEADER_SIZE_BYTES);
-        vita.payloadLength = nSamples;
-        samples = (Float32 *)vita.payload;
+        vita.payloadLength = (unsigned int)nSamples;
+        samples = (unsigned char *)vita.payload;
         
-        Float32 sample;
-        unsigned char *wArray = (unsigned char *)&sample, b;
+        unsigned char *offsetPtr = (unsigned char *) (frame.bytes + offset);
         
-        for (int i=0; i < (nSamples * 2); i++) {
-            sample = buffer[offset+i];
-            
-            // Swamp byte order
-            b = wArray[0];
-            wArray[0] = wArray[3];
-            wArray[3]= b;
-            
-            b = wArray[1];
-            wArray[1] = wArray[2];
-            wArray[2] = b;
-
-            samples[i] = sample;
-        }
-            
+        memcpy((void *)samples, (void *) offsetPtr, nSamples);
+        
         // Update the offset
         offset += nSamples;
         
@@ -278,16 +263,18 @@ enum audioStreamTokens {
 
 
 //
-// streamHandler - converts the VITA payload into a DAXFrame and then passes it to the delegate
+// streamHandler - converts the VITA payload into a StreamFrame and then passes it to the delegate
 //
 
 - (void) streamHandler:(VITA *)vitaPacket {
     // Check the sequence of the packet...
+    // NSLog(@"Expected: %ld  Got: %u", (long)self.rxSeq + 1, vitaPacket.packetCount);
     if (vitaPacket.packetCount == ((self.rxSeq + 1) % 16) || self.rxSeq == -1) {
         // Correct ordered packet
         self.rxSeq = vitaPacket.packetCount;
     } else if (vitaPacket.packetCount < ((self.rxSeq + 1) % 16)) {
         // packet is out of order pitch it
+        self.rxSeq = -1;
         self.rcLostPacketCount++;
         return;
     } else {
@@ -298,48 +285,28 @@ enum audioStreamTokens {
         self.rxSeq = -1;
     }
     
-    if (!self.delegate)
-        // No handler
-        return;
-    
-    StreamFrame *dax = [[StreamFrame alloc]init];
-    Float32 *samples = (Float32 *)vitaPacket.payload;
-    
-    dax.buffer = vitaPacket.buffer;
-    dax.numSamples = vitaPacket.payloadLength / 8;      // 2 channels, each with a 32 bit Float
-    dax.sizeofSample = 4;
-    dax.samples = vitaPacket.payload;
-    
-    // Swap the endianism of the samples - we multiply by 2 because of one sample for each
-    // of two channels
-    
-    unsigned char *wArray;
-    unsigned char b;
-    
-    for (int i=0; i < (dax.numSamples * 2); i++) {
-        wArray = (unsigned char *)&samples[i];
-        
-        // Swamp byte order
-        b = wArray[0];
-        wArray[0] = wArray[3];
-        wArray[3]= b;
-        
-        b = wArray[1];
-        wArray[1] = wArray[2];
-        wArray[2] = b;
-    }
-    
-    // Create a weak reference to self before the block
-    __weak DAXAudio *safeSelf = self;
-    dispatch_async(self.runQueue, ^(void) {
-        @autoreleasepool {
-            [safeSelf.delegate streamReceive:dax];
-        }
-    });
     
     // Update counters
     self.rcRxPackets++;
     self.rcRxBytes += (int)vitaPacket.buffer.length;
+    
+    if (!self.delegate)
+        return;
+    
+    StreamFrame *opus = [[StreamFrame alloc]init];
+    
+    opus.buffer = vitaPacket.buffer;
+    opus.numSamples = vitaPacket.payloadLength;
+    opus.sizeofSample = 1;
+    opus.samples = vitaPacket.payload;
+    
+    // Create weak reference to self before the block
+    __weak OpusAudio *safeSelf = self;
+    
+    dispatch_async(self.runQueue, ^(void) {
+        [safeSelf.delegate streamReceive:opus];
+    });
+
 }
 
 
@@ -366,7 +333,6 @@ enum audioStreamTokens {
 
 - (void) statusParser:(NSScanner *)scan selfStatus:(BOOL)selfStatus {
     NSString *all;
-    NSString *cmd;
     NSArray *fields;
     [scan scanString:@" " intoString:nil];
     [scan scanUpToString:@"\n" intoString:&all];
@@ -375,53 +341,41 @@ enum audioStreamTokens {
     
     for (NSString *f in fields) {
         NSArray *kv = [f componentsSeparatedByString:@"="];
+        
+        if ([kv count] != 2)
+            // Not k=v
+            continue;
+        
         NSString *k = kv[0];
         NSString *v = kv[1];
+        NSInteger tokenVal;
         
-        NSInteger tokenVal = [self.parserTokens[k] integerValue];
+        if ([self.parserTokens objectForKey:k])
+            tokenVal = [self.parserTokens[k] integerValue];
+        else
+            // Unexpected token - ignore
+            continue;
         
         switch (tokenVal) {
-            case inUseToken:
-                // Ignore - this is handled by the Radio model
+            case opusRxStreamStoppedToken:
+                updateWithNotify(@"opusRxStreamStopped", _opusRxStreamStopped, [v boolValue]);
                 break;
                 
-            case daxToken:
-                updateWithNotify(@"daxChannel", _daxChannel, (int)[v integerValue]);
+            case rxOnToken:
+                updateWithNotify(@"rxOn", _rxOn, (int)[v integerValue]);
                 break;
                 
-            case daxTxToken:
-                updateWithNotify(@"transmitEnabled", _transmitEnabled, [v boolValue]);
+            case txOnToken:
+                updateWithNotify(@"txOn", _txOn, [v boolValue]);
                 break;
                 
-            case txStreamToken:
-                self.txStreamId = v;
-                break;
-                
-            case sliceToken:
-                if ([v integerValue] == -1) {
-                    // No slice attached
-                    updateWithNotify(@"slice", _slice, nil);
-                } else {
-                    updateWithNotify(@"slice", _slice, self.radio.slices[[v integerValue]]);
-                    
-                    // Its possible that the slice associated with the stream is either a different
-                    // slice or was deleted/recreated - in either event, send the rxGain setting
-                    if ([self.radio.slices[[v integerValue]] isKindOfClass:[Slice class]]) {
-                        cmd = [NSString stringWithFormat:@"audio stream %@ slice %i gain %i",
-                               self.streamId, (int)[v integerValue], self.rxGain];
-                        [self.radio commandToRadio:cmd];
-                    }
-                }
-                break;
-                
-            case daxClientsToken:
             case ipToken:
             case portToken:
                 break;
                 
             default:
                 // Ignore
-                NSLog(@"AudioStream statusParser: Unknown key %@", k);
+                NSLog(@"OpusStream statusParser: Unknown key %@", k);
                 break;
         }
     }
@@ -430,13 +384,13 @@ enum audioStreamTokens {
 
 #pragma mark
 #pragma mark RadioDisplay protoocol handlers
-    
+
 - (void) attachedRadio:(Radio *)radio streamId:(NSString *)streamId {
     self.radio = radio;
     self.streamId = streamId;
     
     if (!self.runQueue) {
-        NSString *qName = [NSString stringWithFormat:@"net.k6tu.audioStreamQueue-%@", streamId];
+        NSString *qName = [NSString stringWithFormat:@"net.k6tu.opusStreamQueue-%@", streamId];
         self.runQueue = dispatch_queue_create([qName UTF8String], NULL);
     }
 }
@@ -445,12 +399,12 @@ enum audioStreamTokens {
 - (void) willRemoveStreamProcessor {
     
 }
-    
+
 #pragma mark
 #pragma mark Setters with Commands
-    
-    // Private macro to improve readibility of setters
-    
+
+// Private macro to improve readibility of setters
+
 #define commandUpdateNotify(cmd, key, ivar, value) \
     /* Let observers know the change on the main queue */ \
     [self willChangeValueForKey:(key)]; \
@@ -458,37 +412,18 @@ enum audioStreamTokens {
     [self didChangeValueForKey:(key)]; \
     \
     @synchronized(self) {\
-        __weak DAXAudio *safeSelf = self; \
+        __weak OpusAudio *safeSelf = self; \
         dispatch_async(self.runQueue, ^(void) { \
             /* Send the command to the radio on our private queue */ \
             [safeSelf.radio commandToRadio:(cmd)]; \
         }); \
     }
+
+- (void) setRxOn:(BOOL)rxOn {
+    NSString *cmd = [NSString stringWithFormat:@"remote_audio rx_on %i",
+                     rxOn];
     
-- (void) setTransmitEnabled:(BOOL)transmitEnabled {
-    NSString *cmd = [NSString stringWithFormat:@"dax audio set %i tx=%i",
-                     self.daxChannel, transmitEnabled];
-    
-    commandUpdateNotify(cmd, @"transmitEnabled", _transmitEnabled, transmitEnabled);
-}
-
-
-- (void) setRxGain:(int)rxGain {
-    if (!self.slice) {
-        updateWithNotify(@"rxGain", _rxGain, rxGain);
-    }
-    
-    NSString *cmd = [NSString stringWithFormat:@"audio stream %@ slice %i gain %i",
-                     self.streamId, (int)[self.slice.thisSliceNumber integerValue], rxGain];
-
-    commandUpdateNotify(cmd, @"rxGain", _rxGain, rxGain);
-}
-
-
-- (void) setTxGain:(int)txGain {
-    // Currently no command - wonder how this gets handled?
-    
-    updateWithNotify(@"txGain", _txGain, txGain);
+    commandUpdateNotify(cmd, @"rxOn", _rxOn, rxOn);
 }
 
 
@@ -506,7 +441,7 @@ enum audioStreamTokens {
     }
 }
 
-- (void) setDelegate:(id<DaxAudioStreamHandler>)delegate runQueue:(dispatch_queue_t)runQueue {
+- (void) setDelegate:(id<OpusStreamHandler>)delegate runQueue:(dispatch_queue_t)runQueue {
     @synchronized(self) {
         _delegate = delegate;
         _runQueue = runQueue;

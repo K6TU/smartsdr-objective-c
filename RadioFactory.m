@@ -138,18 +138,22 @@ enum vitaTokens {
             return nil;;
         }
         
-        [udpSocket receiveOnce:&error];
+        [udpSocket beginReceiving:&error];
         
         // Initialize dictionary
          self.discoveredRadios = [[NSMutableDictionary alloc] initWithCapacity:0];
         
         // Start timeout timer
         
-       self.timeoutTimer = [NSTimer scheduledTimerWithTimeInterval:1.0
+        self.timeoutTimer = [NSTimer scheduledTimerWithTimeInterval:1.0
                                                              target:self
                                                            selector:@selector(radioTimeoutCheck:)
                                                            userInfo:nil
-                                                           repeats:YES];
+                                                        repeats:YES];
+        
+        NSRunLoop *runOnThis = [NSRunLoop currentRunLoop];
+        [runOnThis addTimer:self.timeoutTimer forMode:NSDefaultRunLoopMode];
+        
         NSLog(@"Ready");
     }
 
@@ -402,11 +406,6 @@ withFilterContext:(id)filterContext
             [self radioFound:newRadio];
         }
     }
-	
-    // Post a new read
-    NSError *error = nil;
-    
-	[udpSocket receiveOnce:&error];
 }
 
 @end

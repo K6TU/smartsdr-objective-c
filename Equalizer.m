@@ -176,9 +176,10 @@ enum enumStatusEqTokens {
     (ivar) = (value); \
     [self didChangeValueForKey:(key)]; \
        \
+    __weak Equalizer *safeSelf = self; \
     dispatch_async(self.eqRunQueue, ^(void) { \
         /* Send the command to the radio on our private queue */ \
-        [self.radio commandToRadio:(cmd)]; \
+        [safeSelf.radio commandToRadio:(cmd)]; \
     });
 
 
@@ -322,10 +323,11 @@ enum enumStatusEqTokens {
 
 #define updateWithNotify(key,ivar,value)  \
 {  \
+    __weak Equalizer *safeSelf = self; \
     dispatch_async(dispatch_get_main_queue(), ^(void) { \
-        [self willChangeValueForKey:(key)]; \
+        [safeSelf willChangeValueForKey:(key)]; \
         (ivar) = (value); \
-        [self didChangeValueForKey:key]; \
+        [safeSelf didChangeValueForKey:key]; \
     }); \
 }
 

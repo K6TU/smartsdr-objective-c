@@ -34,7 +34,7 @@
 // Violation of these Copyright terms will be protected by US & International law.
 //
 
-#import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
 #import "RadioFactory.h"
 
 // This model class is depedent on the AysncTCPSocket class developed by
@@ -73,7 +73,7 @@ enum radioInterlockState {
     stuckInputState,
 };
 
-
+                    
 
 enum radioAtuState {
     enumStatusAtuStatesNone = 0,
@@ -96,6 +96,7 @@ enum radioAtuState {
 @class Panafall;
 @class Waterfall;
 @class DAXAudio;
+@class OpusAudio;
 
 @protocol RadioDelegate <NSObject>
 @optional
@@ -181,6 +182,11 @@ enum radioAtuState {
 
 @property (strong, readonly, nonatomic) NSMutableDictionary *daxAudioStreamToStreamHandler;
 
+// Mutable dictionary to handle the Opus Stream handlers
+// for the radio.  Key is the stream id
+@property (strong, readonly, nonatomic) NSMutableDictionary *opusStreamToStreamHandler;
+
+
 // Array to handle each slice for a radio - indexed by slice number
 // with an entry set to NSNULL if the slice does not exist.
 
@@ -251,6 +257,9 @@ enum radioAtuState {
 
 @property (strong, readonly, nonatomic) NSNumber *atuStatus;        // ATU operation status - ENUM radioAtuState
 @property (strong, readonly, nonatomic) NSNumber *atuEnabled;       // ATU enabled - BOOL
+@property (strong, nonatomic) NSNumber *atuMemoriesEnabled;         // ATU Memories Enabled - BOOL
+@property (strong, nonatomic) NSNumber *atuUsingMemories;           // ATU memories in use - BOOL
+
 
 @property (strong, nonatomic) NSNumber *txState;                    // State of tranmsitter on/off - BOOL
 @property (strong, nonatomic) NSNumber *tuneEnabled;                // State of TUNE on/off - BOOL
@@ -293,8 +302,19 @@ enum radioAtuState {
 @property (strong, nonatomic) NSString *radioModel;                 // Model of radio - STRING
 @property (strong, nonatomic) NSString *radioName;                  // Name of radio if set - STRING
 
+@property (strong, nonatomic) NSNumber *binauralRx;                 // Binaural RX enable - BOOL
+
+
 @property (strong, nonatomic) NSNumber *syncActiveSlice;            // Client should sync active slice with radio - BOOL [Default YES]
 
+@property (strong, nonatomic) NSNumber *remoteAudio;                // State or Remote (Opus) Audio - BOOL
+
+// NOTE: Set this property if the client support a graphical user interface.
+// The behavior of the radio is heavily dependent on this property - so for correct operation,
+// make sure that this property is set if necessary immediately after the radio connection state change is
+// signalled via the RadioDelegate protocol.
+
+@property (strong, nonatomic) NSNumber *isGui;                      // Set true if client supports a graphical user interface
 
 
 
