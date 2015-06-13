@@ -74,7 +74,7 @@
 @property (readonly, nonatomic) UInt32 timecode;                            // Time code of last tile received
 @property (readonly, nonatomic) UInt32 droppedTiles;                        // Count of tile dropped because received after current timecode
 @property (weak, nonatomic) id <WaterfallData> delegate;                    // Delegate for this waterfall
-@property (strong, nonatomic) dispatch_queue_t runQueue;                    // Run queue for this waterfall
+@property (nonatomic) dispatch_queue_t runQueue;                            // Run queue for this waterfall
 
 @end
 

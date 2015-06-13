@@ -51,7 +51,7 @@
 @property (weak, nonatomic, readonly) Radio *radio;
 
 // Pointer to private run queue for Radio
-@property (strong, nonatomic, readonly) dispatch_queue_t sliceRunQueue;
+@property (nonatomic, readonly) dispatch_queue_t sliceRunQueue;
 
 // All the following properties are KVO compliant for READ and WRITE except where marked READONLY
 

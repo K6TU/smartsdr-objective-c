@@ -54,7 +54,7 @@
 // Private properties
 @property (strong, nonatomic) NSDictionary *parserTokens;                    // Tokenizer for our parser
 @property (strong, nonatomic) NSString *txStreamId;                          // Stream handle for use when this channel is TX source
-@property (strong, nonatomic) dispatch_source_t rateTimer;                   // One second callback for rate calculator/stats update
+@property (nonatomic) dispatch_source_t rateTimer;                           // One second callback for rate calculator/stats update
 @property (nonatomic) NSInteger rxSeq;                                       // Rx sequence number
 @property (nonatomic) NSInteger txSeq;                                       // Tx sequence number
 @property (nonatomic) NSInteger rcRxPackets;                                 // Rate calculator packet count- RX
@@ -278,7 +278,7 @@ enum audioStreamTokens {
 
 
 //
-// streamHandler - converts the VITA payload into a DAXFrame and then passes it to the delegate
+// streamHandler - converts the VITA payload into a StreamFrame and then passes it to the delegate
 //
 
 - (void) streamHandler:(VITA *)vitaPacket {

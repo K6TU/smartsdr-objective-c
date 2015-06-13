@@ -78,7 +78,7 @@
 @property (strong, nonatomic) NSMutableDictionary *responseCallbacks;         // Radio response callbacks within self
 
 @property (strong, nonatomic) NSMutableDictionary *notifyList;
-@property (strong, nonatomic) dispatch_queue_t radioRunQueue;
+@property (nonatomic) dispatch_queue_t radioRunQueue;
 @property (strong, nonatomic) NSString *clientId;
 
 
@@ -1265,7 +1265,7 @@ BOOL subscribedToDisplays = NO;
         // If this is a meter for a slice, we should be able to just remove the
         // Meter from our own list - at which point, the strong reference in the slice
         // will still hold the object until the slice itself is removed (which is in process
-        // as the meters removed notifications come before the slice in_user=0 is sent
+        // as the meters removed notifications come before the slice in_use=0 is sent by the radio)
         
         @synchronized (self.meters) {
             [self.meters removeObjectForKey:mKey];

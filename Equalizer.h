@@ -58,7 +58,7 @@
 @interface Equalizer : NSObject <RadioParser>
 
 // Pointer to private run queue for Radio
-@property (strong, nonatomic, readonly) dispatch_queue_t eqRunQueue;
+@property (nonatomic, readonly) dispatch_queue_t eqRunQueue;
 
 // Radio object to which this Equalizer belongs
 @property (strong, nonatomic, readonly) Radio *radio;

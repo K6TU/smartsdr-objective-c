@@ -69,7 +69,7 @@
 @property (nonatomic, readonly) NSInteger rxRate;                           // RX rate in bytes/second
 @property (nonatomic, readonly) NSInteger txRate;                           // TX rate in bytes/second
 @property (weak, nonatomic) id <DaxAudioStreamHandler> delegate;            // Delegate to handle the receive stream
-@property (strong, nonatomic) dispatch_queue_t runQueue;                    // Run queue for this Dax instance
+@property (nonatomic) dispatch_queue_t runQueue;                            // Run queue for this Dax instance
 
 - (void) setDelegate:(id<DaxAudioStreamHandler>)delegate runQueue:(dispatch_queue_t) runQueue;
 - (void) streamSend:(Float32 *)buffer length:(int) length;

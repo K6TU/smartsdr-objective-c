@@ -41,7 +41,7 @@
 @property (strong, nonatomic) NSDictionary *statusEqTokens;
 
 // Pointer to private run queue for Radio
-@property (strong, nonatomic, readwrite) dispatch_queue_t eqRunQueue;
+@property (nonatomic, readwrite) dispatch_queue_t eqRunQueue;
 
 // Type of this equalizer (rx or tx) as NSString
 @property (strong, nonatomic, readwrite) NSString *eqType;

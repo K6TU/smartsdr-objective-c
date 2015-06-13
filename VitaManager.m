@@ -56,7 +56,7 @@
 // the given stream
 @property (strong, nonatomic) NSMutableDictionary *streamProcessor;
 
-@property (strong, nonatomic) dispatch_queue_t vitaRunQueue;
+@property (nonatomic) dispatch_queue_t vitaRunQueue;
 @property (readwrite, nonatomic) NSInteger vitaPort;
 @property (weak, readwrite, nonatomic) Radio *radio;
 

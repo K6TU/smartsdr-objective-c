@@ -69,7 +69,7 @@
 @property (nonatomic, readonly) NSInteger rxRate;                           // RX rate in bytes/second
 @property (nonatomic, readonly) NSInteger txRate;                           // TX rate in bytes/second
 @property (weak, nonatomic) id <OpusStreamHandler> delegate;                // Delegate to handle the receive stream
-@property (strong, nonatomic) dispatch_queue_t runQueue;                    // Run queue for this Opus instance
+@property (nonatomic) dispatch_queue_t runQueue;                            // Run queue for this Opus instance
 
 - (void) setDelegate:(id<OpusStreamHandler>)delegate runQueue:(dispatch_queue_t) runQueue;
 - (void) streamSend:(NSData *) frame;

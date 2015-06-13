@@ -117,7 +117,7 @@
 @property (readonly, nonatomic) UInt32 lastFFTFrameIndex;                   // Index of the last FFT frame received
 @property (readonly, nonatomic) UInt32 droppedFrames;                       // Count of dropped FFT frames due to out of sequence
 @property (weak, nonatomic) id <PanafallData> delegate;                     // delegate for this option
-@property (strong, nonatomic) dispatch_queue_t runQueue;                    // Run queue for this panafall
+@property (nonatomic) dispatch_queue_t runQueue;                            // Run queue for this panafall
 
 
 @end
