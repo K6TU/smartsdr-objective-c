@@ -634,6 +634,10 @@ BOOL subscribedToDisplays = NO;
         _tunePowerLevel = [NSNumber numberWithInt:10];
         _syncActiveSlice = [NSNumber numberWithBool:YES];
         
+#ifdef DEBUG
+        self.logRadioMessages = YES;
+#endif
+        
         // Listen for notification of slice deletion
         //[[NSNotificationCenter defaultCenter] addObserver:self
         //                                         selector:@selector(sliceDeleteNotification:)
@@ -788,9 +792,7 @@ BOOL subscribedToDisplays = NO;
     seqNum++;
     NSString *cmdline = [[NSString alloc] initWithFormat:@"c%@%u|%@\n", verbose ? @"d" : @"", (unsigned int)seqNum, cmd ];
     
-#ifdef DEBUG
-    NSLog(@"Data sent - %@", cmdline);
-#endif
+    if (self.logRadioMessages) NSLog(@"Data sent - %@", cmdline);
     [radioSocket writeData: [cmdline dataUsingEncoding:NSUTF8StringEncoding] withTimeout:-1 tag:(long)seqNum];
 }
 
@@ -801,9 +803,8 @@ BOOL subscribedToDisplays = NO;
     
     self.notifyList[[NSString stringWithFormat:@"%i", seqNum]] = notifyMe;
     
-#ifdef DEBUG
-    NSLog(@"Data sent - %@", cmdline);
-#endif
+    if (self.logRadioMessages) NSLog(@"Data sent - %@", cmdline);
+
     [radioSocket writeData: [cmdline dataUsingEncoding:NSUTF8StringEncoding] withTimeout:-1 tag:(long)seqNum];
     return seqNum;
 }
@@ -2744,10 +2745,10 @@ BOOL subscribedToDisplays = NO;
         [scan setCharactersToBeSkipped:nil];
         [scan scanCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@"\000"] intoString:nil];
         [scan scanUpToString:@"\n" intoString:&payload];
-#ifdef DEBUG
-        if (![payload hasPrefix:@"S0|gps"])
+
+        if (self.logRadioMessages)
             NSLog(@"Data received - %@\n", payload);
-#endif
+
         [self parseRadioStream: payload];
     }
     

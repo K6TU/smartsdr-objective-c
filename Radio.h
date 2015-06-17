@@ -317,7 +317,8 @@ enum radioAtuState {
 
 @property (strong, nonatomic) NSNumber *isGui;                      // Set true if client supports a graphical user interface
 
-
+@property (nonatomic) BOOL logRadioMessages;                        // Set true automatically if a debug build, otherwise, set true to
+                                                                    // turn on logging of messages to/from the radio API
 
 
 // Class methods
