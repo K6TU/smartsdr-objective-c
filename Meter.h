@@ -67,7 +67,7 @@ enum meterUnits {
 @interface Meter : NSObject <RadioMeter, VitaManagerMeterUpdate>
 
 @property (weak, readonly, nonatomic) Radio *radio;                         // The Radio which owns this panadaptor
-@property (readonly, nonatomic) int sliceNum;                         // Number of the slice owning this meter
+@property (readonly, nonatomic) int sliceNum;                               // Number of the slice owning this meter
 @property (readonly, nonatomic) enum meterSource meterSource;               // Internal origin of this meter in the radio
 @property (readonly, nonatomic) int meter;                                  // Meter number (INT)
 @property (readonly, nonatomic) NSString *shortName;                        // Short name for the meter

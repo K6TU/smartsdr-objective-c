@@ -58,7 +58,8 @@ enum radioConnectionState {
     connecting,
     connected,
     disconnecting,
-    connectFailed
+    connectFailed,
+    radioTimedOut,
 };
 
 enum radioInterlockState {

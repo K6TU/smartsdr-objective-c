@@ -57,13 +57,13 @@
 @property (strong, readwrite, nonatomic) NSMutableDictionary *daxAudioStreamToStreamHandler;
 @property (strong, readwrite, nonatomic) NSMutableDictionary *opusStreamToStreamHandler;
 
-@property (strong, readwrite, nonatomic) NSString *apiVersion;                 // NSString of format VM.m.x.y of Version of API
-@property (strong, readwrite, nonatomic) NSString *apiHandle;                  // NSString of our API handle
+@property (strong, readwrite, nonatomic) NSString *apiVersion;                  // NSString of format VM.m.x.y of Version of API
+@property (strong, readwrite, nonatomic) NSString *apiHandle;                   // NSString of our API handle
 
-@property (strong, readwrite, nonatomic) NSNumber *availableSlices;            // Number of available slices which can be created - INTEGER
-@property (strong, readwrite, nonatomic) NSNumber *availablePanadapters;       // Number of available panadaptors which can be created - INTEGER
+@property (strong, readwrite, nonatomic) NSNumber *availableSlices;             // Number of available slices which can be created - INTEGER
+@property (strong, readwrite, nonatomic) NSNumber *availablePanadapters;        // Number of available panadaptors which can be created - INTEGER
 
-@property (strong, readwrite, nonatomic) NSNumber *atuStatus;                  // ATU operation status - ENUM radioAtuState
+@property (strong, readwrite, nonatomic) NSNumber *atuStatus;                   // ATU operation status - ENUM radioAtuState
 @property (strong, readwrite, nonatomic) NSNumber *atuEnabled;
 
 @property (strong, nonatomic) NSDictionary *statusTokens;
@@ -75,11 +75,14 @@
 @property (strong, nonatomic) NSDictionary *statusAtuTokens;
 @property (strong, nonatomic) NSDictionary *statusAtuStatusTokens;
 
-@property (strong, nonatomic) NSMutableDictionary *responseCallbacks;         // Radio response callbacks within self
+@property (strong, nonatomic) NSMutableDictionary *responseCallbacks;           // Radio response callbacks within self
 
 @property (strong, nonatomic) NSMutableDictionary *notifyList;
 @property (nonatomic) dispatch_queue_t radioRunQueue;
 @property (strong, nonatomic) NSString *clientId;
+
+@property (nonatomic) dispatch_source_t pingTimer;                              // periodic timer for radio keepalive detection
+@property (strong, nonatomic) NSDate *lastPingRxtime;                           // Time last ping response was received from the radio
 
 
 - (void) initStatusTokens;
@@ -664,6 +667,7 @@ BOOL subscribedToDisplays = NO;
 
 
 - (void) dealloc {
+    [self stopPingTimer];
     NSLog(@"Radio dealloc completed");
 }
 
@@ -682,6 +686,67 @@ BOOL subscribedToDisplays = NO;
 #pragma mark Radio Conversation Handlers
 
 
+- (void) startPingTimer {
+    [self stopPingTimer];
+    
+    if (!self.pingTimer) {
+        self.pingTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, self.radioRunQueue);
+    }
+    
+    if (self.pingTimer) {
+        dispatch_source_set_timer(self.pingTimer, dispatch_walltime(NULL, 0), 1 * NSEC_PER_SEC, 0);     // Every second
+        
+        // Use weak self for the callback in the block
+        __weak Radio *weakSelf = self;
+        dispatch_source_set_event_handler(self.pingTimer, ^(void) { [weakSelf pingTimerFired]; });
+        dispatch_resume(self.pingTimer);
+    }
+}
+
+
+- (void) stopPingTimer {
+    if (self.pingTimer) {
+        dispatch_source_cancel(self.pingTimer);
+        self.pingTimer = nil;
+    }
+}
+
+
+- (void) pingTimerFired {
+    // Check and see if we have lost comm with the radio = ironic huh?
+    NSDate *now = [[NSDate alloc] initWithTimeIntervalSinceNow:0];
+    
+    if (self.lastPingRxtime && ([now timeIntervalSinceDate:self.lastPingRxtime] > 10.0)) {
+        // More than 10 seconds since the last ping response - the radio has presumably gone AWOL
+        // NB:  This should be lower but there are still intermittent hangs where the radio comes
+        // back after 5 seconds...
+        
+        // Invoke close - this will close the socket and trigger a disconnect state change to
+        // any delegate
+        NSLog(@"Radio timed out - sending radio state change on radioTimedOut");
+        
+        connectionState = radioTimedOut;
+        
+        if ([self.delegate respondsToSelector:@selector(radioConnectionStateChange:state:)]) {
+            __weak Radio *safeSelf = self;
+            dispatch_async(dispatch_get_main_queue(), ^(void) {
+                [safeSelf.delegate radioConnectionStateChange:self state:connectionState];
+            });
+        }
+        
+        [self stopPingTimer];
+    } else {
+        // The timer of the last received request will be updated in pingResponseCallback: - if
+        // it gets a response!
+        
+        // Refire the ping...
+        [self commandToRadio:@"ping" notifySel:@selector(pingResponseCallback:)];
+    }
+    
+}
+
+
+
 // Sends the initialize requests to the radio and posts our first read
 
 - (void) initializeRadio {
@@ -690,6 +755,10 @@ BOOL subscribedToDisplays = NO;
     if (![self.vitaManager handleRadio:self])
         // Failed to connect to a UDP port - drop the manager
         self.vitaManager = nil;
+    
+    // Create and start the keep alive timer so we can detect radio disconnection events
+    [self startPingTimer];
+    [self commandToRadio:@"ping" notifySel:@selector(pingResponseCallback:)];
     
     // Post initial commands
     [self commandToRadio:[NSString stringWithFormat:@"client program %@", self.clientId]];
@@ -969,6 +1038,13 @@ BOOL subscribedToDisplays = NO;
     });
 }
 
+
+- (void) pingResponseCallback:(NSString *) cmdResponse {
+    // Update the time we received the last ping response
+    self.lastPingRxtime = [[NSDate alloc]initWithTimeIntervalSinceNow:0];
+    
+    // Nothing else to do - the pingTimerFired callback will handle everything else
+}
 
 
 #pragma mark

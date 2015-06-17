@@ -143,11 +143,15 @@
 #pragma mark RadioSliceMeter Protocol handlers
 
 - (void) addMeter:(Meter *)meter {
-    self.meters[meter.shortName] = meter;
+    @synchronized(self.meters) {
+        self.meters[meter.shortName] = meter;
+    }
 }
 
 - (void) removeMeter:(Meter *)meter {
-    [self.meters removeObjectForKey:meter.shortName];
+    @synchronized(self.meters) {
+        [self.meters removeObjectForKey:meter.shortName];
+    }
 }
 
 
