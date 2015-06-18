@@ -287,7 +287,7 @@ enum enumStatusInterlockStateTokens {
 @implementation Radio
 
 GCDAsyncSocket *radioSocket;
-UInt16 seqNum;
+unsigned int seqNum;
 BOOL verbose;
 enum radioConnectionState connectionState;
 BOOL subscribedToDisplays = NO;
@@ -789,29 +789,54 @@ BOOL subscribedToDisplays = NO;
 
 
 - (void) commandToRadio: (NSString *) cmd {
-    seqNum++;
-    NSString *cmdline = [[NSString alloc] initWithFormat:@"c%@%u|%@\n", verbose ? @"d" : @"", (unsigned int)seqNum, cmd ];
+    unsigned int thisSeq;
     
-    if (self.logRadioMessages) NSLog(@"Data sent - %@", cmdline);
-    [radioSocket writeData: [cmdline dataUsingEncoding:NSUTF8StringEncoding] withTimeout:-1 tag:(long)seqNum];
+    // Sync block protects mult-thread acccess to the sequence number possibly
+    // causing (gross) timing problems in callback situations.
+    @synchronized(self) {
+        thisSeq = seqNum++;
+    }
+    
+    NSString *cmdline = [[NSString alloc] initWithFormat:@"c%@%u|%@\n", verbose ? @"d" : @"", (unsigned int)thisSeq, cmd ];
+    
+    if (self.logRadioMessages)
+        NSLog(@"Data sent - %@", cmdline);
+    
+    [radioSocket writeData: [cmdline dataUsingEncoding:NSUTF8StringEncoding] withTimeout:-1 tag:(long)thisSeq];
 }
 
 
-- (int) commandToRadio:(NSString *) cmd notify: (id<RadioDelegate>) notifyMe {
-    seqNum++;
-    NSString *cmdline = [[NSString alloc] initWithFormat:@"c%@%u|%@\n", verbose ? @"d" : @"", (unsigned int)seqNum, cmd ];
-    
-    self.notifyList[[NSString stringWithFormat:@"%i", seqNum]] = notifyMe;
-    
-    if (self.logRadioMessages) NSLog(@"Data sent - %@", cmdline);
+- (unsigned int) commandToRadio:(NSString *) cmd notify: (id<RadioDelegate>) notifyMe {
+    unsigned int thisSeq;
 
-    [radioSocket writeData: [cmdline dataUsingEncoding:NSUTF8StringEncoding] withTimeout:-1 tag:(long)seqNum];
-    return seqNum;
+    // Sync block protects mult-thread acccess to the sequence number possibly
+    // causing (gross) timing problems in callback situations.
+    @synchronized (self) {
+        thisSeq = seqNum++;
+    }
+    
+    NSString *cmdline = [[NSString alloc] initWithFormat:@"c%@%u|%@\n", verbose ? @"d" : @"", (unsigned int)thisSeq, cmd ];
+    
+    @synchronized (self.notifyList) {
+        self.notifyList[[NSString stringWithFormat:@"%u", thisSeq]] = notifyMe;
+    }
+    
+    if (self.logRadioMessages)
+        NSLog(@"Data sent - %@", cmdline);
+
+    [radioSocket writeData: [cmdline dataUsingEncoding:NSUTF8StringEncoding] withTimeout:-1 tag:(long)thisSeq];
+    return thisSeq;
 }
 
 - (int) commandToRadio:(NSString *)cmd notifySel:(SEL)callback {
-    int seq = [self commandToRadio:cmd notify:self];
-    [self.responseCallbacks setValue:[NSValue valueWithPointer:callback] forKey:[NSString stringWithFormat:@"%i", seq]];
+    unsigned int seq = [self commandToRadio:cmd notify:self];
+    
+    // At the cost of a sync block, protecting the addition (here) and removal (in radioCommandResponse:)
+    // is cheap insurance
+    @synchronized (self.responseCallbacks) {
+        [self.responseCallbacks setValue:[NSValue valueWithPointer:callback] forKey:[NSString stringWithFormat:@"%u", seq]];
+    }
+    
     return seq;
 }
 
@@ -837,16 +862,30 @@ BOOL subscribedToDisplays = NO;
 //
 
 
-- (void) radioCommandResponse:(int)seqNum response:(NSString *)cmdResponse {
-    NSString *key = [NSString stringWithFormat:@"%i", seqNum];
+- (void) radioCommandResponse:(unsigned int)seqNum response:(NSString *)cmdResponse {
+    NSString *key = [NSString stringWithFormat:@"%u", seqNum];
     SEL callback = [[self.responseCallbacks objectForKey:key] pointerValue];
-
-    [self.responseCallbacks removeObjectForKey:key];
     
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
-    [self performSelector:callback withObject:cmdResponse];
+    if (callback)
+        [self performSelector:callback withObject:cmdResponse];
+    else {
+        NSLog(@"radioCommandResponse: selector NULL - seqNum = %u  key = %@", seqNum, key);
+        for (NSString *s in self.notifyList) {
+            NSLog(@"  Waiting key: %@", s);
+        }
+        for (NSString *s in self.responseCallbacks) {
+            NSLog(@"  Callback key: %@", s);
+        }
+    }
 #pragma clang diagnostic pop
+    
+    // At the cost of a sync block, protecting the addition (here) and removal (in radioCommandResponse:)
+    // is cheap insurance
+    @synchronized (self.responseCallbacks) {
+        [self.responseCallbacks removeObjectForKey:key];
+    }
 }
 
 
@@ -1215,10 +1254,12 @@ BOOL subscribedToDisplays = NO;
     
     if (notifyIt) {
         if ([notifyIt respondsToSelector:@selector(radioCommandResponse:response:)])
-            [notifyIt radioCommandResponse:[seqNumAsString intValue] response:payload];
+            [notifyIt radioCommandResponse:(unsigned int)[seqNumAsString integerValue] response:payload];
         
         // Remove the object for the notification list
-        [self.notifyList removeObjectForKey:seqNumAsString];
+        @synchronized (self.notifyList) {
+            [self.notifyList removeObjectForKey:seqNumAsString];
+        }
     }
 }
 

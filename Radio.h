@@ -104,7 +104,7 @@ enum radioAtuState {
 
 // Invoked on Radio Connections State changes
 - (void) radioConnectionStateChange: (Radio *) radio state: (enum radioConnectionState) state;
-- (void) radioCommandResponse: (int) seqNum response: (NSString *) cmdResponse;
+- (void) radioCommandResponse: (unsigned int) seqNum response: (NSString *) cmdResponse;
 
 @end
 
@@ -338,7 +338,7 @@ enum radioAtuState {
 - (void) commandToRadio:(NSString *) cmd;
 
 // DO NOT USE DIRECTLY - same proviso as above
-- (int) commandToRadio:(NSString *) cmd notify: (id<RadioDelegate>) notifyMe;
+- (unsigned int) commandToRadio:(NSString *) cmd notify: (id<RadioDelegate>) notifyMe;
 
 // Command methods for non-property based radio attributes
 - (void) cmdSetAtuTune: (NSNumber *) state;                         // Set ATU command state (on/off) - BOOL
