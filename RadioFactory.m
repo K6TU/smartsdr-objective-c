@@ -157,7 +157,7 @@ enum vitaTokens {
         NSLog(@"Ready");
     }
 
-#ifdef DEBUG
+#ifdef DEBUGN
     // Create a fake radio for testing...
     RadioInstance *fake = [[RadioInstance alloc] initWithData:@"10.1.1.148"
                                                          port:[NSNumber numberWithInt:4992]

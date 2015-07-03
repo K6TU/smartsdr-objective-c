@@ -64,7 +64,7 @@ enum VitaTSF {
 
 // Constant defines
 
-#define FRS_OUI 0x12cd
+#define FRS_OUI 0x1c2d
 #define VITA_PORT 4991
 
 

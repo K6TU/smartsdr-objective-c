@@ -102,6 +102,7 @@
 @property (strong, nonatomic) NSNumber *sliceDiversityParent;       // True if this slice is the parent of the pair - BOOL
 @property (strong, nonatomic) NSNumber *sliceDiversityChild;        // True if this slice is the child of the pair - BOOL
 @property (strong, nonatomic) NSNumber *sliceDiversityIndex;        // Slice number of the other slice of the pair - INTEGER
+@property (strong, nonatomic) NSMutableArray *stepList;             // Array of tuning steps set by the radio - STRING values, mode specific
 @property (strong, nonatomic) NSMutableArray *antList;              // Array of available antenna ports for this slice
 @property (strong, nonatomic) NSMutableArray *modeList;             // Array of NSStrings with available modes
 

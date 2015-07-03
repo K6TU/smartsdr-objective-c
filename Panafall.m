@@ -265,14 +265,14 @@ enum panafallToken {
             case xPixelsToken:
                 dim = self.panDimensions;
                 dim.width = [v floatValue];
-                updateWithNotify(@"panDimensions", _panDimensions, dim);
-                [self.waterfall updateXPixelSize:(int)[v integerValue]];
+                // updateWithNotify(@"panDimensions", _panDimensions, dim);
+                // [self.waterfall updateXPixelSize:(int)[v integerValue]];
                 break;
                 
             case yPixelsToken:
                 dim = self.panDimensions;
                 dim.height = [v floatValue];
-                updateWithNotify(@"panDimensions", _panDimensions, dim);
+                // updateWithNotify(@"panDimensions", _panDimensions, dim);
                 break;
                 
             case centerToken:
@@ -409,8 +409,8 @@ enum panafallToken {
 
 
 -(void) setCenter:(Float32)center {
-    NSString *cmd = [NSString stringWithFormat:@"display panafall set %@ center=%f",
-                     self.streamId, center];
+    NSString *cmd = [NSString stringWithFormat:@"display panafall set %@ center=%f autocenter=%i",
+                     self.streamId, center, self.autoCenter];
     
     commandUpdateNotify(cmd, @"center", _center, center);
 }

@@ -120,10 +120,11 @@ enum audioStreamTokens {
     [self stopRateTimer];
     
     if (!self.rateTimer)
-        self.rateTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, self.runQueue);
+        self.rateTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, DISPATCH_TIMER_STRICT, self.runQueue);
     
     if (self.rateTimer) {
-        dispatch_source_set_timer(self.rateTimer, dispatch_walltime(NULL, 0), 1 * NSEC_PER_SEC, 0);
+        // Set 10% leeway in our call back timer...
+        dispatch_source_set_timer(self.rateTimer, dispatch_walltime(NULL, 0), 1 * NSEC_PER_SEC, 0.1 * NSEC_PER_SEC);
         dispatch_source_set_event_handler(self.rateTimer, ^(void) { [self rateCalculator]; });
         dispatch_resume(self.rateTimer);
     }
@@ -195,7 +196,7 @@ enum audioStreamTokens {
     self.rxBytes = self.rcRxBytes;
     self.txBytes = self.rcTxBytes;
     
-    NSLog(@"Rx: %li  RxR: %li  Lost:%li", (long)self.rcRxPackets, self.rxRate, self.rcLostPacketCount);
+    NSLog(@"Rx: %li  RxR: %li  Lost:%li", (long)self.rcRxPackets, (long)self.rxRate, (long)self.rcLostPacketCount);
 }
 
 //

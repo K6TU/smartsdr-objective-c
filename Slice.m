@@ -713,6 +713,7 @@ enum enumStatusSliceTokens {
     NSString *token;
     NSInteger intVal;
     NSString *stringVal;
+    
     float floatVal;
     BOOL play;
     
@@ -933,7 +934,8 @@ enum enumStatusSliceTokens {
                 
             case stepListToken:
                 [scan scanUpToCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"]
-                                     intoString:nil];
+                                     intoString:&stringVal];
+                updateWithNotify(@"stepList", _stepList, [[NSMutableArray alloc]initWithArray:[stringVal componentsSeparatedByString:@","]]);
                 break;
                 
             case recordToken:

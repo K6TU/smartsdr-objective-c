@@ -694,11 +694,12 @@ BOOL subscribedToDisplays = NO;
     [self stopPingTimer];
     
     if (!self.pingTimer) {
-        self.pingTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, self.radioRunQueue);
+        self.pingTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, DISPATCH_TIMER_STRICT, self.radioRunQueue);
     }
     
     if (self.pingTimer) {
-        dispatch_source_set_timer(self.pingTimer, dispatch_walltime(NULL, 0), 1 * NSEC_PER_SEC, 0);     // Every second
+        // Set timer with 10% leeway...
+        dispatch_source_set_timer(self.pingTimer, dispatch_walltime(NULL, 0), 1 * NSEC_PER_SEC, 0.1 * NSEC_PER_SEC);     // Every second +/- 10%
         
         // Use weak self for the callback in the block
         __weak Radio *weakSelf = self;
@@ -1373,6 +1374,7 @@ BOOL subscribedToDisplays = NO;
     NSInteger meternum;
     BOOL removed;
     Meter *thisMeter;
+    Slice *thisSlice;
     
     // Extract the meter number
     [localScan scanInteger:&meternum];
@@ -1380,10 +1382,21 @@ BOOL subscribedToDisplays = NO;
     removed = !([[localScan string]rangeOfString:@"removed"].location == NSNotFound);
     
     if (removed) {
-        // If this is a meter for a slice, we should be able to just remove the
-        // Meter from our own list - at which point, the strong reference in the slice
-        // will still hold the object until the slice itself is removed (which is in process
-        // as the meters removed notifications come before the slice in_use=0 is sent by the radio)
+        // If this is a meter for a slice, we need to update the slice's own
+        // reference to the meter...  meters are added/removed when the mode
+        // of the slice is changed.
+        
+        thisMeter = self.meters[mKey];
+        
+        if (thisMeter.meterSource == sliceSource) {
+            // Remove the meter from the slice
+            thisSlice = self.slices[thisMeter.sliceNum];
+            [thisSlice removeMeter:thisMeter];
+        }
+        
+        dispatch_async(dispatch_get_main_queue(), ^(void) {
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"MeterDeleted" object:thisMeter];
+        });
         
         @synchronized (self.meters) {
             [self.meters removeObjectForKey:mKey];
@@ -1391,6 +1404,11 @@ BOOL subscribedToDisplays = NO;
         return;
     }
 
+    // Do we already have a Meter object for this meter?
+    if (self.meters[mKey])
+        // Meter already exists - duplicate notification
+        return;
+    
     // Meter is being created
     thisMeter = [[Meter alloc]init];
 
@@ -1399,6 +1417,23 @@ BOOL subscribedToDisplays = NO;
     
     @synchronized (self.meters) {
         [self.meters setObject:thisMeter forKey:mKey];
+    }
+    
+    if (thisMeter.meterSource == sliceSource) {
+        // Add the meter to the slices BUT be careful...  note that the
+        // meters for a slice are notified BEFORE the slice itself is created
+        // via the status notification...  If we dont have a slice object
+        // for the relevant slice, we can punt here as all meters for the slice
+        // will be added when the slice itself is created.
+        if ([self.slices[thisMeter.sliceNum] isKindOfClass:[Slice class]]) {
+            // Existing slice... safe to add the meter
+            thisSlice = self.slices[thisMeter.sliceNum];
+            [thisSlice addMeter:thisMeter];
+        }
+        
+        dispatch_async(dispatch_get_main_queue(), ^(void) {
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"MeterCreated" object:thisMeter];
+        });
     }
 }
 
@@ -2037,9 +2072,15 @@ BOOL subscribedToDisplays = NO;
                 [thisSlice addMeter:m];
         }
         
+        dispatch_sync(thisSlice.sliceRunQueue, ^(void){
+            [thisSlice statusParser:scan selfStatus:selfStatus];
+        });
+        
         dispatch_async(dispatch_get_main_queue(), ^(void) {
             [[NSNotificationCenter defaultCenter] postNotificationName:@"SliceCreated" object:thisSlice];
         });
+        
+        return;
     }
     
     // Slice identified, created if necessary - pass remaining scanner to the slice
@@ -2048,12 +2089,14 @@ BOOL subscribedToDisplays = NO;
     if ([[scan string] rangeOfString:@"in_use=0"].location != NSNotFound) {
         // Slice is being deleted.  Post the notification here but do it via an async dispatch on
         // the main queue...
+        
         dispatch_async(dispatch_get_main_queue(), ^(void) {
             [[NSNotificationCenter defaultCenter] postNotificationName:@"SliceDeleted" object:thisSlice];
         });
         
         // Now release the slice
         self.slices[thisSliceNum] = [[NSNull alloc]init];
+        return;
     }
     
     dispatch_async(thisSlice.sliceRunQueue, ^(void){[thisSlice statusParser:scan selfStatus:selfStatus];});

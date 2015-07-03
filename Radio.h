@@ -131,6 +131,7 @@ enum radioAtuState {
 @protocol RadioSliceMeter <NSObject>
 
 - (void) addMeter:(Meter *)meter;
+- (void) removeMeter:(Meter *)meter;
 
 @end
 

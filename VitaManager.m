@@ -37,7 +37,12 @@
 
 #import "VitaManager.h"
 #import "GCDAsyncUdpSocket.h"
+#
 #import <arpa/inet.h>
+#import <sys/socket.h>
+#import <netinet/in.h>
+#import <fcntl.h>
+#import <unistd.h>
 #import "Meter.h"
 #import "Panafall.h"
 #import "Waterfall.h"
@@ -59,6 +64,9 @@
 @property (nonatomic) dispatch_queue_t vitaRunQueue;
 @property (readwrite, nonatomic) NSInteger vitaPort;
 @property (weak, readwrite, nonatomic) Radio *radio;
+
+@property (nonatomic) CFSocketRef txSocket;
+@property (strong, nonatomic) NSData *destAddress;
 
 - (void) meterStreamHandler:(VITA *) vitaPacket;
 
@@ -115,13 +123,17 @@ GCDAsyncUdpSocket *vitaTxSocket;
     }
     
     // Grab the tx socket for sending streams to the radio
-    vitaTxSocket = [[GCDAsyncUdpSocket alloc] initWithDelegate:self delegateQueue:self.vitaRunQueue];
-    [vitaTxSocket setPreferIPv4];
-    [vitaTxSocket setIPv6Enabled:NO];
-    [vitaTxSocket enableBroadcast:NO error:nil];
+    // vitaTxSocket = [[GCDAsyncUdpSocket alloc] initWithDelegate:self delegateQueue:self.vitaRunQueue];
+    // [vitaTxSocket setPreferIPv4];
+    // [vitaTxSocket setIPv6Enabled:NO];
+    // [vitaTxSocket enableBroadcast:NO error:nil];
     
-    if (![vitaTxSocket connectToHost:self.radio.radioInstance.ipAddress onPort:VITA_DEFAULT_PORT error:&error])
-        NSLog(@"VitaManager: Error connecting to tx host - %@", error);
+    // if (![vitaTxSocket connectToHost:self.radio.radioInstance.ipAddress onPort:VITA_DEFAULT_PORT error:&error])
+    //    NSLog(@"VitaManager: Error connecting to tx host - %@", error);
+    
+    if (![self createTxSocket:self.radio.radioInstance]) {
+        NSLog(@"Error creating VITA TX Socket");
+    }
     
     // Record our socket
     self.vitaPort = portNum;
@@ -134,7 +146,11 @@ GCDAsyncUdpSocket *vitaTxSocket;
 
 - (void) txStreamPacket:(NSData *)vitaPacket {
     // Send this VITA encoded frame to the radio
-    [vitaTxSocket sendData:vitaPacket withTimeout:-1 tag:0];
+    // NSLog(@"txStream: %@", [vitaPacket description]);
+    // [vitaTxSocket sendData:vitaPacket withTimeout:-1 tag:0];
+    CFSocketError socketError = CFSocketSendData(self.txSocket, (CFDataRef)self.destAddress, (CFDataRef) vitaPacket, 0);
+    if (socketError)
+        NSLog(@"txStreamPacket send error");
 }
 
 
@@ -144,7 +160,6 @@ GCDAsyncUdpSocket *vitaTxSocket;
  withFilterContext:(id)filterContext {
     
     VITA *vitaPacket = [[VITA alloc]initWithPacket:data];
-    NSError *error;
     
     NSString *streamId;
     Panafall *pan;
@@ -248,6 +263,37 @@ GCDAsyncUdpSocket *vitaTxSocket;
         // Step to the next meter
         ptr += 4;
     }
+}
+
+
+#pragma mark
+#pragma mark Vita TX Socket
+
+//
+// Tx Stream packet can be invoked from an audio handler callback - such as when
+// generating audio for DAX or OPUS input sources to the radio.
+//
+// Calling dispatch during an audio callback disrupts the audio callback timing
+// so we implement a raw UDP TX socket here...
+
+- (BOOL) createTxSocket:(RadioInstance *) thisRadio {
+    if (!(self.txSocket = CFSocketCreate(kCFAllocatorDefault, PF_INET, SOCK_DGRAM, IPPROTO_UDP, 0, NULL, NULL))) {
+        return NO;
+    }
+    
+    
+    // Socket created - set our destination address and port for writes
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_len = sizeof(addr);
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(VITA_PORT);
+    inet_aton([thisRadio.ipAddress UTF8String] , &addr.sin_addr);
+    
+    // Wrap address...
+    self.destAddress = [NSData dataWithBytes:&addr length:sizeof(addr)];;
+
+    return YES;
 }
 
 @end

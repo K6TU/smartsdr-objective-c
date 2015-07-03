@@ -121,10 +121,11 @@ enum opusStreamTokens {
     [self stopRateTimer];
     
     if (!self.rateTimer)
-        self.rateTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, self.runQueue);
+        self.rateTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, DISPATCH_TIMER_STRICT, self.runQueue);
     
     if (self.rateTimer) {
-        dispatch_source_set_timer(self.rateTimer, dispatch_walltime(NULL, 0), 1 * NSEC_PER_SEC, 0);
+        // Set timer with 10% leeway...
+        dispatch_source_set_timer(self.rateTimer, dispatch_walltime(NULL, 0), 1 * NSEC_PER_SEC, 0.1 * NSEC_PER_SEC);
         
         // Use weak self for the callback in the block
         __weak OpusAudio *safeSelf = self;
@@ -222,7 +223,7 @@ enum opusStreamTokens {
         
         // Prepare the header
         vita.buffer = vitaPacket;
-        vita.packetType = IF_DATA_WITH_STREAM;
+        vita.packetType = EXT_DATA_WITH_STREAM;
         vita.classIdPresent = YES;
         vita.trailerPresent = NO;
         vita.tsi = TSI_OTHER;
@@ -230,7 +231,7 @@ enum opusStreamTokens {
         vita.streamId = 0x4B000000;         // Hard coded for now
         vita.oui = FRS_OUI;
         vita.informationClassCode = 0x543c;
-        vita.packetClassCode = VS_Opus;
+        vita.packetClassCode = VS_DAX_Audio;
         vita.packetCount = self.txSeq;
         vita.packetSize = ceil(nSamples / 4.0f) + VITA_HEADER_SIZE_WORDS;
         
