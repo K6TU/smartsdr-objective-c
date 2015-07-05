@@ -1405,9 +1405,11 @@ BOOL subscribedToDisplays = NO;
     }
 
     // Do we already have a Meter object for this meter?
-    if (self.meters[mKey])
-        // Meter already exists - duplicate notification
-        return;
+    @synchronized(self.meters) {
+        if (self.meters[mKey])
+            // Meter already exists - duplicate notification
+            return;
+    }
     
     // Meter is being created
     thisMeter = [[Meter alloc]init];
