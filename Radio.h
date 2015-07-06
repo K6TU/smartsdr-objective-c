@@ -34,7 +34,7 @@
 // Violation of these Copyright terms will be protected by US & International law.
 //
 
-#import <UIKit/UIKit.h>
+//#import <UIKit/UIKit.h>
 #import "RadioFactory.h"
 
 // This model class is depedent on the AysncTCPSocket class developed by
@@ -310,6 +310,11 @@ enum radioAtuState {
 @property (strong, nonatomic) NSNumber *syncActiveSlice;            // Client should sync active slice with radio - BOOL [Default YES]
 
 @property (strong, nonatomic) NSNumber *remoteAudio;                // State or Remote (Opus) Audio - BOOL
+
+@property (strong, nonatomic) NSString *currentGlobalProfile;       // Name of active Global Profile - STRING
+@property (strong, nonatomic) NSString *currentTxProfile;           // Name of active Tx Profile - STRING
+@property (strong, nonatomic) NSMutableArray *globalProfiles;       // Array of strings with name for each Global Profile
+@property (strong, nonatomic) NSMutableArray *txProfiles;           // Array of strings with name for each Tx Profile
 
 // NOTE: Set this property if the client support a graphical user interface.
 // The behavior of the radio is heavily dependent on this property - so for correct operation,
