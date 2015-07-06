@@ -784,7 +784,11 @@ BOOL subscribedToDisplays = NO;
     
     [self commandToRadio:@"info" notifySel:@selector(infoResponseCallback:)];
     
-    [radioSocket readDataToData:[GCDAsyncSocket LFData] withTimeout:-1 tag:0];
+    [self commandToRadio:@"profile global info" notifySel:@selector(profileGlobalResponseCallback:)];
+    [self commandToRadio:@"profile tx info" notifySel:@selector(profileTxResponseCallback:)];
+    [self commandToRadio:@"sub profile all"];
+
+  [radioSocket readDataToData:[GCDAsyncSocket LFData] withTimeout:-1 tag:0];
 }
 
 
@@ -983,6 +987,42 @@ BOOL subscribedToDisplays = NO;
             }
         }
     }    
+}
+
+
+- (void) profileGlobalResponseCallback:(NSString *)cmdResponse {
+  
+  NSScanner *scan = [[NSScanner alloc] initWithString: cmdResponse ];
+  
+  // get the error number
+  NSString *errorNumAsString;
+  [scan scanUpToString:@"|" intoString: &errorNumAsString];
+  // eat the "|"
+  [scan scanString:@"|" intoString: nil];
+  
+  // Anything other than 0 is an error
+  if ([errorNumAsString intValue] != 0) {
+    // FIXME: Do something?
+    return;
+  }
+}
+
+
+- (void) profileTxResponseCallback:(NSString *)cmdResponse {
+  
+  NSScanner *scan = [[NSScanner alloc] initWithString:cmdResponse];
+  
+  // get the error number
+  NSString *errorNumAsString;
+  [scan scanUpToString:@"|" intoString: &errorNumAsString];
+  // eat the "|"
+  [scan scanString:@"|" intoString: nil];
+  
+  // Anything other than 0 is an error
+  if ([errorNumAsString intValue] != 0) {
+    // FIXME: Do something?
+    return;
+  }
 }
 
 
@@ -2224,6 +2264,70 @@ BOOL subscribedToDisplays = NO;
 }
 
 
+- (void) cmdDeleteGlobalProfile:(NSString *)profile {
+  
+  NSString *cmd = [NSString stringWithFormat:@"profile global delete \"%@\"", profile];
+  [self commandToRadio: cmd];
+  // notify listeners
+  dispatch_async(dispatch_get_main_queue(), ^(void) {
+    [[NSNotificationCenter defaultCenter] postNotificationName:@"GlobalProfileDeleted" object:profile];
+  });
+}
+
+
+- (void) cmdDeleteTxProfile:(NSString *)profile {
+  
+  NSString *cmd = [NSString stringWithFormat:@"profile transmit delete \"%@\"", profile];
+  [self commandToRadio: cmd];
+  // notify listeners
+  dispatch_async(dispatch_get_main_queue(), ^(void) {
+    [[NSNotificationCenter defaultCenter] postNotificationName:@"TxProfileDeleted" object:profile];
+  });
+}
+
+
+- (void) cmdSaveGlobalProfile:(NSString *)profile {
+  NSString *notificationName;
+  
+  NSString *cmd = [NSString stringWithFormat:@"profile global save \"%@\"", profile];
+  [self commandToRadio: cmd];
+  // notify listeners
+  // is this a new profile?
+  if ([_globalProfiles indexOfObject: profile] == NSNotFound) {
+    // YES, new profile
+    notificationName = @"GlobalProfileCreated";
+  } else {
+    // NO, existing profile
+    notificationName = @"GlobalProfileUpdated";
+  }
+  // notify listeners
+  dispatch_async(dispatch_get_main_queue(), ^(void) {
+    [[NSNotificationCenter defaultCenter] postNotificationName:notificationName object:profile];
+  });
+  
+}
+
+
+- (void) cmdSaveTxProfile:(NSString *)profile {
+  NSString *notificationName;
+  
+  NSString *cmd = [NSString stringWithFormat:@"profile transmit save \"%@\"", profile];
+  [self commandToRadio: cmd];
+  // notify listeners
+  // is this a new profile?
+  if ([_txProfiles indexOfObject: profile] == NSNotFound) {
+    // YES, new profile
+    notificationName = @"TxProfileCreated";
+  } else {
+    // NO, existing profile
+    notificationName = @"TxProfileUpdated";
+  }
+  // notify listeners
+  dispatch_async(dispatch_get_main_queue(), ^(void) {
+    [[NSNotificationCenter defaultCenter] postNotificationName:notificationName object:profile];
+  });
+  
+}
 
 - (BOOL) cmdNewPanafall:(CGSize) size {
     if (self.availablePanadapters && ![self.availablePanadapters integerValue])
@@ -2269,6 +2373,22 @@ BOOL subscribedToDisplays = NO;
     NSString *cmd = [NSString stringWithFormat:@"slice remove %i", [sliceNum intValue]];
     
     [self commandToRadio:cmd];
+}
+
+- (void) setCurrentGlobalProfile:(NSString *)currentGlobalProfile {
+  NSString *cmd = [NSString stringWithFormat:@"profile global load \"%@\"", currentGlobalProfile];
+  
+  NSString *refCurrentGlobalProfile = currentGlobalProfile;
+  
+  commandUpdateNotify(cmd, @"currentGlobalProfile", _currentGlobalProfile, refCurrentGlobalProfile);
+}
+
+- (void) setCurrentTxProfile:(NSString *)currentTxProfile {
+  NSString *cmd = [NSString stringWithFormat:@"profile transmit load \"%@\"", currentTxProfile];
+  
+  NSString *refCurrentTxProfile = currentTxProfile;
+  
+  commandUpdateNotify(cmd, @"currentTxProfile", _currentTxProfile, refCurrentTxProfile);
 }
 
 - (void) setTransmitFilterLo:(NSString *)transmitFilterLo  {
