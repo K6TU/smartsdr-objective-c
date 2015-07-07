@@ -35,7 +35,9 @@
 // Violation of these Copyright terms will be protected by US & International law.
 //
 
-#import <UIKit/UIKit.h>
+#if OS_IS_IPHONE
+    #import <UIKit/UIKit.h>
+#endif
 #import "Radio.h"
 #import "VitaManager.h"
 #import "PanafallFFTFrame.h"
