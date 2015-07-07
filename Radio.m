@@ -783,6 +783,9 @@ BOOL subscribedToDisplays = NO;
     [self commandToRadio:@"sub audio_stream all"];
     
     [self commandToRadio:@"info" notifySel:@selector(infoResponseCallback:)];
+    [self commandToRadio:@"version" notifySel:@selector(versionResponseCallback:)];
+    [self commandToRadio:@"ant list" notifySel:@selector(antListResponseCallback:)];
+    [self commandToRadio:@"mic list" notifySel:@selector(micListResponseCallback:)];
     
     [self commandToRadio:@"profile global info"];
     [self commandToRadio:@"profile tx info"];
@@ -987,6 +990,131 @@ BOOL subscribedToDisplays = NO;
             }
         }
     }    
+}
+
+
+/**
+ * Process a response from a Version command
+ *     format: <errorNumber>|<SmartSDR-MB=a.b.c.d>#<PSoc-MBTRX=a.b.c.d>#<PSocMBPA100=a.b.c.d>#<FPGA-MB=a.b.c.d>
+ */
+- (void) versionResponseCallback:(NSString *)cndResponse {
+    NSString *versionToken;
+    NSString *stringVal;
+    
+    NSScanner *scan = [[NSScanner alloc] initWithString:cndResponse];
+    
+    // First up is the response error code... grab it and skip the |
+    NSString *errorNumAsString;
+    [scan scanUpToString:@"|" intoString: &errorNumAsString];
+    [scan scanString:@"|" intoString: nil];
+    
+    // Anything other than 0 is an error
+    if ([errorNumAsString intValue] != 0) {
+        // FIXME: Do something?
+        return;
+    }
+    
+    enum wantedTerms {
+        SmartSDRMB = 1,
+        PSoCMBTRX,
+        PSoCMBPA100,
+        FPGAMB,
+    };
+    
+    NSDictionary *terms = [[NSDictionary alloc] initWithObjectsAndKeys:
+                           [NSNumber numberWithInt:SmartSDRMB], @"SmartSDR-MB",
+                           [NSNumber numberWithInt:PSoCMBTRX], @"PSoC-MBTRX",
+                           [NSNumber numberWithInt:PSoCMBPA100], @"PSoC-MBPA100",
+                           [NSNumber numberWithInt:FPGAMB], @"FPGA-MB",
+                           nil];
+    
+    while (![scan isAtEnd]) {
+        // Grab the token between current scanner position and the '=' separator
+        // and then eat the '='
+        [scan scanUpToString:@"=" intoString: &versionToken];
+        [scan scanString:@"=" intoString: nil];
+        
+        switch ([terms[versionToken] intValue]) {
+                
+            case SmartSDRMB:
+                [scan scanUpToString:@"#" intoString: &stringVal];
+                _smartSdrVersion = stringVal;
+                break;
+                
+            case PSoCMBTRX:
+                [scan scanUpToString:@"#" intoString: &stringVal];
+                _psocMbtrxVersion = stringVal;
+                break;
+                
+            case PSoCMBPA100:
+                [scan scanUpToString:@"#" intoString: &stringVal];
+                _psocMbPa100Version = stringVal;
+                break;
+                
+            case FPGAMB:
+                [scan scanUpToString:@"#" intoString: &stringVal];
+                _fpgaMbVersion = stringVal;
+                break;
+                
+            default:
+                // Unknown token, Eat until the next # or \n
+                [scan scanUpToCharactersFromSet: [NSCharacterSet characterSetWithCharactersInString: @"#\n"] intoString: nil];
+                break;
+                
+        }
+        // Scanner is either at a space or at the end - eat either
+        [scan scanCharactersFromSet: [NSCharacterSet characterSetWithCharactersInString: @"#\n"] intoString: nil];
+    }
+}
+
+
+/**
+ * Process a response from an Ant List command
+ *     format: <errorNumber>|<antennaConnection>,<antennaConnection>,...,<antennaConnection>
+ */
+- (void) antListResponseCallback:(NSString *)cndResponse {
+    
+    NSScanner *scan = [[NSScanner alloc] initWithString:cndResponse];
+    
+    // First up is the response error code... grab it and skip the |
+    NSString *errorNumAsString;
+    [scan scanUpToString:@"|" intoString: &errorNumAsString];
+    [scan scanString:@"|" intoString: nil];
+    
+    // Anything other than 0 is an error
+    if ([errorNumAsString intValue] != 0) {
+        // FIXME: Do something?
+        return;
+    }
+    
+    NSString *stringVal;
+    [scan scanUpToCharactersFromSet: [NSCharacterSet characterSetWithCharactersInString: @" \n"] intoString: &stringVal];
+    _antList = [[stringVal componentsSeparatedByString:@","] mutableCopy];
+}
+
+
+/**
+ * Process a response from a Mic List command
+ *     format: <errorNumber>|<micConnection>,<micConnection>,...,<micConnection>
+ */
+- (void) micListResponseCallback:(NSString *)cmdResponse {
+    
+    NSScanner *scan = [[NSScanner alloc] initWithString:cmdResponse];
+    
+    // First up is the response error code... grab it and skip the |
+    NSString *errorNumAsString;
+    [scan scanUpToString:@"|" intoString: &errorNumAsString];
+    [scan scanString:@"|" intoString: nil];
+    
+    // Anything other than 0 is an error
+    if ([errorNumAsString intValue] != 0) {
+        // FIXME: Do something?
+        return;
+    }
+    
+    NSString *stringVal;
+    [scan scanUpToCharactersFromSet: [NSCharacterSet characterSetWithCharactersInString: @" \n"] intoString: &stringVal];
+    _micList = [[stringVal componentsSeparatedByString:@","] mutableCopy];
 }
 
 
