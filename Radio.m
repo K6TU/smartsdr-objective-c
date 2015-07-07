@@ -784,8 +784,8 @@ BOOL subscribedToDisplays = NO;
     
     [self commandToRadio:@"info" notifySel:@selector(infoResponseCallback:)];
     
-    [self commandToRadio:@"profile global info" notifySel:@selector(profileGlobalResponseCallback:)];
-    [self commandToRadio:@"profile tx info" notifySel:@selector(profileTxResponseCallback:)];
+    [self commandToRadio:@"profile global info"];
+    [self commandToRadio:@"profile tx info"];
     [self commandToRadio:@"sub profile all"];
 
   [radioSocket readDataToData:[GCDAsyncSocket LFData] withTimeout:-1 tag:0];
@@ -987,42 +987,6 @@ BOOL subscribedToDisplays = NO;
             }
         }
     }    
-}
-
-
-- (void) profileGlobalResponseCallback:(NSString *)cmdResponse {
-  
-  NSScanner *scan = [[NSScanner alloc] initWithString: cmdResponse ];
-  
-  // get the error number
-  NSString *errorNumAsString;
-  [scan scanUpToString:@"|" intoString: &errorNumAsString];
-  // eat the "|"
-  [scan scanString:@"|" intoString: nil];
-  
-  // Anything other than 0 is an error
-  if ([errorNumAsString intValue] != 0) {
-    // FIXME: Do something?
-    return;
-  }
-}
-
-
-- (void) profileTxResponseCallback:(NSString *)cmdResponse {
-  
-  NSScanner *scan = [[NSScanner alloc] initWithString:cmdResponse];
-  
-  // get the error number
-  NSString *errorNumAsString;
-  [scan scanUpToString:@"|" intoString: &errorNumAsString];
-  // eat the "|"
-  [scan scanString:@"|" intoString: nil];
-  
-  // Anything other than 0 is an error
-  if ([errorNumAsString intValue] != 0) {
-    // FIXME: Do something?
-    return;
-  }
 }
 
 
@@ -1485,14 +1449,62 @@ BOOL subscribedToDisplays = NO;
     
 }
 
-
+/**
+ * Parse Profile tokens
+ *     called on the GCD thread associated with the GCD tcpSocketQueue
+ *
+ *     format: <apiHandle>|profile <profileType> list=<value>^<value>^...<value>^
+ *                           OR
+ *     format: <apiHandle>|profile <profileType> current=<value>
+ *
+ *     scan is initially at scanLocation = 17, start of the <profileType>
+ *     "<apiHandle>|profile " has already been processed
+ */
 - (void) parseProfileToken: (NSScanner *) scan {
+    // get the Profile type
+    NSString *profileType;
+    [scan scanUpToString:@" " intoString: &profileType];
+    // skip the space
+    [scan scanString:@" " intoString: nil];
     
+    // get the Sub type
+    NSString *profileSubType;
+    [scan scanUpToString:@"=" intoString: &profileSubType];
+    // skip the "="
+    [scan scanString:@"=" intoString: nil];
+    
+    // get the remainder of the command
+    NSString *remainderOfCommand;
+    [scan scanUpToString:@"\n" intoString: &remainderOfCommand];
+    
+    // List or Current value?
+    if ([profileSubType isEqualToString: @"list"]) {
+        // it's the List, separate the components
+        NSMutableArray *profileNames;
+        profileNames = [[remainderOfCommand componentsSeparatedByString:@"^"] mutableCopy];
+        // remove the last (empty) string
+        [profileNames removeLastObject];
+        // save it in the appropriate property
+        if ([profileType isEqualToString: @"global"]) {
+            _globalProfiles = profileNames;
+        } else if ([profileType isEqualToString: @"tx"]) {
+            _txProfiles = profileNames;
+        }
+        
+    } else if ([profileSubType isEqualToString: @"current"]) {
+        // it's the Current value
+        // save it in the appropriate property
+        if ([profileType isEqualToString: @"global"]) {
+            _currentGlobalProfile = remainderOfCommand;
+        } else if ([profileType isEqualToString: @"tx"]) {
+            _currentTxProfile = remainderOfCommand;
+        }
+    }
 }
 
 
 - (void) parseCwxToken: (NSScanner *) scan {
-    
+  
 }
 
 
