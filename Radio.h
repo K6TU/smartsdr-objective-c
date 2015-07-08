@@ -318,13 +318,13 @@ enum radioAtuState {
 @property (strong, nonatomic) NSMutableArray *globalProfiles;       // Array of strings with name for each Global Profile
 @property (strong, nonatomic) NSMutableArray *txProfiles;           // Array of strings with name for each Tx Profile
 
-@property (strong, nonatomic) NSString *smartSdrVersion;            // ??? - STRING
-@property (strong, nonatomic) NSString *psocMbtrxVersion;           // ??? - STRING
-@property (strong, nonatomic) NSString *psocMbPa100Version;         // ??? - STRING
-@property (strong, nonatomic) NSString *fpgaMbVersion;              // ??? - STRING
+@property (strong, nonatomic, readonly) NSString *smartSdrVersion;            // ??? - STRING
+@property (strong, nonatomic, readonly) NSString *psocMbtrxVersion;           // ??? - STRING
+@property (strong, nonatomic, readonly) NSString *psocMbPa100Version;         // ??? - STRING
+@property (strong, nonatomic, readonly) NSString *fpgaMbVersion;              // ??? - STRING
 
-@property (strong, nonatomic) NSMutableArray *antList;              // Array of strings
-@property (strong, nonatomic) NSMutableArray *micList;              // Array of strings
+@property (strong, nonatomic, readonly) NSArray *antList;                     // Array of strings with name for each Antenna connection
+@property (strong, nonatomic, readonly) NSArray *micList;                     // Array of strings with name for each Mic connection
 
 // NOTE: Set this property if the client support a graphical user interface.
 // The behavior of the radio is heavily dependent on this property - so for correct operation,

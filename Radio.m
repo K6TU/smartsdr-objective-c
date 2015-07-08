@@ -84,6 +84,13 @@
 @property (nonatomic) dispatch_source_t pingTimer;                              // periodic timer for radio keepalive detection
 @property (strong, nonatomic) NSDate *lastPingRxtime;                           // Time last ping response was received from the radio
 
+@property (strong, readwrite, nonatomic) NSString *smartSdrVersion;             // ??? - STRING
+@property (strong, readwrite, nonatomic) NSString *psocMbtrxVersion;            // ??? - STRING
+@property (strong, readwrite, nonatomic) NSString *psocMbPa100Version;          // ??? - STRING
+@property (strong, readwrite, nonatomic) NSString *fpgaMbVersion;               // ??? - STRING
+
+@property (strong, readwrite, nonatomic) NSArray *antList;                      // Array of strings with name for each Antenna connection
+@property (strong, readwrite, nonatomic) NSArray *micList;                      // Array of strings with name for each Mic connection
 
 - (void) initStatusTokens;
 - (void) initStatusRadioTokens;
@@ -993,10 +1000,10 @@ BOOL subscribedToDisplays = NO;
 }
 
 
-/**
- * Process a response from a Version command
- *     format: <errorNumber>|<SmartSDR-MB=a.b.c.d>#<PSoc-MBTRX=a.b.c.d>#<PSocMBPA100=a.b.c.d>#<FPGA-MB=a.b.c.d>
- */
+//
+// Process a response from a Version command
+//     format: <errorNumber>|<SmartSDR-MB=a.b.c.d>#<PSoc-MBTRX=a.b.c.d>#<PSocMBPA100=a.b.c.d>#<FPGA-MB=a.b.c.d>
+//
 - (void) versionResponseCallback:(NSString *)cndResponse {
     NSString *versionToken;
     NSString *stringVal;
@@ -1034,26 +1041,31 @@ BOOL subscribedToDisplays = NO;
         [scan scanUpToString:@"=" intoString: &versionToken];
         [scan scanString:@"=" intoString: nil];
         
+        NSString *ref = @"";
         switch ([terms[versionToken] intValue]) {
                 
             case SmartSDRMB:
                 [scan scanUpToString:@"#" intoString: &stringVal];
-                _smartSdrVersion = stringVal;
+                ref = stringVal;
+                updateWithNotify(@"smartSdrVersion", _smartSdrVersion, ref);
                 break;
                 
             case PSoCMBTRX:
                 [scan scanUpToString:@"#" intoString: &stringVal];
-                _psocMbtrxVersion = stringVal;
+                ref = stringVal;
+                updateWithNotify(@"psocMbtrxVersion", _psocMbtrxVersion, ref);
                 break;
                 
             case PSoCMBPA100:
                 [scan scanUpToString:@"#" intoString: &stringVal];
-                _psocMbPa100Version = stringVal;
+                ref = stringVal;
+                updateWithNotify(@"psocMbPa100Version", _psocMbPa100Version, ref);
                 break;
                 
             case FPGAMB:
                 [scan scanUpToString:@"#" intoString: &stringVal];
-                _fpgaMbVersion = stringVal;
+                ref = stringVal;
+                updateWithNotify(@"fpgaMbVersion", _fpgaMbVersion, ref);
                 break;
                 
             default:
@@ -1068,10 +1080,10 @@ BOOL subscribedToDisplays = NO;
 }
 
 
-/**
- * Process a response from an Ant List command
- *     format: <errorNumber>|<antennaConnection>,<antennaConnection>,...,<antennaConnection>
- */
+//
+// Process a response from an Ant List command
+//     format: <errorNumber>|<antennaConnection>,<antennaConnection>,...,<antennaConnection>
+//
 - (void) antListResponseCallback:(NSString *)cndResponse {
     
     NSScanner *scan = [[NSScanner alloc] initWithString:cndResponse];
@@ -1081,22 +1093,23 @@ BOOL subscribedToDisplays = NO;
     [scan scanUpToString:@"|" intoString: &errorNumAsString];
     [scan scanString:@"|" intoString: nil];
     
-    // Anything other than 0 is an error
+    // Anything other than 0 is an error, just return
     if ([errorNumAsString intValue] != 0) {
-        // FIXME: Do something?
         return;
     }
-    
+    // get the remainder of the Response
     NSString *stringVal;
     [scan scanUpToCharactersFromSet: [NSCharacterSet characterSetWithCharactersInString: @" \n"] intoString: &stringVal];
-    _antList = [[stringVal componentsSeparatedByString:@","] mutableCopy];
+    // separate them out into an array
+    NSArray *antListRef = [stringVal componentsSeparatedByString:@","];
+    updateWithNotify(@"antList", _antList, antListRef);
 }
 
 
-/**
- * Process a response from a Mic List command
- *     format: <errorNumber>|<micConnection>,<micConnection>,...,<micConnection>
- */
+//
+// Process a response from a Mic List command
+//     format: <errorNumber>|<micConnection>,<micConnection>,...,<micConnection>
+//
 - (void) micListResponseCallback:(NSString *)cmdResponse {
     
     NSScanner *scan = [[NSScanner alloc] initWithString:cmdResponse];
@@ -1106,15 +1119,16 @@ BOOL subscribedToDisplays = NO;
     [scan scanUpToString:@"|" intoString: &errorNumAsString];
     [scan scanString:@"|" intoString: nil];
     
-    // Anything other than 0 is an error
+    // Anything other than 0 is an error, just return
     if ([errorNumAsString intValue] != 0) {
-        // FIXME: Do something?
         return;
     }
-    
+    // get the remainder of the Response
     NSString *stringVal;
     [scan scanUpToCharactersFromSet: [NSCharacterSet characterSetWithCharactersInString: @" \n"] intoString: &stringVal];
-    _micList = [[stringVal componentsSeparatedByString:@","] mutableCopy];
+    // separate them out into an array
+    NSArray *micListRef = [stringVal componentsSeparatedByString:@","];
+    updateWithNotify(@"antList", _micList, micListRef);
 }
 
 
@@ -1577,17 +1591,17 @@ BOOL subscribedToDisplays = NO;
     
 }
 
-/**
- * Parse Profile tokens
- *     called on the GCD thread associated with the GCD tcpSocketQueue
- *
- *     format: <apiHandle>|profile <profileType> list=<value>^<value>^...<value>^
- *                           OR
- *     format: <apiHandle>|profile <profileType> current=<value>
- *
- *     scan is initially at scanLocation = 17, start of the <profileType>
- *     "<apiHandle>|profile " has already been processed
- */
+//
+// Parse Profile tokens
+//     called on the GCD thread associated with the GCD tcpSocketQueue
+//
+//     format: <apiHandle>|profile <profileType> list=<value>^<value>^...<value>^
+//                           OR
+//     format: <apiHandle>|profile <profileType> current=<value>
+//
+//     scan is initially at scanLocation = 17, start of the <profileType>
+//     "<apiHandle>|profile " has already been processed
+//
 - (void) parseProfileToken: (NSScanner *) scan {
     // get the Profile type
     NSString *profileType;
@@ -1614,9 +1628,13 @@ BOOL subscribedToDisplays = NO;
         [profileNames removeLastObject];
         // save it in the appropriate property
         if ([profileType isEqualToString: @"global"]) {
-            _globalProfiles = profileNames;
+            @synchronized (self.globalProfiles) {
+                _globalProfiles = profileNames;
+            }
         } else if ([profileType isEqualToString: @"tx"]) {
-            _txProfiles = profileNames;
+            @synchronized (self.txProfiles) {
+                _txProfiles = profileNames;
+            }
         }
         
     } else if ([profileSubType isEqualToString: @"current"]) {
