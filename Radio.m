@@ -1629,11 +1629,11 @@ BOOL subscribedToDisplays = NO;
         // save it in the appropriate property
         if ([profileType isEqualToString: @"global"]) {
             @synchronized (self.globalProfiles) {
-                _globalProfiles = profileNames;
+                updateWithNotify(@"globalProfiles", _globalProfiles, profileNames)
             }
         } else if ([profileType isEqualToString: @"tx"]) {
             @synchronized (self.txProfiles) {
-                _txProfiles = profileNames;
+                updateWithNotify(@"txProfiles", _txProfiles, profileNames)
             }
         }
         
@@ -1642,8 +1642,9 @@ BOOL subscribedToDisplays = NO;
         // save it in the appropriate property
         if ([profileType isEqualToString: @"global"]) {
             _currentGlobalProfile = remainderOfCommand;
+            updateWithNotify(@"currentGlobalProfile", _currentGlobalProfile, remainderOfCommand)
         } else if ([profileType isEqualToString: @"tx"]) {
-            _currentTxProfile = remainderOfCommand;
+            updateWithNotify(@"currentTxProfile", _currentTxProfile, remainderOfCommand)
         }
     }
 }
@@ -2435,7 +2436,7 @@ BOOL subscribedToDisplays = NO;
 
 - (void) cmdDeleteTxProfile:(NSString *)profile {
   
-  NSString *cmd = [NSString stringWithFormat:@"profile transmit delete \"%@\"", profile];
+  NSString *cmd = [NSString stringWithFormat:@"profile transmit delete \"%@\"", [profile stringByReplacingOccurrencesOfString:@"*" withString:@""]];
   [self commandToRadio: cmd];
   // notify listeners
   dispatch_async(dispatch_get_main_queue(), ^(void) {
@@ -2469,7 +2470,7 @@ BOOL subscribedToDisplays = NO;
 - (void) cmdSaveTxProfile:(NSString *)profile {
   NSString *notificationName;
   
-  NSString *cmd = [NSString stringWithFormat:@"profile transmit save \"%@\"", profile];
+    NSString *cmd = [NSString stringWithFormat:@"profile transmit save \"%@\"", [profile stringByReplacingOccurrencesOfString:@"*" withString:@""]];
   [self commandToRadio: cmd];
   // notify listeners
   // is this a new profile?
