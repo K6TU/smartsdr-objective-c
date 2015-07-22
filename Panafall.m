@@ -38,13 +38,12 @@
 #import "Panafall.h"
 #import "Waterfall.h"
 
-@interface Panafall ()
+@interface Panafall () <RadioDelegate>
 
 @property (weak, readwrite, nonatomic) Radio *radio;                         // The Radio which owns this panadaptor
 @property (strong, readwrite, nonatomic) NSString *streamId;                 // Identifier of this panadapator (STRING)
 @property (weak, readwrite, nonatomic) Waterfall <PanafallWaterfallData> *waterfall;     // The Waterfall linked to this panadaptor (if any)
 @property (readwrite, nonatomic) BOOL wide;                                  // State of preselector for associated SCU (BOOL)
-@property (strong, readwrite, nonatomic) NSString *band;                     // Band encompassed by this pan (STRING)
 @property (readwrite, nonatomic) int capacity;                               // Capacity maximum indicator (INT)
 @property (readwrite, nonatomic) int available;                              // Capacity available (INT)
 @property (strong, readwrite, nonatomic) NSString *waterfallId;              // Waterfall linked to this panadaptor (NSString)
@@ -54,6 +53,7 @@
 @property (strong, readwrite, nonatomic) NSString *xvtrLabel;                // Label of selected XVTR profile (STRING)
 @property (strong, readwrite, nonatomic) NSString *preLabel;                 // Label of preselector selected (STRING)
 @property (strong, readwrite, nonatomic) NSArray *antList;                   // Array of NSString of antenna options available
+@property (strong, readwrite, nonatomic) NSArray *preAmpList;                // Array of NSString of preamp gain options available
 @property (readwrite, nonatomic) UInt32 lastFFTFrameIndex;                   // Index of the last FFT frame received
 @property (readwrite, nonatomic) UInt32 droppedFrames;                       // Count of dropped FFT frames due to out of sequence
 
@@ -157,6 +157,9 @@ enum panafallToken {
         NSString *qName = [NSString stringWithFormat:@"net.k6tu.panafallQueue-%@", streamId];
         self.runQueue = dispatch_queue_create([qName UTF8String], NULL);
     }
+    
+    NSString *cmd = [NSString stringWithFormat:@"display pan rfgain_info %@", self.streamId];
+    [self.radio commandToRadio:cmd notify:self];
 }
 
 
@@ -168,6 +171,33 @@ enum panafallToken {
 - (void) updateWaterfallRef:(Waterfall *)waterfall {
     self.waterfall = waterfall;
 }
+
+
+- (void) radioCommandResponse:(unsigned int)seqNum response:(NSString *)cmdResponse {
+    // cmdResponse is the full response including the R<seqnum>|
+    NSScanner *scan = [[NSScanner alloc] initWithString:[cmdResponse substringFromIndex:1]];
+    [scan setCharactersToBeSkipped:nil];
+    
+    // Skip the sequence number and the following |
+    [scan scanInteger:nil];
+    [scan scanString:@"|" intoString:nil];
+    
+    // Now up is the response error code... grab it and skip the |
+    NSString *errorNumAsString;
+    [scan scanUpToString:@"|" intoString:&errorNumAsString];
+    [scan scanString:@"|" intoString:nil];
+    
+    if ([errorNumAsString integerValue])
+        // Anything other than 0 is an error and we return
+        return;
+    
+    NSString *response;
+    [scan scanUpToString:@"\n" intoString:&response];
+    
+    // The return info ia a list of appropriate preamp values separated by commas
+    self.preAmpList = [response componentsSeparatedByString:@","];
+}
+
 
 
 #pragma mark

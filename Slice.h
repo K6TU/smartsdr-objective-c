@@ -35,6 +35,7 @@
 //
 
 #import <Foundation/Foundation.h>
+#import "Radio.h"
 
 // Forward class definitions
 @class Radio;

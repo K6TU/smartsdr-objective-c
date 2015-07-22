@@ -347,7 +347,11 @@ enum radioAtuState {
 - (void) cmdNewSlice;                                               // Create a new slice (14.150, USB, ANT1 - hardcoded)
 - (void) cmdNewSlice: (NSString *) frequency
              antenna: (NSString *) antennaPort
-                mode: (NSString *) mode;                            // Create a new slice withthe specified mode, frequency and port
+                mode: (NSString *) mode;                            // Create a new slice with the specified mode, frequency and port
+- (void) cmdNewSlice: (NSString *) frequency
+             antenna: (NSString *) antennaPort
+                mode: (NSString *) mode
+            panafall: (NSString *) streamId;                        // Create a new slice with the specified mode, frequency and port in pan
 - (void) cmdRemoveSlice: (NSNumber *) sliceNum;                     // Remove slice N - INTEGER
 - (BOOL) cmdNewPanafall:(CGSize) size;                              // Create a new panadaptor on the radio
 - (void) cmdRemovePanafall:(Panafall *) pan;                        // Remove this panafall from the radio

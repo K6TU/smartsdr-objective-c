@@ -773,6 +773,7 @@ BOOL subscribedToDisplays = NO;
     if (self.vitaManager)
         [self commandToRadio:[NSString stringWithFormat:@"client udpport %i", (int)self.vitaManager.vitaPort]];
     
+    [self commandToRadio:@"keepalive enable"];
     [self commandToRadio:@"sub tx all"];
     [self commandToRadio:@"sub atu all"];
     [self commandToRadio:@"sub meter all"];
@@ -2260,6 +2261,15 @@ BOOL subscribedToDisplays = NO;
     if ([self.availableSlices integerValue]) {
         NSString *cmd = [NSString stringWithFormat:@"slice c %@ %@ %@",
                          frequency, antennaPort, mode];
+        
+        [self commandToRadio:cmd];
+    }
+}
+
+- (void) cmdNewSlice: (NSString *) frequency antenna: (NSString *) antennaPort mode: (NSString *) mode panafall: (NSString *) streamId {
+    if ([self.availableSlices integerValue]) {
+        NSString *cmd = [NSString stringWithFormat:@"slice c pan=%@ freq=%@ ant=%@ mode=%@",
+                         streamId, frequency, antennaPort, mode];
         
         [self commandToRadio:cmd];
     }
