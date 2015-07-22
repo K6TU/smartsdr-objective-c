@@ -84,6 +84,13 @@
 @property (nonatomic) dispatch_source_t pingTimer;                              // periodic timer for radio keepalive detection
 @property (strong, nonatomic) NSDate *lastPingRxtime;                           // Time last ping response was received from the radio
 
+@property (strong, readwrite, nonatomic) NSString *smartSdrVersion;             // ??? - STRING
+@property (strong, readwrite, nonatomic) NSString *psocMbtrxVersion;            // ??? - STRING
+@property (strong, readwrite, nonatomic) NSString *psocMbPa100Version;          // ??? - STRING
+@property (strong, readwrite, nonatomic) NSString *fpgaMbVersion;               // ??? - STRING
+
+@property (strong, readwrite, nonatomic) NSArray *antList;                      // Array of strings with name for each Antenna connection
+@property (strong, readwrite, nonatomic) NSArray *micList;                      // Array of strings with name for each Mic connection
 
 - (void) initStatusTokens;
 - (void) initStatusRadioTokens;
@@ -784,8 +791,15 @@ BOOL subscribedToDisplays = NO;
     [self commandToRadio:@"sub audio_stream all"];
     
     [self commandToRadio:@"info" notifySel:@selector(infoResponseCallback:)];
+    [self commandToRadio:@"version" notifySel:@selector(versionResponseCallback:)];
+    [self commandToRadio:@"ant list" notifySel:@selector(antListResponseCallback:)];
+    [self commandToRadio:@"mic list" notifySel:@selector(micListResponseCallback:)];
     
-    [radioSocket readDataToData:[GCDAsyncSocket LFData] withTimeout:-1 tag:0];
+    [self commandToRadio:@"profile global info"];
+    [self commandToRadio:@"profile tx info"];
+    [self commandToRadio:@"sub profile all"];
+
+  [radioSocket readDataToData:[GCDAsyncSocket LFData] withTimeout:-1 tag:0];
 }
 
 
@@ -984,6 +998,138 @@ BOOL subscribedToDisplays = NO;
             }
         }
     }    
+}
+
+
+//
+// Process a response from a Version command
+//     format: <errorNumber>|<SmartSDR-MB=a.b.c.d>#<PSoc-MBTRX=a.b.c.d>#<PSocMBPA100=a.b.c.d>#<FPGA-MB=a.b.c.d>
+//
+- (void) versionResponseCallback:(NSString *)cndResponse {
+    NSString *versionToken;
+    NSString *stringVal;
+    
+    NSScanner *scan = [[NSScanner alloc] initWithString:cndResponse];
+    
+    // First up is the response error code... grab it and skip the |
+    NSString *errorNumAsString;
+    [scan scanUpToString:@"|" intoString: &errorNumAsString];
+    [scan scanString:@"|" intoString: nil];
+    
+    // Anything other than 0 is an error
+    if ([errorNumAsString intValue] != 0) {
+        // FIXME: Do something?
+        return;
+    }
+    
+    enum wantedTerms {
+        SmartSDRMB = 1,
+        PSoCMBTRX,
+        PSoCMBPA100,
+        FPGAMB,
+    };
+    
+    NSDictionary *terms = [[NSDictionary alloc] initWithObjectsAndKeys:
+                           [NSNumber numberWithInt:SmartSDRMB], @"SmartSDR-MB",
+                           [NSNumber numberWithInt:PSoCMBTRX], @"PSoC-MBTRX",
+                           [NSNumber numberWithInt:PSoCMBPA100], @"PSoC-MBPA100",
+                           [NSNumber numberWithInt:FPGAMB], @"FPGA-MB",
+                           nil];
+    
+    while (![scan isAtEnd]) {
+        // Grab the token between current scanner position and the '=' separator
+        // and then eat the '='
+        [scan scanUpToString:@"=" intoString: &versionToken];
+        [scan scanString:@"=" intoString: nil];
+        
+        NSString *ref = @"";
+        switch ([terms[versionToken] intValue]) {
+                
+            case SmartSDRMB:
+                [scan scanUpToString:@"#" intoString: &stringVal];
+                ref = stringVal;
+                updateWithNotify(@"smartSdrVersion", _smartSdrVersion, ref);
+                break;
+                
+            case PSoCMBTRX:
+                [scan scanUpToString:@"#" intoString: &stringVal];
+                ref = stringVal;
+                updateWithNotify(@"psocMbtrxVersion", _psocMbtrxVersion, ref);
+                break;
+                
+            case PSoCMBPA100:
+                [scan scanUpToString:@"#" intoString: &stringVal];
+                ref = stringVal;
+                updateWithNotify(@"psocMbPa100Version", _psocMbPa100Version, ref);
+                break;
+                
+            case FPGAMB:
+                [scan scanUpToString:@"#" intoString: &stringVal];
+                ref = stringVal;
+                updateWithNotify(@"fpgaMbVersion", _fpgaMbVersion, ref);
+                break;
+                
+            default:
+                // Unknown token, Eat until the next # or \n
+                [scan scanUpToCharactersFromSet: [NSCharacterSet characterSetWithCharactersInString: @"#\n"] intoString: nil];
+                break;
+                
+        }
+        // Scanner is either at a space or at the end - eat either
+        [scan scanCharactersFromSet: [NSCharacterSet characterSetWithCharactersInString: @"#\n"] intoString: nil];
+    }
+}
+
+
+//
+// Process a response from an Ant List command
+//     format: <errorNumber>|<antennaConnection>,<antennaConnection>,...,<antennaConnection>
+//
+- (void) antListResponseCallback:(NSString *)cndResponse {
+    
+    NSScanner *scan = [[NSScanner alloc] initWithString:cndResponse];
+    
+    // First up is the response error code... grab it and skip the |
+    NSString *errorNumAsString;
+    [scan scanUpToString:@"|" intoString: &errorNumAsString];
+    [scan scanString:@"|" intoString: nil];
+    
+    // Anything other than 0 is an error, just return
+    if ([errorNumAsString intValue] != 0) {
+        return;
+    }
+    // get the remainder of the Response
+    NSString *stringVal;
+    [scan scanUpToCharactersFromSet: [NSCharacterSet characterSetWithCharactersInString: @" \n"] intoString: &stringVal];
+    // separate them out into an array
+    NSArray *antListRef = [stringVal componentsSeparatedByString:@","];
+    updateWithNotify(@"antList", _antList, antListRef);
+}
+
+
+//
+// Process a response from a Mic List command
+//     format: <errorNumber>|<micConnection>,<micConnection>,...,<micConnection>
+//
+- (void) micListResponseCallback:(NSString *)cmdResponse {
+    
+    NSScanner *scan = [[NSScanner alloc] initWithString:cmdResponse];
+    
+    // First up is the response error code... grab it and skip the |
+    NSString *errorNumAsString;
+    [scan scanUpToString:@"|" intoString: &errorNumAsString];
+    [scan scanString:@"|" intoString: nil];
+    
+    // Anything other than 0 is an error, just return
+    if ([errorNumAsString intValue] != 0) {
+        return;
+    }
+    // get the remainder of the Response
+    NSString *stringVal;
+    [scan scanUpToCharactersFromSet: [NSCharacterSet characterSetWithCharactersInString: @" \n"] intoString: &stringVal];
+    // separate them out into an array
+    NSArray *micListRef = [stringVal componentsSeparatedByString:@","];
+    updateWithNotify(@"antList", _micList, micListRef);
 }
 
 
@@ -1446,14 +1592,67 @@ BOOL subscribedToDisplays = NO;
     
 }
 
-
+//
+// Parse Profile tokens
+//     called on the GCD thread associated with the GCD tcpSocketQueue
+//
+//     format: <apiHandle>|profile <profileType> list=<value>^<value>^...<value>^
+//                           OR
+//     format: <apiHandle>|profile <profileType> current=<value>
+//
+//     scan is initially at scanLocation = 17, start of the <profileType>
+//     "<apiHandle>|profile " has already been processed
+//
 - (void) parseProfileToken: (NSScanner *) scan {
+    // get the Profile type
+    NSString *profileType;
+    [scan scanUpToString:@" " intoString: &profileType];
+    // skip the space
+    [scan scanString:@" " intoString: nil];
     
+    // get the Sub type
+    NSString *profileSubType;
+    [scan scanUpToString:@"=" intoString: &profileSubType];
+    // skip the "="
+    [scan scanString:@"=" intoString: nil];
+    
+    // get the remainder of the command
+    NSString *remainderOfCommand;
+    [scan scanUpToString:@"\n" intoString: &remainderOfCommand];
+    
+    // List or Current value?
+    if ([profileSubType isEqualToString: @"list"]) {
+        // it's the List, separate the components
+        NSMutableArray *profileNames;
+        profileNames = [[remainderOfCommand componentsSeparatedByString:@"^"] mutableCopy];
+        // remove the last (empty) string
+        [profileNames removeLastObject];
+        // save it in the appropriate property
+        if ([profileType isEqualToString: @"global"]) {
+            @synchronized (self.globalProfiles) {
+                updateWithNotify(@"globalProfiles", _globalProfiles, profileNames)
+            }
+        } else if ([profileType isEqualToString: @"tx"]) {
+            @synchronized (self.txProfiles) {
+                updateWithNotify(@"txProfiles", _txProfiles, profileNames)
+            }
+        }
+        
+    } else if ([profileSubType isEqualToString: @"current"]) {
+        // it's the Current value
+        // save it in the appropriate property
+        if ([profileType isEqualToString: @"global"]) {
+            _currentGlobalProfile = remainderOfCommand;
+            updateWithNotify(@"currentGlobalProfile", _currentGlobalProfile, remainderOfCommand)
+        } else if ([profileType isEqualToString: @"tx"]) {
+            updateWithNotify(@"currentTxProfile", _currentTxProfile, remainderOfCommand)
+        }
+    }
 }
 
 
 - (void) parseCwxToken: (NSScanner *) scan {
-    
+  
 }
 
 
@@ -2231,6 +2430,70 @@ BOOL subscribedToDisplays = NO;
 }
 
 
+- (void) cmdDeleteGlobalProfile:(NSString *)profile {
+  
+  NSString *cmd = [NSString stringWithFormat:@"profile global delete \"%@\"", profile];
+  [self commandToRadio: cmd];
+  // notify listeners
+  dispatch_async(dispatch_get_main_queue(), ^(void) {
+    [[NSNotificationCenter defaultCenter] postNotificationName:@"GlobalProfileDeleted" object:profile];
+  });
+}
+
+
+- (void) cmdDeleteTxProfile:(NSString *)profile {
+  
+  NSString *cmd = [NSString stringWithFormat:@"profile transmit delete \"%@\"", [profile stringByReplacingOccurrencesOfString:@"*" withString:@""]];
+  [self commandToRadio: cmd];
+  // notify listeners
+  dispatch_async(dispatch_get_main_queue(), ^(void) {
+    [[NSNotificationCenter defaultCenter] postNotificationName:@"TxProfileDeleted" object:profile];
+  });
+}
+
+
+- (void) cmdSaveGlobalProfile:(NSString *)profile {
+  NSString *notificationName;
+  
+  NSString *cmd = [NSString stringWithFormat:@"profile global save \"%@\"", profile];
+  [self commandToRadio: cmd];
+  // notify listeners
+  // is this a new profile?
+  if ([_globalProfiles indexOfObject: profile] == NSNotFound) {
+    // YES, new profile
+    notificationName = @"GlobalProfileCreated";
+  } else {
+    // NO, existing profile
+    notificationName = @"GlobalProfileUpdated";
+  }
+  // notify listeners
+  dispatch_async(dispatch_get_main_queue(), ^(void) {
+    [[NSNotificationCenter defaultCenter] postNotificationName:notificationName object:profile];
+  });
+  
+}
+
+
+- (void) cmdSaveTxProfile:(NSString *)profile {
+  NSString *notificationName;
+  
+    NSString *cmd = [NSString stringWithFormat:@"profile transmit save \"%@\"", [profile stringByReplacingOccurrencesOfString:@"*" withString:@""]];
+  [self commandToRadio: cmd];
+  // notify listeners
+  // is this a new profile?
+  if ([_txProfiles indexOfObject: profile] == NSNotFound) {
+    // YES, new profile
+    notificationName = @"TxProfileCreated";
+  } else {
+    // NO, existing profile
+    notificationName = @"TxProfileUpdated";
+  }
+  // notify listeners
+  dispatch_async(dispatch_get_main_queue(), ^(void) {
+    [[NSNotificationCenter defaultCenter] postNotificationName:notificationName object:profile];
+  });
+  
+}
 
 - (BOOL) cmdNewPanafall:(CGSize) size {
     if (self.availablePanadapters && ![self.availablePanadapters integerValue])
@@ -2285,6 +2548,22 @@ BOOL subscribedToDisplays = NO;
     NSString *cmd = [NSString stringWithFormat:@"slice remove %i", [sliceNum intValue]];
     
     [self commandToRadio:cmd];
+}
+
+- (void) setCurrentGlobalProfile:(NSString *)currentGlobalProfile {
+  NSString *cmd = [NSString stringWithFormat:@"profile global load \"%@\"", currentGlobalProfile];
+  
+  NSString *refCurrentGlobalProfile = currentGlobalProfile;
+  
+  commandUpdateNotify(cmd, @"currentGlobalProfile", _currentGlobalProfile, refCurrentGlobalProfile);
+}
+
+- (void) setCurrentTxProfile:(NSString *)currentTxProfile {
+  NSString *cmd = [NSString stringWithFormat:@"profile transmit load \"%@\"", currentTxProfile];
+  
+  NSString *refCurrentTxProfile = currentTxProfile;
+  
+  commandUpdateNotify(cmd, @"currentTxProfile", _currentTxProfile, refCurrentTxProfile);
 }
 
 - (void) setTransmitFilterLo:(NSString *)transmitFilterLo  {

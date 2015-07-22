@@ -34,7 +34,9 @@
 // Violation of these Copyright terms will be protected by US & International law.
 //
 
-#import <UIKit/UIKit.h>
+#if OS_IS_IPHONE
+    #import <UIKit/UIKit.h>
+#endif
 #import "RadioFactory.h"
 
 // This model class is depedent on the AysncTCPSocket class developed by
@@ -311,6 +313,19 @@ enum radioAtuState {
 
 @property (strong, nonatomic) NSNumber *remoteAudio;                // State or Remote (Opus) Audio - BOOL
 
+@property (strong, nonatomic) NSString *currentGlobalProfile;       // Name of active Global Profile - STRING
+@property (strong, nonatomic) NSString *currentTxProfile;           // Name of active Tx Profile - STRING
+@property (strong, nonatomic) NSMutableArray *globalProfiles;       // Array of strings with name for each Global Profile
+@property (strong, nonatomic) NSMutableArray *txProfiles;           // Array of strings with name for each Tx Profile
+
+@property (strong, nonatomic, readonly) NSString *smartSdrVersion;            // ??? - STRING
+@property (strong, nonatomic, readonly) NSString *psocMbtrxVersion;           // ??? - STRING
+@property (strong, nonatomic, readonly) NSString *psocMbPa100Version;         // ??? - STRING
+@property (strong, nonatomic, readonly) NSString *fpgaMbVersion;              // ??? - STRING
+
+@property (strong, nonatomic, readonly) NSArray *antList;                     // Array of strings with name for each Antenna connection
+@property (strong, nonatomic, readonly) NSArray *micList;                     // Array of strings with name for each Mic connection
+
 // NOTE: Set this property if the client support a graphical user interface.
 // The behavior of the radio is heavily dependent on this property - so for correct operation,
 // make sure that this property is set if necessary immediately after the radio connection state change is
@@ -357,5 +372,9 @@ enum radioAtuState {
 - (void) cmdRemovePanafall:(Panafall *) pan;                        // Remove this panafall from the radio
 - (void) cmdNewAudioStream:(int) daxChannel;                        // Create a new audio stream handler for the specified DAX channel
 - (void) cmdRemoveAudioStreamHandler:(DAXAudio *) streamProcessor;  // Remove the audio stream handler from the radio
+- (void) cmdSaveGlobalProfile:(NSString *)profile;                  // Save the current state as a global profile
+- (void) cmdDeleteGlobalProfile:(NSString *)profile;                // Remove the global profile from the radio
+- (void) cmdSaveTxProfile:(NSString *)profile;                      // Save the current state as a transmit profile
+- (void) cmdDeleteTxProfile:(NSString *)profile;                    // Remove the transmit profile from the radio
 
 @end
