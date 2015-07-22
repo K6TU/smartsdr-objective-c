@@ -160,6 +160,8 @@ enum radioAtuState {
 
 @property (strong, nonatomic) NSNumber *atuStatus;                  // ATU operation status - ENUM radioAtuState
 @property (strong, nonatomic) NSNumber *atuEnabled;                 // ATU enabled - BOOL
+@property (strong, nonatomic) NSNumber *atuMemoriesEnabled;         // ATU Memories Enabled - BOOL
+@property (strong, nonatomic) NSNumber *atuUsingMemories;           // ATU memories in use - BOOL
 
 @property (strong, nonatomic) NSNumber *txState;                    // State of tranmsitter on/off - BOOL
 @property (strong, atomic)    NSNumber *tuneEnabled;                // State of TUNE on/off - BOOL
@@ -202,6 +204,8 @@ enum radioAtuState {
 @property (strong, nonatomic) NSString *radioModel;                 // Model of radio - STRING
 @property (strong, nonatomic) NSString *radioName;                  // Name of radio if set - STRING
 
+@property (strong, nonatomic) NSNumber *binauralRx;                 // Binaural RX enable - BOOL
+
 @property (strong, nonatomic) NSNumber *syncActiveSlice;            // Client should sync active slice with radio - BOOL [Default YES]
 
 
@@ -229,6 +233,8 @@ enum radioAtuState {
 
 - (void) cmdSetTxBandwidth: (NSNumber *) lo high: (NSNumber *) hi;  // Set TX bandwidth
 - (void) cmdSetRfPowerLevel: (NSNumber *) level;                    // Set RF power level in Watts - INTEGER
+- (void) cmdSetTunePowerLevel: (NSNumber *) level;                  // Set TUNE power level in Watts - INTEGER
+
 - (void) cmdSetAmCarrierLevel: (NSNumber *) level;                  // Set AM Carrier power level in Watts - INTEGER
 
 - (void) cmdSetDaxSource: (NSNumber *) state;                       // Set DAX as TX audio input - BOOL
@@ -276,6 +282,7 @@ enum radioAtuState {
 - (void) cmdSetTx: (NSNumber *) state;                              // Set TX state (on/off) - BOOL
 - (void) cmdSetAtuTune: (NSNumber *) state;                         // Set ATU command state (on/off) - BOOL
 - (void) cmdSetBypass;                                              // Set ATU bypass
+- (void) cmdSetAtuMemoriesEnabled:(NSNumber *) state;               // Set ATU Memories Enabled
 - (void) cmdSetTune: (NSNumber *) state;                            // Set TUNE state (on/off) - BOOL
 
 - (void) cmdSetMasterSpeakerGain: (NSNumber *) level;               // Set mixer master speaker AF level - INTEGER
@@ -299,6 +306,7 @@ enum radioAtuState {
 - (void) cmdSetRadioScreenSaver: (NSString *) source;               // Set display source (model | callsign | name) - STRING
 - (void) cmdSetRadioCallsign: (NSString *) callsign;                // Set callsign value - STRING max length 16
 - (void) cmdSetRadioName: (NSString *) name;                        // Set name value - STRING max length 16
+- (void) cmdSetBinauralRx:(NSNumber *) state;                       // Set RX Binaural state - BOOL
 
 - (void) cmdSetSyncActiveSlice: (NSNumber *) state;                 // Client should sync active slice with radio
 

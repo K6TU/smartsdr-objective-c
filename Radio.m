@@ -138,6 +138,8 @@ enum enumStatusAtuTokens {
     enumStatusAtuTokensNone = 0,
     atuStatusToken,
     atuEnabledToken,
+    atuMemoriesEnabledToken,
+    usingMemToken,
 };
 
 enum enumStatusRadioTokens {
@@ -156,6 +158,7 @@ enum enumStatusRadioTokens {
     snapTuneEnabledToken,
     nicknameToken,
     callsignToken,
+    binauralRxToken,
 };
 
 
@@ -397,6 +400,7 @@ NSNumber *txPowerLevel;
                               [NSNumber numberWithInt:snapTuneEnabledToken], @"snap_tune_enabled",
                               [NSNumber numberWithInt:nicknameToken], @"nickname",
                               [NSNumber numberWithInt:callsignToken], @"callsign",
+                              [NSNumber numberWithInt:binauralRxToken], @"binaural_rx",
                               nil];
 }
 
@@ -405,6 +409,9 @@ NSNumber *txPowerLevel;
     self.statusAtuTokens = [[NSDictionary alloc] initWithObjectsAndKeys:
                               [NSNumber numberWithInt:atuStatusToken],  @"status",
                               [NSNumber numberWithInt:atuEnabledToken], @"atu_enabled",
+                              [NSNumber numberWithInt:atuMemoriesEnabledToken], @"atu memories_enabled",
+                              [NSNumber numberWithInt:atuMemoriesEnabledToken], @"memories_enabled",
+                              [NSNumber numberWithInt:usingMemToken], @"using_mem",
                               nil];
 }
 
@@ -1144,6 +1151,11 @@ NSNumber *txPowerLevel;
                 [scan scanUpToCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"] intoString:&value];
                 self.radioCallsign = value;
                 break;
+                
+            case binauralRxToken:
+                [scan scanInteger:&intVal];
+                self.binauralRx = [NSNumber numberWithBool:intVal];
+                break;
 
             default:
                 // Unknown token and therefore an unknown argument type
@@ -1183,6 +1195,16 @@ NSNumber *txPowerLevel;
             case atuEnabledToken:
                 [scan scanInteger:&intVal];
                 self.atuEnabled = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case atuMemoriesEnabledToken:
+                [scan scanInteger:&intVal];
+                self.atuMemoriesEnabled = [NSNumber numberWithBool:intVal];
+                break;
+                
+            case usingMemToken:
+                [scan scanInteger:&intVal];
+                self.atuUsingMemories = [NSNumber numberWithBool:intVal];
                 break;
                 
             default:
@@ -1374,6 +1396,12 @@ NSNumber *txPowerLevel;
                 break;
                 
             case tunePowerToken:
+                if ([self.tuneEnabled boolValue]) {
+                    // Ignore the update
+
+                    [scan scanInteger:&intVal];
+                    break;
+                }
                 [scan scanInteger:&intVal];
                 self.tunePowerLevel = [NSNumber numberWithInteger:intVal];
                 break;
@@ -2085,6 +2113,16 @@ NSNumber *txPowerLevel;
     self.rfPowerLevel = level;
 }
 
+- (void) cmdSetTunePowerLevel:(NSNumber *)level {
+    NSString *cmd = [NSString stringWithFormat:@"transmit set tunepower=%i",
+                     [level intValue]];
+    
+    [self commandToRadio:cmd];
+    self.tunePowerLevel = level;
+}
+
+
+
 - (void) cmdSetAmCarrierLevel:(NSNumber *)level {
     NSString *cmd = [NSString stringWithFormat:@"transmit set am_carrier=%i",
                      [level intValue]];
@@ -2325,6 +2363,13 @@ NSNumber *txPowerLevel;
     [self commandToRadio:cmd];
 }
 
+- (void) cmdSetAtuMemoriesEnabled:(NSNumber *)state {
+    NSString *cmd = [NSString stringWithFormat:@"atu set memories_enabled=%i",
+                     [state boolValue]];
+    
+    [self commandToRadio:cmd];
+}
+
 - (void) cmdSetBypass {
     NSString *cmd = [NSString stringWithFormat:@"atu bypass 1"];
     
@@ -2335,22 +2380,22 @@ NSNumber *txPowerLevel;
     if (!self.tuneEnabled)
         self.tuneEnabled = [NSNumber numberWithBool:YES];
     
-    if (!txPowerLevel)  // Going into tune... save the power level
-        txPowerLevel = [NSNumber numberWithInt:[self.rfPowerLevel intValue]];
+    //    if (!txPowerLevel)  // Going into tune... save the power level
+    //    txPowerLevel = [NSNumber numberWithInt:[self.rfPowerLevel intValue]];
     
     if ([state boolValue]) {
         // Tune requested - set TX power level and then command tune
-        self.rfPowerLevel = self.tunePowerLevel;
-        [self cmdSetRfPowerLevel:self.rfPowerLevel];
+        // self.rfPowerLevel = self.tunePowerLevel;
+        // [self cmdSetRfPowerLevel:self.rfPowerLevel];
         [self commandToRadio:@"transmit tune 1"];
         self.tuneEnabled = [NSNumber numberWithBool:YES];
     } else {
         // Coming out of tune
         [self commandToRadio:@"transmit tune 0"];
-        [self cmdSetRfPowerLevel:txPowerLevel];
-        self.rfPowerLevel = txPowerLevel;
+        // [self cmdSetRfPowerLevel:txPowerLevel];
+        // self.rfPowerLevel = txPowerLevel;
         self.tuneEnabled = [NSNumber numberWithBool:NO];
-        txPowerLevel = nil;
+        // txPowerLevel = nil;
     }
 }
 
@@ -2550,6 +2595,14 @@ NSNumber *txPowerLevel;
     
     [self commandToRadio:cmd];
     self.radioName = name;
+}
+
+- (void) cmdSetBinauralRx:(NSNumber *)state {
+    NSString *cmd = [NSString stringWithFormat:@"radio set binaural_rx=%i",
+                     [state boolValue]];
+    
+    [self commandToRadio:cmd];
+    self.binauralRx = state;
 }
 
 - (void) cmdSetSyncActiveSlice:(NSNumber *)state {
