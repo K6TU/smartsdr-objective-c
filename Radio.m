@@ -1818,6 +1818,12 @@ BOOL subscribedToDisplays = NO;
                 break;
                 
             case tunePowerToken:
+                if ([self.tuneEnabled boolValue]) {
+                    // Ignore the update
+                    
+                    [scan scanInteger:&intVal];
+                    break;
+                }
                 [scan scanInteger:&intVal];
                 updateWithNotify(@"tunePowerLevel", _tunePowerLevel, [NSNumber numberWithInteger:intVal]);
                 break;
@@ -2303,6 +2309,14 @@ BOOL subscribedToDisplays = NO;
     NSNumber *refRfPowerLevel = rfPowerLevel;
     
     commandUpdateNotify(cmd, @"rfPowerLevel", _rfPowerLevel, refRfPowerLevel);
+}
+
+- (void) setTunePowerLevel:(NSNumber *)tunePowerLevel {
+    NSString *cmd = [NSString stringWithFormat:@"transmit set tunepower=%i",
+                     [tunePowerLevel intValue]];
+    NSNumber *refTunePowerLevel = tunePowerLevel;
+    
+    commandUpdateNotify(cmd, @"tunePowerLevel", _tunePowerLevel, refTunePowerLevel);
 }
 
 - (void) setAmCarrierLevel:(NSNumber *)amCarrierLevel {
