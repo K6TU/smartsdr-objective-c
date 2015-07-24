@@ -2276,6 +2276,11 @@ BOOL subscribedToDisplays = NO;
     Slice *thisSlice;
     
     if (![(thisSlice = self.slices[thisSliceNum]) isKindOfClass:[Slice class]]) {
+        // First message on a slice - it must contain in_use=1 or its bogus
+        if ([[scan string] rangeOfString:@"in_use=1"].location == NSNotFound)
+            // Bogus message
+            return;
+        
         self.slices[thisSliceNum] = [[Slice alloc] initWithRadio:self sliceNumber: thisSliceNum];
         thisSlice = self.slices[thisSliceNum];
         
@@ -2993,7 +2998,7 @@ BOOL subscribedToDisplays = NO;
 }
 
 - (void) setHwAlcEnabled:(NSNumber *)hwAlcEnabled {
-    NSString *cmd = [NSString stringWithFormat:@"transmit set hw_alc_enabled=%i",
+    NSString *cmd = [NSString stringWithFormat:@"transmit set hwalc_enabled=%i",
                      [hwAlcEnabled boolValue]];
     NSNumber *refHwAlcEnabled = hwAlcEnabled;
     

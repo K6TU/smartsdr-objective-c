@@ -105,6 +105,8 @@
 @property (readonly, nonatomic) BOOL wide;                                  // State of preselector for associated SCU (BOOL)
 @property (nonatomic) BOOL loopA;                                           // Enable LOOPA for RXA (BOOL)
 @property (nonatomic) BOOL loopB;                                           // Enable LOOPB for RXB (BOOL)
+@property (nonatomic) BOOL nb;                                              // Enable NB on this panafall
+@property (nonatomic) BOOL nbLevel;                                         // Noise Blanker level - 0-100
 @property (strong, nonatomic) NSString *band;                               // Band encompassed by this pan (STRING)
 @property (nonatomic) int daxIQ;                                            // DAX IQ channel number for this pan (INT 0=none)
 @property (readonly, nonatomic) long int daxIQRate;                         // DAX IQ Rate in bps (LONG INT)

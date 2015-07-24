@@ -96,6 +96,8 @@ enum panafallToken {
     xvtrToken,
     preToken,
     antListToken,
+    nbPanToken,
+    nbLevelPanToken,
 };
 
 
@@ -119,6 +121,8 @@ enum panafallToken {
                            [NSNumber numberWithInteger:wideToken], @"wide",
                            [NSNumber numberWithInteger:loopaToken], @"loopa",
                            [NSNumber numberWithInteger:loopbToken], @"loopb",
+                           [NSNumber numberWithInteger:nbPanToken], @"nb",
+                           [NSNumber numberWithInteger:nbLevelPanToken], @"nb_level",
                            [NSNumber numberWithInteger:bandToken], @"band",
                            [NSNumber numberWithInteger:daxIqToken], @"daxiq",
                            [NSNumber numberWithInteger:daxIqRateToken] , @"daxiq_rate",
@@ -351,6 +355,14 @@ enum panafallToken {
                 
             case loopbToken:
                 updateWithNotify(@"loopb", _loopB, [v integerValue] ? YES : NO);
+                break;
+                
+            case nbPanToken:
+                updateWithNotify(@"nb", _nb, [v integerValue] ? YES : NO);
+                break;
+
+            case nbLevelPanToken:
+                updateWithNotify(@"nbLevel", _nbLevel, (int)[v integerValue]);
                 break;
                 
             case bandToken:
