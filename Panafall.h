@@ -105,7 +105,7 @@
 @property (readonly, nonatomic) BOOL wide;                                  // State of preselector for associated SCU (BOOL)
 @property (nonatomic) BOOL loopA;                                           // Enable LOOPA for RXA (BOOL)
 @property (nonatomic) BOOL loopB;                                           // Enable LOOPB for RXB (BOOL)
-@property (readonly, nonatomic) NSString *band;                             // Band encompassed by this pan (STRING)
+@property (strong, nonatomic) NSString *band;                               // Band encompassed by this pan (STRING)
 @property (nonatomic) int daxIQ;                                            // DAX IQ channel number for this pan (INT 0=none)
 @property (readonly, nonatomic) long int daxIQRate;                         // DAX IQ Rate in bps (LONG INT)
 @property (readonly, nonatomic) int capacity;                               // Capacity maximum indicator (INT)
@@ -116,6 +116,7 @@
 @property (strong, readonly, nonatomic) NSString *xvtrLabel;                // Label of selected XVTR profile (STRING)
 @property (strong, readonly, nonatomic) NSString *preLabel;                 // Label of preselector selected (STRING)
 @property (strong, readonly, nonatomic) NSArray *antList;                   // Array of NSString of antenna options available
+@property (strong, readonly, nonatomic) NSArray *preAmpList;                // Array of NSString of preamp gain options available
 @property (readonly, nonatomic) UInt32 lastFFTFrameIndex;                   // Index of the last FFT frame received
 @property (readonly, nonatomic) UInt32 droppedFrames;                       // Count of dropped FFT frames due to out of sequence
 @property (weak, nonatomic) id <PanafallData> delegate;                     // delegate for this option

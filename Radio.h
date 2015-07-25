@@ -100,6 +100,7 @@ enum radioAtuState {
 @class Waterfall;
 @class DAXAudio;
 @class OpusAudio;
+@class Cwx;
 
 @protocol RadioDelegate <NSObject>
 @optional
@@ -318,13 +319,13 @@ enum radioAtuState {
 @property (strong, nonatomic) NSMutableArray *globalProfiles;       // Array of strings with name for each Global Profile
 @property (strong, nonatomic) NSMutableArray *txProfiles;           // Array of strings with name for each Tx Profile
 
-@property (strong, nonatomic, readonly) NSString *smartSdrVersion;            // ??? - STRING
-@property (strong, nonatomic, readonly) NSString *psocMbtrxVersion;           // ??? - STRING
-@property (strong, nonatomic, readonly) NSString *psocMbPa100Version;         // ??? - STRING
-@property (strong, nonatomic, readonly) NSString *fpgaMbVersion;              // ??? - STRING
+@property (strong, nonatomic, readonly) NSString *smartSdrVersion;            // Revision number of radio OS
+@property (strong, nonatomic, readonly) NSString *psocMbtrxVersion;           // TRX board PSOC firmware version
+@property (strong, nonatomic, readonly) NSString *psocMbPa100Version;         // PA board PSOC firmware version
+@property (strong, nonatomic, readonly) NSString *fpgaMbVersion;              // FPGA microcode load version
 
-@property (strong, nonatomic, readonly) NSArray *antList;                     // Array of strings with name for each Antenna connection
-@property (strong, nonatomic, readonly) NSArray *micList;                     // Array of strings with name for each Mic connection
+@property (strong, nonatomic, readonly) NSArray *antList;           // Array of strings with name for each Antenna connection
+@property (strong, nonatomic, readonly) NSArray *micList;           // Array of strings with name for each Mic connection
 
 // NOTE: Set this property if the client support a graphical user interface.
 // The behavior of the radio is heavily dependent on this property - so for correct operation,
@@ -362,7 +363,11 @@ enum radioAtuState {
 - (void) cmdNewSlice;                                               // Create a new slice (14.150, USB, ANT1 - hardcoded)
 - (void) cmdNewSlice: (NSString *) frequency
              antenna: (NSString *) antennaPort
-                mode: (NSString *) mode;                            // Create a new slice withthe specified mode, frequency and port
+                mode: (NSString *) mode;                            // Create a new slice with the specified mode, frequency and port
+- (void) cmdNewSlice: (NSString *) frequency
+             antenna: (NSString *) antennaPort
+                mode: (NSString *) mode
+            panafall: (NSString *) streamId;                        // Create a new slice with the specified mode, frequency and port in pan
 - (void) cmdRemoveSlice: (NSNumber *) sliceNum;                     // Remove slice N - INTEGER
 - (BOOL) cmdNewPanafall:(CGSize) size;                              // Create a new panadaptor on the radio
 - (void) cmdRemovePanafall:(Panafall *) pan;                        // Remove this panafall from the radio
@@ -372,5 +377,6 @@ enum radioAtuState {
 - (void) cmdDeleteGlobalProfile:(NSString *)profile;                // Remove the global profile from the radio
 - (void) cmdSaveTxProfile:(NSString *)profile;                      // Save the current state as a transmit profile
 - (void) cmdDeleteTxProfile:(NSString *)profile;                    // Remove the transmit profile from the radio
+- (Cwx *) getCwx;                                                   // get a reference to the Cwx object
 
 @end

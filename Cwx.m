@@ -116,7 +116,7 @@ dispatch_async(self.cwxRunQueue, ^(void) { \
 - (void) setDelay:(int)delay {
     if (delay < 0) delay = 0;
     if (delay > MAX_CWX_DELAY_MS) delay = MAX_CWX_DELAY_MS;
-    if (self.delay == delay) return;
+//    if (_delay == delay) return;
     
     NSString *cmd = [NSString stringWithFormat:@"cwx delay %i", delay];
     
@@ -127,7 +127,7 @@ dispatch_async(self.cwxRunQueue, ^(void) { \
 - (void) setSpeed:(int)speed {
     if (speed < MIN_CWX_SPEED) speed = MIN_CWX_SPEED;
     if (speed > MAX_CWX_SPEED) speed = MAX_CWX_SPEED;
-    if (self.speed == speed) return;
+//    if (_speed == speed) return;
     
     NSString *cmd = [NSString stringWithFormat:@"cwx wpm %i", speed];
     
@@ -156,6 +156,7 @@ dispatch_async(self.cwxRunQueue, ^(void) { \
 
 
 - (int) sendMacro:(int) index {
+    if (index < 0 || index > MAX_NUMBER_OF_MACROS - 1) return 0;
     NSString *cmd = [NSString stringWithFormat:@"cwx macro send %i", index];
     return [_radio commandToRadio:cmd notify:self];
 }
@@ -199,19 +200,26 @@ dispatch_async(self.cwxRunQueue, ^(void) { \
 // sendMacroCommand Response
 //     called on the GCD thread associated with the GCD tcpSocketQueue
 //
-//     format: <sequenceNumber>|<charPos,block>
+//     format: <sequenceNumber>|<errorResponse>|<charPos,block>
 //
 - (void) radioCommandResponse:(uint) seqNum response:(NSString *) response {
     
-    // Anything other than 0 is an error
-    if (seqNum != 0) return;
+    NSScanner *scan = [[NSScanner alloc] initWithString: response];
     
-    NSScanner *scan = [[NSScanner alloc] initWithString:[response substringFromIndex:1]];
-    [scan setCharactersToBeSkipped:nil];
-    
-    // First up is the sequence number... grab it and skip the |
+    // get the sequence number... grab it and skip the |
     NSString *seqNumAsString;
-    [scan scanUpToString:@"|" intoString:&seqNumAsString];
+    [scan scanUpToString:@"|" intoString: &seqNumAsString];
+    [scan scanString:@"|" intoString: nil];
+
+    // get the response error code... grab it and skip the |
+    NSString *errorNumAsString;
+    [scan scanUpToString:@"|" intoString: &errorNumAsString];
+    [scan scanString:@"|" intoString: nil];
+    
+    // Anything other than 0 is an error, just return
+    if ([errorNumAsString intValue] != 0) {
+        return;
+    }
     
     // get the rest of the response
     NSString *remainder;
@@ -286,7 +294,7 @@ dispatch_async(dispatch_get_main_queue(), ^(void) { \
         
         // is it a Macro?
         if ([k hasPrefix: @"macro"] && [k length] > 5) {
-            // YES, get the index
+            // it's a Macro, get the index
             // Macro Indexes in Radio Messages are from 1 -> MAX_NUMBER_OF_MACROS
             // Macro Indexes for the property _macros are from 0 -> (MAX_NUMBER_OF_MACROS - 1)
             int index = [[k substringFromIndex: 5] intValue];
