@@ -48,7 +48,7 @@
 
 @interface Radio ()
 
-@property (strong, nonatomic) NSObject<RadioDelegate> *delegate;
+@property (weak, nonatomic) NSObject<RadioDelegate> *delegate;
 
 @property (strong, readwrite, nonatomic) VitaManager *vitaManager;
 @property (strong, readwrite, nonatomic) NSMutableDictionary *meters;
@@ -565,6 +565,8 @@ BOOL subscribedToDisplays = NO;
     if (self) {
         self.radioInstance = thisRadio;
         self.clientId = clientId;
+        connectionState = 0;
+        subscribedToDisplays = NO;
         
         // Create a private run queue for us to run on
         NSString *qName = @"net.k6tu.RadioQueue";
@@ -664,6 +666,9 @@ BOOL subscribedToDisplays = NO;
 
 
 - (void) close {
+    // Stop the ping timer
+    [self stopPingTimer];
+    
     // Release all the slices...
     for (int s=0; s < [self.slices count]; s++) {
         if ([(self.slices[s]) isKindOfClass:[Slice class]])
@@ -674,6 +679,17 @@ BOOL subscribedToDisplays = NO;
     // Close the socket
     [radioSocket disconnectAfterWriting];
     [radioSocket setDelegate:nil];
+    
+    connectionState = disConnected;
+    if ([self.delegate respondsToSelector:@selector(radioConnectionStateChange:state:)]) {
+        __weak Radio *safeSelf = self;
+        dispatch_async(dispatch_get_main_queue(), ^(void) {
+            [safeSelf.delegate radioConnectionStateChange:self state:connectionState];
+        });
+    }
+    
+    // Release the VITA manager
+    self.vitaManager = nil;
 }
 
 
@@ -1232,6 +1248,37 @@ BOOL subscribedToDisplays = NO;
 }
 
 
+- (void) isGuiCallback:(NSString *) cmdResponse {
+    // cmdResponse is the full response including the R<seqnum>|
+    NSScanner *scan = [[NSScanner alloc] initWithString:[cmdResponse substringFromIndex:1]];
+    [scan setCharactersToBeSkipped:nil];
+    
+    // Grab the response number, skip it and the trailing |
+    [scan scanInteger:nil];
+    [scan scanString:@"|" intoString:nil];
+    
+    // So now we have <code>|<possible error string>    // Next up is the response error code... grab it and skip the |
+    NSString *errorNumAsString;
+    [scan scanUpToString:@"|" intoString:&errorNumAsString];
+    [scan scanString:@"|" intoString:nil];
+    
+    if (![errorNumAsString isEqualToString:@"0"]) {
+        // Anything other than 0 is an error which means no more client connects possible
+        // Force a disconnect
+        connectionState = tooManyGuiClients;
+    } else {
+        connectionState = connectedAsGui;
+    }
+    
+    if ([self.delegate respondsToSelector:@selector(radioConnectionStateChange:state:)]) {
+        __weak Radio *safeSelf = self;
+        dispatch_async(dispatch_get_main_queue(), ^(void) {
+            [safeSelf.delegate radioConnectionStateChange:self state:connectionState];
+        });
+    }
+}
+
+
 - (void) pingResponseCallback:(NSString *) cmdResponse {
     // Update the time we received the last ping response
     self.lastPingRxtime = [[NSDate alloc]initWithTimeIntervalSinceNow:0];
@@ -1510,6 +1557,8 @@ BOOL subscribedToDisplays = NO;
                     // Update each object to point to its cousin
                     [pan updateWaterfallRef:wf];
                     [wf updatePanafallRef:pan];
+                    
+                    NSLog(@"Pan notify - %@", pan);
                     
                     dispatch_async(dispatch_get_main_queue(), ^(void) {
                         [[NSNotificationCenter defaultCenter] postNotificationName:@"PanafallCreated" object:pan];
@@ -3094,15 +3143,28 @@ BOOL subscribedToDisplays = NO;
 - (void) setIsGui:(NSNumber *)isGui {
     if (![isGui boolValue])
         return;
-    
+
     NSString *cmd = [NSString stringWithFormat:@"client gui"];
     NSNumber *refIsGui = isGui;
     
-    commandUpdateNotify(cmd, @"isGui", _isGui, refIsGui);
+    [self willChangeValueForKey:@"isGui"];
+    _isGui = refIsGui;
+    [self didChangeValueForKey:@"isGui"];
+    
+    __weak Radio *safeSelf = self;
+    dispatch_async(self.radioRunQueue, ^(void) {
+        /* Send the command to the radio on our private queue */
+        [safeSelf commandToRadio:cmd notifySel:@selector(isGuiCallback:)];
+    });
+    
+    // commandUpdateNotify(cmd, @"isGui", _isGui, refIsGui);
     
     if (self.vitaManager) {
         NSString *cmd2 = [NSString stringWithFormat:@"client udpport %i", (int)self.vitaManager.vitaPort];
-        commandUpdateNotify(cmd2, @"isGui", _isGui, refIsGui);
+        dispatch_async(self.radioRunQueue, ^(void) {
+            /* Send the command to the radio on our private queue */
+            [safeSelf commandToRadio:cmd2];
+        });
     }
 }
 

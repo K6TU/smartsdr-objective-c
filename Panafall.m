@@ -386,6 +386,10 @@ enum panafallToken {
                 break;
                 
             case waterfallToken:
+                // Important to update the waterfallId value here - so that when its corresponding
+                // waterfall is created for this pan, we will know the two belong together
+                // and the notification for the panafall creation can be triggered.
+                _waterfallId = [NSString stringWithFormat:@"0x%@", v];
                 updateWithNotify(@"waterfallId", _waterfallId, ([NSString stringWithFormat:@"0x%@", v]));
                 break;
                 

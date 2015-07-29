@@ -59,9 +59,11 @@ enum radioConnectionState {
     disConnected = 0,
     connecting,
     connected,
+    connectedAsGui,
     disconnecting,
     connectFailed,
     radioTimedOut,
+    tooManyGuiClients,
 };
 
 enum radioInterlockState {

@@ -166,9 +166,11 @@
     (ivar) = (value); \
     [self didChangeValueForKey:key]; \
       \
+    [self.radio commandToRadio:(cmd)]; \
+    \
     __weak Slice *safeSelf = self; \
     dispatch_async(self.sliceRunQueue, ^(void) { \
-        /* Send the command to the radio on our private queue */ \
+        /* Send the command to the radio on our private queue */  \
         [safeSelf.radio commandToRadio:(cmd)]; \
          \
     });
@@ -567,6 +569,77 @@
 }
 
 
+- (void) setFmDeviation:(NSNumber *)fmDeviation {
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i fm_deviation=%i",
+                     [self.thisSliceNumber intValue], [fmDeviation intValue]];
+    NSNumber *refFmDeviation = fmDeviation;
+    
+    commandUpdateNotify(cmd, @"fmDeviation", _fmDeviation, refFmDeviation);
+}
+
+
+- (void) setFmPreDeEmphasis:(NSNumber *)fmPreDeEmphasis {
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i dfm_pre_de_emphasis=%i",
+                     [self.thisSliceNumber intValue], [fmPreDeEmphasis boolValue]];
+    NSNumber *refFmPreDeEmphasis = fmPreDeEmphasis;
+    
+    commandUpdateNotify(cmd, @"fmPreDeEmphasis", _fmPreDeEmphasis, refFmPreDeEmphasis);
+}
+
+
+- (void) setPostDemodLo:(NSNumber *)postDemodLo {
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i post_demod_low=%i",
+                     [self.thisSliceNumber intValue], [postDemodLo intValue]];
+    NSNumber *refPostDemodLo = postDemodLo;
+    
+    commandUpdateNotify(cmd, @"postDemodLo", _postDemodLo, refPostDemodLo);
+}
+
+
+- (void) setPostDemodHi:(NSNumber *)postDemodHi {
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i post_demod_high=%i",
+                     [self.thisSliceNumber intValue], [postDemodHi intValue]];
+    NSNumber *refPostDemodHi = postDemodHi;
+    
+    commandUpdateNotify(cmd, @"postDemodHi", _postDemodHi, refPostDemodHi);
+}
+
+
+- (void) setRttyMark:(NSNumber *)rttyMark {
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i rtty_mark=%i",
+                     [self.thisSliceNumber intValue], [rttyMark intValue]];
+    NSNumber *refRttyMark = rttyMark;
+    
+    commandUpdateNotify(cmd, @"rttyMark", _rttyMark, refRttyMark);
+}
+
+
+- (void) setRttyShift:(NSNumber *)rttyShift {
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i rtty_shift=%i",
+                     [self.thisSliceNumber intValue], [rttyShift intValue]];
+    NSNumber *refRttyShift = rttyShift;
+    
+    commandUpdateNotify(cmd, @"rttyShift", _rttyShift, refRttyShift);
+}
+
+
+- (void) setDiglOffset:(NSNumber *)diglOffset {
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i digl_offset=%i",
+                     [self.thisSliceNumber intValue], [diglOffset intValue]];
+    NSNumber *refDiglOffset = diglOffset;
+    
+    commandUpdateNotify(cmd, @"diglOffset", _diglOffset, refDiglOffset);
+}
+
+
+- (void) setDighOffset:(NSNumber *)diguOffset {
+        NSString *cmd = [NSString stringWithFormat:@"slice set %i digu_offset=%i",
+                         [self.thisSliceNumber intValue], [diguOffset intValue]];
+        NSNumber *refDiguOffset = diguOffset;
+        
+        commandUpdateNotify(cmd, @"diguOffset", _diguOffset, refDiguOffset);
+}
+
 #pragma mark
 #pragma mark Slice Parser
 
@@ -629,6 +702,14 @@ enum enumStatusSliceTokens {
     txOffsetFreqToken,
     repeaterOffsetDirToken,
     fmToneBurstToken,
+    fmDeviationToken,
+    dfmPreDeEmphasisToken,
+    postDemodLowToken,
+    postDemodHighToken,
+    rttyMarkToken,
+    rttyShiftToken,
+    diglOffsetToken,
+    diguOffsetToken,
 };
 
 
@@ -691,6 +772,14 @@ enum enumStatusSliceTokens {
                               [NSNumber numberWithInt:txOffsetFreqToken], @"tx_offset_freq",
                               [NSNumber numberWithInt:repeaterOffsetDirToken], @"repeater_offset_dir",
                               [NSNumber numberWithInt:fmToneBurstToken], @"fm_tone_burst",
+                              [NSNumber numberWithInt:fmDeviationToken], @"fm_deviation",
+                              [NSNumber numberWithInt:dfmPreDeEmphasisToken], @"dfm_pre_de_emphasis",
+                              [NSNumber numberWithInt:postDemodLowToken], @"post_demod_low",
+                              [NSNumber numberWithInt:postDemodHighToken], @"post_demod_high",
+                              [NSNumber numberWithInt:rttyMarkToken], @"rtty_mark",
+                              [NSNumber numberWithInt:rttyShiftToken], @"rtty_shift",
+                              [NSNumber numberWithInt:diglOffsetToken], @"digl_offset",
+                              [NSNumber numberWithInt:diguOffsetToken], @"digu_offset",
                               nil];
 }
 
@@ -1037,6 +1126,46 @@ enum enumStatusSliceTokens {
                 updateWithNotify(@"fmtToneBurstEnabled", _fmToneBurstEnabled, [NSNumber numberWithBool:intVal]);
                 break;
                 
+            case fmDeviationToken:
+                [scan scanInteger:&intVal];
+                updateWithNotify(@"fmDeviation", _fmDeviation, [NSNumber numberWithInteger:intVal]);
+                break;
+                
+            case dfmPreDeEmphasisToken:
+                [scan scanInteger:&intVal];
+                updateWithNotify(@"fmPreDeEmphasis", _fmPreDeEmphasis, [NSNumber numberWithBool:intVal]);
+                break;
+                
+            case postDemodLowToken:
+                [scan scanInteger:&intVal];
+                updateWithNotify(@"postDemodLo", _postDemodLo, [NSNumber numberWithInteger:intVal]);
+                break;
+                
+            case postDemodHighToken:
+                [scan scanInteger:&intVal];
+                updateWithNotify(@"postDemodHi", _postDemodHi, [NSNumber numberWithInteger:intVal]);
+                break;
+                
+            case rttyMarkToken:
+                [scan scanInteger:&intVal];
+                updateWithNotify(@"rttyMark", _rttyMark, [NSNumber numberWithInteger:intVal]);
+                break;
+                
+            case rttyShiftToken:
+                [scan scanInteger:&intVal];
+                updateWithNotify(@"rttyShift", _rttyShift, [NSNumber numberWithInteger:intVal]);
+                break;
+                
+            case diglOffsetToken:
+                [scan scanInteger:&intVal];
+                updateWithNotify(@"diglOffset", _diglOffset, [NSNumber numberWithInteger:intVal]);
+                break;
+                
+            case diguOffsetToken:
+                [scan scanInteger:&intVal];
+                updateWithNotify(@"diguOffset", _diguOffset, [NSNumber numberWithInteger:intVal]);
+                break;
+            
             default:
                 // Unknown token and therefore an unknown argument type
                 // Eat until the next space or \n
