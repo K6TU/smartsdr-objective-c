@@ -1492,15 +1492,17 @@ BOOL subscribedToDisplays = NO;
             dispatch_async(dispatch_get_main_queue(), ^(void) {
                 [[NSNotificationCenter defaultCenter] postNotificationName:@"PanafallDeleted" object:thisPan];
             });
-            [thisPan willRemoveStreamProcessor];
-            [self.panafalls removeObjectForKey:streamId];
-            
+            @synchronized (self.panafalls) {
+                [thisPan willRemoveStreamProcessor];
+                [self.panafalls removeObjectForKey:streamId];
+            }
         } else if ([self.waterfalls objectForKey:streamId]) {
             Waterfall *thisWf = self.waterfalls[streamId];
-            [thisWf willRemoveStreamProcessor];
-            [self.waterfalls removeObjectForKey:streamId];
+            @synchronized (self.waterfalls) {
+                [thisWf willRemoveStreamProcessor];
+                [self.waterfalls removeObjectForKey:streamId];
+            }
         }
-
         return;
     }
     

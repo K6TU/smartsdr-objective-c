@@ -168,7 +168,7 @@ enum panafallToken {
 
 
 - (void) willRemoveStreamProcessor {
-    
+    self.delegate = nil;
 }
 
 
