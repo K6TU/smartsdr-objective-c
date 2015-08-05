@@ -157,7 +157,7 @@ dispatch_async(self.cwxRunQueue, ^(void) { \
 
 - (int) sendMacro:(int) index {
     if (index < 0 || index > MAX_NUMBER_OF_MACROS - 1) return 0;
-    NSString *cmd = [NSString stringWithFormat:@"cwx macro send %i", index];
+    NSString *cmd = [NSString stringWithFormat:@"cwx macro send %i", index + 1];
     return [_radio commandToRadio:cmd notify:self];
 }
 
