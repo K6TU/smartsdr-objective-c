@@ -102,6 +102,7 @@ enum radioAtuState {
 @class Waterfall;
 @class DAXAudio;
 @class OpusAudio;
+@class Cwx;
 
 @protocol RadioDelegate <NSObject>
 @optional
@@ -337,7 +338,7 @@ enum radioAtuState {
 
 @property (nonatomic) BOOL logRadioMessages;                        // Set true automatically if a debug build, otherwise, set true to
                                                                     // turn on logging of messages to/from the radio API
-
+@property (strong, nonatomic, readonly) Cwx *cwx;                   // reference to the CWX object
 
 // Class methods
 

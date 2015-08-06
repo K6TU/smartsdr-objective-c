@@ -45,6 +45,7 @@
 #import "Waterfall.h"
 #import "DAXAudio.h"
 #import "OpusAudio.h"
+#import "Cwx.h"
 
 @interface Radio ()
 
@@ -91,6 +92,9 @@
 
 @property (strong, readwrite, nonatomic) NSArray *antList;                      // Array of strings with name for each Antenna connection
 @property (strong, readwrite, nonatomic) NSArray *micList;                      // Array of strings with name for each Mic connection
+@property (strong, readwrite, nonatomic) Cwx *cwx;                              // Cwx object
+
+
 
 - (void) initStatusTokens;
 - (void) initStatusRadioTokens;
@@ -114,7 +118,7 @@
 - (void) parseMeterToken: (NSScanner *) scan;
 - (void) parseGpsToken: (NSScanner *) scan;
 - (void) parseProfileToken: (NSScanner *) scan;
-- (void) parseCwxToken: (NSScanner *) scan;
+- (void) parseCwxToken: (NSScanner *) scan selfStatus:(BOOL)selfStatus;
 - (void) parseInterlockToken: (NSScanner *) scan;
 - (void) parseEqToken: (NSScanner *) scan selfStatus: (BOOL) selfStatus;
 
@@ -315,7 +319,7 @@ BOOL subscribedToDisplays = NO;
                          [NSNumber numberWithInt:eqToken], @"eq",
                          [NSNumber numberWithInt:gpsToken], @"gps",
                          [NSNumber numberWithInt:profileToken], @"profile",
-                         [NSNumber numberWithBool:cwxToken], @"cwx",
+                         [NSNumber numberWithInt:cwxToken], @"cwx",
                          [NSNumber numberWithInt:waveformToken], @"waveform",
                          [NSNumber numberWithInt:audioStreamToken], @"audio_stream",
                          [NSNumber numberWithInt:opusStreamToken], @"opus_stream",
@@ -643,6 +647,8 @@ BOOL subscribedToDisplays = NO;
         _tunePowerLevel = [NSNumber numberWithInt:10];
         _syncActiveSlice = [NSNumber numberWithBool:YES];
         
+        self.cwx = [[Cwx alloc] initWithRadio: self];
+        
 #ifdef DEBUG
         self.logRadioMessages = YES;
 #endif
@@ -805,6 +811,7 @@ BOOL subscribedToDisplays = NO;
     [self commandToRadio:@"eq rx info"];
     [self commandToRadio:@"eq tx info"];
     [self commandToRadio:@"sub audio_stream all"];
+    [self commandToRadio:@"sub cwx all"];
     
     [self commandToRadio:@"info" notifySel:@selector(infoResponseCallback:)];
     [self commandToRadio:@"version" notifySel:@selector(versionResponseCallback:)];
@@ -1394,7 +1401,7 @@ BOOL subscribedToDisplays = NO;
             break;
             
         case cwxToken:
-            [self parseCwxToken: scan];
+            [self parseCwxToken: scan selfStatus:(BOOL)selfStatus];
             break;
             
         case waveformToken:
@@ -1710,9 +1717,19 @@ BOOL subscribedToDisplays = NO;
     }
 }
 
-
-- (void) parseCwxToken: (NSScanner *) scan {
-  
+//
+// Parse Cwx tokens
+//     called on the GCD thread associated with the GCD tcpSocketQueue
+//
+//     format: <apiHandle>|cwx <key=value> <key=value> ...<key=value>
+//
+//     scan is initially at scanLocation = 13, start of the first <key=value>
+//     "<apiHandle>|cwx " has already been processed
+//
+- (void) parseCwxToken: (NSScanner *) scan selfStatus:(BOOL)selfStatus {
+    
+    // The Cwx updates can run on the Radio run queue which we should already be on...
+    [_cwx statusParser:scan selfStatus:(BOOL)selfStatus];
 }
 
 
@@ -3169,6 +3186,14 @@ BOOL subscribedToDisplays = NO;
         });
     }
 }
+
+- (Cwx *)getCwx {
+    if (_cwx == nil) {
+        _cwx = [[Cwx alloc] initWithRadio: self];
+    }
+    return _cwx;
+}
+
 
 #pragma mark
 #pragma mark Socket Delegates
