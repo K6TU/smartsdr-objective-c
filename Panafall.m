@@ -96,6 +96,8 @@ enum panafallToken {
     xvtrToken,
     preToken,
     antListToken,
+    nbPanToken,
+    nbLevelPanToken,
 };
 
 
@@ -119,6 +121,8 @@ enum panafallToken {
                            [NSNumber numberWithInteger:wideToken], @"wide",
                            [NSNumber numberWithInteger:loopaToken], @"loopa",
                            [NSNumber numberWithInteger:loopbToken], @"loopb",
+                           [NSNumber numberWithInteger:nbPanToken], @"nb",
+                           [NSNumber numberWithInteger:nbLevelPanToken], @"nb_level",
                            [NSNumber numberWithInteger:bandToken], @"band",
                            [NSNumber numberWithInteger:daxIqToken], @"daxiq",
                            [NSNumber numberWithInteger:daxIqRateToken] , @"daxiq_rate",
@@ -164,7 +168,7 @@ enum panafallToken {
 
 
 - (void) willRemoveStreamProcessor {
-    
+    self.delegate = nil;
 }
 
 
@@ -353,6 +357,14 @@ enum panafallToken {
                 updateWithNotify(@"loopb", _loopB, [v integerValue] ? YES : NO);
                 break;
                 
+            case nbPanToken:
+                updateWithNotify(@"nb", _nb, [v integerValue] ? YES : NO);
+                break;
+
+            case nbLevelPanToken:
+                updateWithNotify(@"nbLevel", _nbLevel, (int)[v integerValue]);
+                break;
+                
             case bandToken:
                 updateWithNotify(@"band", _band, v);
                 break;
@@ -374,6 +386,10 @@ enum panafallToken {
                 break;
                 
             case waterfallToken:
+                // Important to update the waterfallId value here - so that when its corresponding
+                // waterfall is created for this pan, we will know the two belong together
+                // and the notification for the panafall creation can be triggered.
+                _waterfallId = [NSString stringWithFormat:@"0x%@", v];
                 updateWithNotify(@"waterfallId", _waterfallId, ([NSString stringWithFormat:@"0x%@", v]));
                 break;
                 

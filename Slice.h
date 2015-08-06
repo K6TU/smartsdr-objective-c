@@ -115,6 +115,14 @@
 @property (strong, nonatomic) NSNumber *txOffsetFreq;               // TX Offset Frequency - FLOAT
 @property (strong, nonatomic) NSString *repeaterOffsetDir;          // Repeater offset direction - STRING (DOWN, UP, SIMPLEX)
 @property (strong, nonatomic) NSNumber *fmToneBurstEnabled;         // FM Tone Burst enabled - BOOL
+@property (strong, nonatomic) NSNumber *fmDeviation;                // FM Deviation for DFM mode - INTEGER
+@property (strong, nonatomic) NSNumber *fmPreDeEmphasis;            // FM pre-deEmphasis for DFM mode - BOOL
+@property (strong, nonatomic) NSNumber *postDemodLo;                // FM pre-emphasis low frequency - INTEGER
+@property (strong, nonatomic) NSNumber *postDemodHi;                // FM pre-emphasis high frequency - INTEGER
+@property (strong, nonatomic) NSNumber *rttyMark;                   // RTTY mark frequency - INTEGER
+@property (strong, nonatomic) NSNumber *rttyShift;                  // RTTY Shift - INTEGER
+@property (strong, nonatomic) NSNumber *diglOffset;                 // DIGL offset - INTEGER
+@property (strong, nonatomic) NSNumber *diguOffset;                 // DIGH offset - INTEGER
 
 
 

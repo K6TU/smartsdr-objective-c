@@ -209,7 +209,7 @@ enum meterTokens {
                 else if ([value isEqualToString:@"dBm"])
                     self.units = dbmUnits;
                 else if ([value isEqualToString:@"SWR"])
-                    self.value = swrUnits;
+                    self.units = swrUnits;
                 break;
                 
             case fpsToken:

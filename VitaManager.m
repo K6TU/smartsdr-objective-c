@@ -94,6 +94,15 @@ GCDAsyncUdpSocket *vitaTxSocket;
     return self;
 }
 
+
+- (void) dealloc {
+    // We are going away...
+    [vitaRxSocket close];
+    if (self.txSocket) CFRelease(self.txSocket);
+}
+
+
+
 - (BOOL) handleRadio:(Radio *)radio {
     self.radio = radio;
     
@@ -223,7 +232,7 @@ GCDAsyncUdpSocket *vitaTxSocket;
             
         case IF_DATA_WITH_STREAM:
             // IF Data with stream - this is DAX IQ data...
-            streamId = [NSString stringWithFormat:@"0x%08X", (unsigned int)vitaPacket.streamId];
+            // streamId = [NSString stringWithFormat:@"0x%08X", (unsigned int)vitaPacket.streamId];
 
             break;
             

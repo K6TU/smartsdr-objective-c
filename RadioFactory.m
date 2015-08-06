@@ -196,7 +196,7 @@ enum vitaTokens {
 
 
 - (void) dealloc {
-    NSLog(@"Radio Factory dealloc");
+    // NSLog(@"Radio Factory dealloc");
 }
 
 #pragma mark radioFound

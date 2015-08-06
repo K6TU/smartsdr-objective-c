@@ -160,7 +160,7 @@ enum waterfallToken {
 }
 
 - (void) willRemoveStreamProcessor {
-    
+    self.delegate = nil;
 }
 
 
