@@ -165,8 +165,6 @@
     [self willChangeValueForKey:(key)]; \
     (ivar) = (value); \
     [self didChangeValueForKey:key]; \
-      \
-    [self.radio commandToRadio:(cmd)]; \
     \
     __weak Slice *safeSelf = self; \
     dispatch_async(self.sliceRunQueue, ^(void) { \
