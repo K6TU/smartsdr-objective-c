@@ -47,7 +47,7 @@
 @interface Cwx()
 
 // Radio object to which this Cwx belongs
-@property (strong, nonatomic, readwrite) Radio *radio;
+@property (weak, nonatomic, readwrite) Radio *radio;
 // Pointer to private run queue for Cwx
 @property (strong, nonatomic) dispatch_queue_t cwxRunQueue;
 // Array of strings
@@ -60,7 +60,8 @@
 
 
 enum cwxToken {
-    breakinDelay=0,
+    cwxNullToken=0,
+    breakinDelay,
     eraseSent,
     macro,
     sent,
@@ -173,18 +174,6 @@ dispatch_async(self.cwxRunQueue, ^(void) { \
 }
 
 
-- (double) getTxFrequency {
-    @synchronized(_radio.slices) {
-        for ( Slice *slice in _radio.slices) {
-            if (slice.sliceTxEnabled) {
-                return [slice.sliceFrequency doubleValue];
-            }
-        }
-    }
-    return 0.0;
-}
-
-
 - (void) send:(NSString *) string {
     NSString *cmd = [NSString stringWithFormat:@"cwx send \"%@\"", string];
     [_radio commandToRadio:cmd];
@@ -269,7 +258,7 @@ dispatch_async(dispatch_get_main_queue(), ^(void) { \
     [scan scanUpToString:@"\n" intoString:&all];
     
     // We could have spaces inside quotes, so we have to convert them to something else for the split.
-    // We could also have an equal sign '=' (for Porosign BT) inside the quotes, so we're converting to a '*' so that the split on "="
+    // We could also have an equal sign '=' (for Prosign BT) inside the quotes, so we're converting to a '*' so that the split on "="
     // will still work.  This will prevent the character '*' from being stored in a macro.  Using the ascii byte for '=' will not work.
     NSString *newString = @"";
     bool quotes = false;

@@ -36,19 +36,19 @@
 
 #import "Radio.h"
 
-@protocol MessageEventHandler <NSObject>
+@protocol CWXMessageEventHandler <NSObject>
 
 @optional
 - (void) messageQueued:(int)sequence bufferIndex:(int) index;
 @end
 
-@protocol CharSentEventHandler <NSObject>
+@protocol CWXCharSentEventHandler <NSObject>
 
 @optional
 - (void) charSent:(int) index;
 @end
 
-@protocol EraseSentEventHandler <NSObject>
+@protocol CWXEraseSentEventHandler <NSObject>
 
 @optional
 - (void) eraseSent:(int)start stop:(int) stop;
@@ -58,12 +58,17 @@
 
 @interface Cwx : NSObject <RadioParser, RadioDelegate>
 
-@property (nonatomic) id<MessageEventHandler> messageQueuedEventDelegate;
-@property (nonatomic) id<CharSentEventHandler> charSentEventDelegate;
-@property (nonatomic) id<EraseSentEventHandler> eraseSentEventDelegate;
+//
+// The delegate handling here will be invoked on our run queue (or the TCP socket run queue more likely).
+// These will NOT be called on the main dispatch queue. If there are any UI updates that are interested in the update,
+// the user will have to arrange for their own dispatch onto the main queue to make the UI changes there.
+//
+@property (weak, nonatomic) id<CWXMessageEventHandler> messageQueuedEventDelegate;
+@property (weak, nonatomic) id<CWXCharSentEventHandler> charSentEventDelegate;
+@property (weak, nonatomic) id<CWXEraseSentEventHandler> eraseSentEventDelegate;
 
 // Radio object to which this Cwx belongs
-@property (strong, nonatomic, readonly) Radio *radio;
+@property (weak, nonatomic, readonly) Radio *radio;
 
 @property (nonatomic) int delay;
 @property (nonatomic, readonly) NSMutableArray *macros;
@@ -76,7 +81,6 @@
 - (int) sendMacro:(int) index;
 - (void) clearBuffer;
 - (void) erase:(int)numberOfChars;
-- (double) getTxFrequency;
 - (void) send:(NSString *) string;
 - (void) send:(NSString *) string andBlock:(int) block;
 

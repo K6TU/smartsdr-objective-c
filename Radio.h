@@ -338,7 +338,7 @@ enum radioAtuState {
 
 @property (nonatomic) BOOL logRadioMessages;                        // Set true automatically if a debug build, otherwise, set true to
                                                                     // turn on logging of messages to/from the radio API
-
+@property (strong, nonatomic, readonly) Cwx *cwx;                   // reference to the CWX object
 
 // Class methods
 
@@ -379,6 +379,5 @@ enum radioAtuState {
 - (void) cmdDeleteGlobalProfile:(NSString *)profile;                // Remove the global profile from the radio
 - (void) cmdSaveTxProfile:(NSString *)profile;                      // Save the current state as a transmit profile
 - (void) cmdDeleteTxProfile:(NSString *)profile;                    // Remove the transmit profile from the radio
-- (Cwx *) getCwx;                                                   // get a reference to the Cwx object
 
 @end
