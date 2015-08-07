@@ -1557,7 +1557,7 @@ BOOL subscribedToDisplays = NO;
             // we should now figure out what the pan object stream id is, relate it to the
             // panafall object for that stream and send out a PanafallCreated notification
             
-            NSString *streamIdWf = [self reformatStreamId:streamId];
+            NSString *streamIdWf = streamId;    
             
             for (NSString *panId in self.panafalls) {
                 Panafall *pan = self.panafalls[panId];
