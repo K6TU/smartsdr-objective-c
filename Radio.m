@@ -3187,7 +3187,7 @@ BOOL subscribedToDisplays = NO;
     }
 }
 
-- (Cwx *)getCwx {
+- (Cwx *)cwx {
     if (_cwx == nil) {
         _cwx = [[Cwx alloc] initWithRadio: self];
     }
