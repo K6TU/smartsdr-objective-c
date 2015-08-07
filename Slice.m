@@ -603,6 +603,15 @@
 }
 
 
+- (void) setPostDemodBypassEnabled:(NSNumber *)postDemodBypassEnabled {
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i post_demod_bypass=%i",
+                     [self.thisSliceNumber intValue], [postDemodBypassEnabled intValue]];
+    NSNumber *refPostDemodBypassEnabled = postDemodBypassEnabled;
+    
+    commandUpdateNotify(cmd, @"postDemodBypassEnabled", _postDemodBypassEnabled, refPostDemodBypassEnabled);
+}
+
+
 - (void) setRttyMark:(NSNumber *)rttyMark {
     NSString *cmd = [NSString stringWithFormat:@"slice set %i rtty_mark=%i",
                      [self.thisSliceNumber intValue], [rttyMark intValue]];
@@ -708,6 +717,7 @@ enum enumStatusSliceTokens {
     rttyShiftToken,
     diglOffsetToken,
     diguOffsetToken,
+    postDemodBypassEnabledToken,
 };
 
 
@@ -774,6 +784,7 @@ enum enumStatusSliceTokens {
                               [NSNumber numberWithInt:dfmPreDeEmphasisToken], @"dfm_pre_de_emphasis",
                               [NSNumber numberWithInt:postDemodLowToken], @"post_demod_low",
                               [NSNumber numberWithInt:postDemodHighToken], @"post_demod_high",
+                              [NSNumber numberWithInt:postDemodBypassEnabledToken], @"post_demod_bypass",
                               [NSNumber numberWithInt:rttyMarkToken], @"rtty_mark",
                               [NSNumber numberWithInt:rttyShiftToken], @"rtty_shift",
                               [NSNumber numberWithInt:diglOffsetToken], @"digl_offset",
@@ -1142,6 +1153,11 @@ enum enumStatusSliceTokens {
             case postDemodHighToken:
                 [scan scanInteger:&intVal];
                 updateWithNotify(@"postDemodHi", _postDemodHi, [NSNumber numberWithInteger:intVal]);
+                break;
+                
+            case postDemodBypassEnabledToken:
+                [scan scanInteger:&intVal];
+                updateWithNotify(@"postDemodBypassEnabled", _postDemodBypassEnabled, [NSNumber numberWithBool:intVal]);
                 break;
                 
             case rttyMarkToken:
