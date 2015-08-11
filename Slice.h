@@ -119,6 +119,7 @@
 @property (strong, nonatomic) NSNumber *fmPreDeEmphasis;            // FM pre-deEmphasis for DFM mode - BOOL
 @property (strong, nonatomic) NSNumber *postDemodLo;                // FM pre-emphasis low frequency - INTEGER
 @property (strong, nonatomic) NSNumber *postDemodHi;                // FM pre-emphasis high frequency - INTEGER
+@property (strong, nonatomic) NSNumber *postDemodBypassEnabled;     // FM pre-emphasis bypass enabled - BOOL
 @property (strong, nonatomic) NSNumber *rttyMark;                   // RTTY mark frequency - INTEGER
 @property (strong, nonatomic) NSNumber *rttyShift;                  // RTTY Shift - INTEGER
 @property (strong, nonatomic) NSNumber *diglOffset;                 // DIGL offset - INTEGER

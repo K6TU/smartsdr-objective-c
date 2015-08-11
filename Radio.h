@@ -278,6 +278,7 @@ enum radioAtuState {
 @property (strong, nonatomic) NSNumber *txState;                    // State of tranmsitter on/off - BOOL
 @property (strong, nonatomic) NSNumber *tuneEnabled;                // State of TUNE on/off - BOOL
 @property (strong, nonatomic) NSNumber *rfPowerLevel;               // RF power level in Watts - INTEGER
+@property (strong, nonatomic) NSNumber *maxPowerLevel;              // Maximum transmit power in Watts - INTEGER
 @property (strong, nonatomic) NSNumber *tunePowerLevel;             // TUNE power level in Watts - INTEGER
 @property (strong, nonatomic) NSNumber *amCarrierLevel;             // AM Carrier level in Watts - INTEGER
 @property (strong, nonatomic) NSNumber *voxEnabled;                 // State of VOX enable - BOOL
@@ -317,6 +318,7 @@ enum radioAtuState {
 @property (strong, nonatomic) NSString *radioName;                  // Name of radio if set - STRING
 
 @property (strong, nonatomic) NSNumber *binauralRx;                 // Binaural RX enable - BOOL
+@property (strong, nonatomic) NSNumber *fullDuplexEnabled;          // Full Duplex Enabled - BOOL
 
 
 @property (strong, nonatomic) NSNumber *syncActiveSlice;            // Client should sync active slice with radio - BOOL [Default YES]

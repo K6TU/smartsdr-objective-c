@@ -175,6 +175,7 @@ enum enumStatusRadioTokens {
     nicknameToken,
     callsignToken,
     binauralRxToken,
+    fullDuplexEnabledToken,
 };
 
 enum enumStatusAtuTokens {
@@ -250,6 +251,7 @@ enum enumStatusTransmitTokens {
     txRfPowerChangesAllowedToken,
     synccwxToken,
     monAvailableToken,
+    maxPowerLevelToken,
 };
 
 enum enumStatusInterlockTokens {
@@ -350,6 +352,7 @@ BOOL subscribedToDisplays = NO;
                               [NSNumber numberWithInt:nicknameToken], @"nickname",
                               [NSNumber numberWithInt:callsignToken], @"callsign",
                               [NSNumber numberWithInt:binauralRxToken], @"binaural_rx",
+                              [NSNumber numberWithInt:fullDuplexEnabledToken], @"full_duplex_enabled",
                               nil];
 }
 
@@ -384,6 +387,7 @@ BOOL subscribedToDisplays = NO;
 - (void) initStatusTransmitTokens {
     self.statusTransmitTokens = [[NSDictionary alloc] initWithObjectsAndKeys:
                                  [NSNumber numberWithInt:rfPowerToken], @"rfpower",
+                                 [NSNumber numberWithInt:maxPowerLevelToken], @"max_power_level",
                                  [NSNumber numberWithInt:freqToken], @"freq",
                                  [NSNumber numberWithInt:loTxFilterToken], @"lo",
                                  [NSNumber numberWithInt:hiTxFilterToken], @"hi",
@@ -501,6 +505,7 @@ BOOL subscribedToDisplays = NO;
                      [[FilterSpec alloc] initWithLabel:@"50 Hz"   mode:@"CW" txFilterLo: 0 txFilterHi: 0 filterLo:-25 filterHi:25],
                      [[FilterSpec alloc] initWithLabel:@"100 Hz"  mode:@"CW" txFilterLo: 0 txFilterHi: 0 filterLo:-50 filterHi:50],
                      [[FilterSpec alloc] initWithLabel:@"250 Hz"  mode:@"CW" txFilterLo: 0 txFilterHi: 0 filterLo:-125 filterHi:125],
+                     [[FilterSpec alloc] initWithLabel:@"400 Hz"  mode:@"CW" txFilterLo: 0 txFilterHi: 0 filterLo:-200 filterHi:200],
                      [[FilterSpec alloc] initWithLabel:@"500 Hz"  mode:@"CW" txFilterLo: 0 txFilterHi: 0 filterLo:-250 filterHi:250],
                      [[FilterSpec alloc] initWithLabel:@"1 KHz"   mode:@"CW" txFilterLo: 0 txFilterHi: 0 filterLo:-500 filterHi:500],
                      nil], @"CW",
@@ -1582,7 +1587,7 @@ BOOL subscribedToDisplays = NO;
             // we should now figure out what the pan object stream id is, relate it to the
             // panafall object for that stream and send out a PanafallCreated notification
             
-            NSString *streamIdWf = [self reformatStreamId:streamId];
+            NSString *streamIdWf = streamId;
             
             for (NSString *panId in self.panafalls) {
                 Panafall *pan = self.panafalls[panId];
@@ -1879,6 +1884,11 @@ BOOL subscribedToDisplays = NO;
                 [scan scanInteger:&intVal];
                 updateWithNotify(@"binauralRx", _binauralRx, [NSNumber numberWithBool:intVal]);
                 break;
+
+            case fullDuplexEnabledToken:
+                [scan scanInteger:&intVal];
+                updateWithNotify(@"fullDupledEnabled", _fullDuplexEnabled, [NSNumber numberWithBool:intVal]);
+                break;
                 
             default:
                 // Unknown token and therefore an unknown argument type
@@ -1986,6 +1996,11 @@ BOOL subscribedToDisplays = NO;
                 
                 [scan scanInteger:&intVal];
                 updateWithNotify(@"rfPowerLevel", _rfPowerLevel, [NSNumber numberWithInteger:intVal]);
+                break;
+                
+            case maxPowerLevelToken:
+                [scan scanInteger:&intVal];
+                updateWithNotify(@"maxPowerLevel", _maxPowerLevel, [NSNumber numberWithInteger:intVal]);
                 break;
                 
             case amCarrierLevelToken:
@@ -2737,6 +2752,14 @@ BOOL subscribedToDisplays = NO;
     commandUpdateNotify(cmd, @"rfPowerLevel", _rfPowerLevel, refRfPowerLevel);
 }
 
+- (void) setMaxPowerLevel:(NSNumber *)maxPowerLevel {
+    NSString *cmd = [NSString stringWithFormat:@"transmit set max_power_level=%i",
+                     [maxPowerLevel intValue]];
+    NSNumber *refMaxPowerLevel = maxPowerLevel;
+    
+    commandUpdateNotify(cmd, @"maxPowerLevel", _maxPowerLevel, refMaxPowerLevel);
+}
+
 - (void) setTunePowerLevel:(NSNumber *)tunePowerLevel {
     NSString *cmd = [NSString stringWithFormat:@"transmit set tunepower=%i",
                      [tunePowerLevel intValue]];
@@ -3212,6 +3235,14 @@ BOOL subscribedToDisplays = NO;
     NSNumber *refBinauralRx = binauralRx;
     
     commandUpdateNotify(cmd, @"binarualRx", _binauralRx, refBinauralRx);
+}
+
+- (void) setFullDuplexEnabled:(NSNumber *)fullDuplexEnabled {
+    NSString *cmd = [NSString stringWithFormat:@"radio set binaural_rx=%i",
+                     [fullDuplexEnabled boolValue]];
+    NSNumber *refFullDuplexEnabled = fullDuplexEnabled;
+    
+    commandUpdateNotify(cmd, @"fullDuplexEnabled", _fullDuplexEnabled, refFullDuplexEnabled);
 }
 
 - (void) setSyncActiveSlice:(NSNumber *)syncActiveSlice {
