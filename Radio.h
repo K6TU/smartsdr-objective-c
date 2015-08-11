@@ -103,6 +103,7 @@ enum radioAtuState {
 @class DAXAudio;
 @class OpusAudio;
 @class Cwx;
+@class Tnf;
 
 @protocol RadioDelegate <NSObject>
 @optional
@@ -151,6 +152,12 @@ enum radioAtuState {
 - (void) updateWaterfallRef:(Waterfall *) waterfall;
 @end
 
+@protocol TNFEventHandler <NSObject>
+
+@optional
+- (void) tnfAdded:(Tnf *)tnf;
+- (void) tnfRemoved:(Tnf *)tnf;
+@end
 
 #define MAX_SLICES_PER_RADIO    8
 
@@ -340,6 +347,10 @@ enum radioAtuState {
                                                                     // turn on logging of messages to/from the radio API
 @property (strong, nonatomic, readonly) Cwx *cwx;                   // reference to the CWX object
 
+@property (nonatomic) NSNumber *tnfEnabled;                         // Set true if TNF's are enabled - BOOL
+@property (strong, nonatomic, readonly) NSMutableArray *tnfs;       // Array of TNF's
+
+
 // Class methods
 
 // initWithRadioUInstanceAndDelegate: Invoke with the RadioInstance of the radio to be
@@ -379,5 +390,23 @@ enum radioAtuState {
 - (void) cmdDeleteGlobalProfile:(NSString *)profile;                // Remove the global profile from the radio
 - (void) cmdSaveTxProfile:(NSString *)profile;                      // Save the current state as a transmit profile
 - (void) cmdDeleteTxProfile:(NSString *)profile;                    // Remove the transmit profile from the radio
+
+- (Tnf *)createTnf;                                                 // Create a TNF with next available ID & default values
+- (Tnf *)createTnfWithID:(uint)ID;                                  // Create a TNF with the specified ID & default values
+- (Tnf *)createTnfWithFreq:(double)freq;                            // Create a TNF with next available ID, specified Frequency & default values
+- (void) addTnf:(Tnf *)tnf;                                         // Add a TNF to the tnfs list
+- (void) removeTnf:(Tnf *)tnf;                                      // Remove a TNF from the tnfs list
+- (void) updateTnfFrequency:(uint)ID freq:(double)freq;             // Update the Frequency of an existing TNF
+- (void) updateTnfWidth:(uint)ID width:(double)width;               // Update the width of an existing TNF
+- (void) updateTnfDepth:(uint)ID depth:(uint)depth;                 // Update the Depth of an existing TNF
+- (void) updateTnfPermanent:(uint)ID permanent:(bool)permanent;     // Update the Permanent of an existing TNF
+- (void) requestTnf:(double)freq panID:(NSString *)panID;           // Create a TNF on the specified Pan at the specified Frequency
+//
+// The delegate handling here will be invoked on our run queue (or the TCP socket run queue more likely).
+// It will NOT be called on the main dispatch queue. If there are any UI updates that are interested in the update,
+// the user will have to arrange for their own dispatch onto the main queue to make the UI changes there.
+//
+@property (weak, nonatomic) id<TNFEventHandler> tnfEventDelegate;
+
 
 @end
