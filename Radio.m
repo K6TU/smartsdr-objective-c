@@ -3344,7 +3344,7 @@ BOOL subscribedToDisplays = NO;
     }
 }
 //
-// Change the Frequency of an existing TNF
+// Change the Frequency (in MHz) of an existing TNF
 //
 - (void) updateTnfFrequency:(uint)ID freq:(double)freq {
     // find the TNF & update it (if found)
@@ -3354,7 +3354,7 @@ BOOL subscribedToDisplays = NO;
     }
 }
 //
-// Change the Bandwidth of an existing TNF
+// Change the Bandwidth (in MHz) of an existing TNF
 //
 - (void) updateTnfWidth:(uint)ID width:(double)width {
     // find the TNF & update it (if found)
@@ -3393,6 +3393,8 @@ BOOL subscribedToDisplays = NO;
 //
 //          addTnf: here on Radio adding the TNF to the tnfs collection
 //          and calling the tnfEventDelegate's tnfAdded: method (if any)
+//
+//      Freq is in MHz
 //
 - (void) requestTnf:(double)freq panID:(NSString *)panID {
     
@@ -3437,7 +3439,7 @@ BOOL subscribedToDisplays = NO;
         }
     }
     // tell the Radio (hardware) to create the TNF
-    [self commandToRadio: [NSString stringWithFormat:@"tnf create freq=%0.6f", freq/1000000.0]];
+    [self commandToRadio: [NSString stringWithFormat:@"tnf create freq=%0.6f", freq]];
 }
 //
 // Given a TNF ID, return a reference to the TNF
