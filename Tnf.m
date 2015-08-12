@@ -132,7 +132,7 @@ dispatch_async(self.tnfRunQueue, ^(void) { \
 
 - (void) setFrequency:(double)frequency {
     
-    NSString *cmd = [NSString stringWithFormat:@"tnf set %i freq=%f", _ID, frequency];
+    NSString *cmd = [NSString stringWithFormat:@"tnf set %i freq=%0.6f", _ID, frequency];
     commandUpdateNotify(cmd, @"frequency", _frequency, frequency);
 }
 
@@ -142,7 +142,7 @@ dispatch_async(self.tnfRunQueue, ^(void) { \
     commandUpdateNotify(cmd, @"permanent", _permanent, permanent);
 }
 
-- (void) setwidth:(double)width {
+- (void) setWidth:(double)width {
     // validate the width
     if (width > 6000 * 1e-6 || width < 5 * 1e-6) {return; }
     NSString *cmd = [NSString stringWithFormat:@"tnf set %i width=%f", _ID, width];

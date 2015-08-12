@@ -46,12 +46,12 @@
 // Radio object to which this Cwx belongs
 @property (weak, nonatomic, readonly) Radio *radio;
 
-@property (nonatomic, readonly) uint ID;
-@property (nonatomic, readwrite) double frequency;
-@property (nonatomic, readwrite) uint depth;
-@property (nonatomic, readwrite) bool permanent;
-@property (nonatomic, readwrite) bool radioAck;
-@property (nonatomic, readwrite) double width;
+@property (nonatomic, readonly) uint ID;                    // unique ID number
+@property (nonatomic, readwrite) double frequency;          // Frequency in MHz
+@property (nonatomic, readwrite) uint depth;                // 1=Normal, 2=Deep, 3=Very Deep
+@property (nonatomic, readwrite) bool permanent;            // True=Freq & Width fixed
+@property (nonatomic, readwrite) bool radioAck;             // True if all properties are set
+@property (nonatomic, readwrite) double width;              // Width in MHz
 
 
 - (id) initWithRadio:(Radio *) radio ID:(uint)ID freq:(double)freq depth:(uint)depth width:(double)width permanent:(bool)permanent;
