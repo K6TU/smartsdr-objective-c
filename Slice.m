@@ -640,12 +640,23 @@
 
 
 - (void) setDighOffset:(NSNumber *)diguOffset {
-        NSString *cmd = [NSString stringWithFormat:@"slice set %i digu_offset=%i",
-                         [self.thisSliceNumber intValue], [diguOffset intValue]];
-        NSNumber *refDiguOffset = diguOffset;
-        
-        commandUpdateNotify(cmd, @"diguOffset", _diguOffset, refDiguOffset);
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i digu_offset=%i",
+                     [self.thisSliceNumber intValue], [diguOffset intValue]];
+    NSNumber *refDiguOffset = diguOffset;
+    
+    commandUpdateNotify(cmd, @"diguOffset", _diguOffset, refDiguOffset);
 }
+
+
+- (void) setRfGain:(NSNumber *)rfGain {
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i rfgain=%i",
+                     [self.thisSliceNumber intValue], [rfGain intValue]];
+    NSNumber *refRfGain = rfGain;
+    
+    commandUpdateNotify(cmd, @"rfGain", _rfGain, refRfGain);
+}
+
+
 
 #pragma mark
 #pragma mark Slice Parser
@@ -718,6 +729,7 @@ enum enumStatusSliceTokens {
     diglOffsetToken,
     diguOffsetToken,
     postDemodBypassEnabledToken,
+    rfGainToken,
 };
 
 
@@ -789,6 +801,7 @@ enum enumStatusSliceTokens {
                               [NSNumber numberWithInt:rttyShiftToken], @"rtty_shift",
                               [NSNumber numberWithInt:diglOffsetToken], @"digl_offset",
                               [NSNumber numberWithInt:diguOffsetToken], @"digu_offset",
+                              [NSNumber numberWithInt:rfGainToken], @"rfgain",
                               nil];
 }
 
@@ -1178,6 +1191,11 @@ enum enumStatusSliceTokens {
             case diguOffsetToken:
                 [scan scanInteger:&intVal];
                 updateWithNotify(@"diguOffset", _diguOffset, [NSNumber numberWithInteger:intVal]);
+                break;
+                
+            case rfGainToken:
+                [scan scanInteger:&intVal];
+                updateWithNotify(@"rfgain", _rfGain, [NSNumber numberWithInteger:intVal]);
                 break;
             
             default:

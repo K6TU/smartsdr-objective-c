@@ -124,7 +124,7 @@
 @property (strong, nonatomic) NSNumber *rttyShift;                  // RTTY Shift - INTEGER
 @property (strong, nonatomic) NSNumber *diglOffset;                 // DIGL offset - INTEGER
 @property (strong, nonatomic) NSNumber *diguOffset;                 // DIGH offset - INTEGER
-
+@property (strong, nonatomic) NSNumber *rfGain;                     // Pre-amp RF Gain for the SCU containing this slice
 
 
 @property (strong, nonatomic) NSNumber *loopAEnabled;               // Loop A enabled - BOOL

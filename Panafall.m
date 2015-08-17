@@ -50,6 +50,7 @@
 @property (readwrite, nonatomic) Float64 minBW;                              // Minimum bandwidth in MHz (Float)
 @property (readwrite, nonatomic) Float64 maxBW;                              // Maximum bandwidth in MHz (Float)
 @property (readwrite, nonatomic) long int daxIQRate;                         // DAX IQ Rate in bps (LONG INT)
+@property (readwrite, nonatomic) BOOL nbUpdating;                            // NB recalculating threshold (BOOL)
 @property (strong, readwrite, nonatomic) NSString *xvtrLabel;                // Label of selected XVTR profile (STRING)
 @property (strong, readwrite, nonatomic) NSString *preLabel;                 // Label of preselector selected (STRING)
 @property (strong, readwrite, nonatomic) NSArray *antList;                   // Array of NSString of antenna options available
@@ -98,6 +99,7 @@ enum panafallToken {
     antListToken,
     nbPanToken,
     nbLevelPanToken,
+    nbUpdatingToken,
 };
 
 
@@ -123,6 +125,7 @@ enum panafallToken {
                            [NSNumber numberWithInteger:loopbToken], @"loopb",
                            [NSNumber numberWithInteger:nbPanToken], @"nb",
                            [NSNumber numberWithInteger:nbLevelPanToken], @"nb_level",
+                           [NSNumber numberWithInteger:nbUpdatingToken], @"nb_updating",
                            [NSNumber numberWithInteger:bandToken], @"band",
                            [NSNumber numberWithInteger:daxIqToken], @"daxiq",
                            [NSNumber numberWithInteger:daxIqRateToken] , @"daxiq_rate",
@@ -363,6 +366,10 @@ enum panafallToken {
 
             case nbLevelPanToken:
                 updateWithNotify(@"nbLevel", _nbLevel, (int)[v integerValue]);
+                break;
+                
+            case nbUpdatingToken:
+                updateWithNotify(@"nbUpdating", _nbUpdating, [v boolValue]);
                 break;
                 
             case bandToken:
