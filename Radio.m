@@ -46,6 +46,7 @@
 #import "DAXAudio.h"
 #import "OpusAudio.h"
 #import "Cwx.h"
+#import "Tnf.h"
 
 @interface Radio ()
 
@@ -93,6 +94,7 @@
 @property (strong, readwrite, nonatomic) NSArray *antList;                      // Array of strings with name for each Antenna connection
 @property (strong, readwrite, nonatomic) NSArray *micList;                      // Array of strings with name for each Mic connection
 @property (strong, readwrite, nonatomic) Cwx *cwx;                              // Cwx object
+@property (strong, nonatomic, readwrite) NSMutableArray *tnfs;                  // Array of TNF's
 
 
 
@@ -123,6 +125,7 @@
 - (void) parseEqToken: (NSScanner *) scan selfStatus: (BOOL) selfStatus;
 
 - (int) commandToRadio:(NSString *) cmd notifySel:(SEL) callback;
+- (Tnf *) findTnfById:(uint)ID;
 
 @end
 
@@ -147,6 +150,7 @@ enum enumStatusTokens {
     waveformToken,
     audioStreamToken,
     opusStreamToken,
+    tnfToken,
 };
 
 enum enumStatusMixerTokens {
@@ -325,6 +329,7 @@ BOOL subscribedToDisplays = NO;
                          [NSNumber numberWithInt:waveformToken], @"waveform",
                          [NSNumber numberWithInt:audioStreamToken], @"audio_stream",
                          [NSNumber numberWithInt:opusStreamToken], @"opus_stream",
+                         [NSNumber numberWithInt:tnfToken], @"tnf",
                          nil];
     self.notifyList = [[NSMutableDictionary alloc]init];
 }
@@ -642,6 +647,8 @@ BOOL subscribedToDisplays = NO;
         self.equalizers = [[NSMutableArray alloc] initWithCapacity:2];
         self.equalizers[0] = [[NSNull alloc] init];
         self.equalizers[1] = [[NSNull alloc] init];
+
+        self.tnfs = [[NSMutableArray alloc]init];
         
         connectionState = connecting;
         
@@ -808,25 +815,34 @@ BOOL subscribedToDisplays = NO;
         [self commandToRadio:[NSString stringWithFormat:@"client udpport %i", (int)self.vitaManager.vitaPort]];
     
     [self commandToRadio:@"keepalive enable"];
+
     [self commandToRadio:@"sub tx all"];
     [self commandToRadio:@"sub atu all"];
     [self commandToRadio:@"sub meter all"];
-    [self commandToRadio:@"sub slice all"];
     [self commandToRadio:@"sub pan all"];
-    [self commandToRadio:@"eq rx info"];
-    [self commandToRadio:@"eq tx info"];
+    [self commandToRadio:@"sub slice all"];
+    [self commandToRadio:@"sub gps all"];
     [self commandToRadio:@"sub audio_stream all"];
     [self commandToRadio:@"sub cwx all"];
-    
+    [self commandToRadio:@"sub xvtr all"];
+    [self commandToRadio:@"sub memories all"];
+    [self commandToRadio:@"sub daxiq all"];
+    [self commandToRadio:@"sub dax all"];
+    [self commandToRadio:@"sub tnf all"];
+
     [self commandToRadio:@"info" notifySel:@selector(infoResponseCallback:)];
+
     [self commandToRadio:@"version" notifySel:@selector(versionResponseCallback:)];
+
     [self commandToRadio:@"ant list" notifySel:@selector(antListResponseCallback:)];
     [self commandToRadio:@"mic list" notifySel:@selector(micListResponseCallback:)];
-    
+
     [self commandToRadio:@"profile global info"];
     [self commandToRadio:@"profile tx info"];
-    [self commandToRadio:@"sub profile all"];
 
+    [self commandToRadio:@"eq rx info"];
+    [self commandToRadio:@"eq tx info"];
+    
   [radioSocket readDataToData:[GCDAsyncSocket LFData] withTimeout:-1 tag:0];
 }
 
@@ -844,7 +860,10 @@ BOOL subscribedToDisplays = NO;
     NSString *cmdline = [[NSString alloc] initWithFormat:@"c%@%u|%@\n", verbose ? @"d" : @"", (unsigned int)thisSeq, cmd ];
     
     if (self.logRadioMessages)
-        NSLog(@"Data sent - %@", cmdline);
+        // don't show "ping" messages (makes debugging easier)
+        if (![cmdline hasSuffix: @"ping\n"]) {
+            NSLog(@"Data sent - %@", cmdline);
+        }
     
     [radioSocket writeData: [cmdline dataUsingEncoding:NSUTF8StringEncoding] withTimeout:-1 tag:(long)thisSeq];
 }
@@ -866,7 +885,9 @@ BOOL subscribedToDisplays = NO;
     }
     
     if (self.logRadioMessages)
-        NSLog(@"Data sent - %@", cmdline);
+        if (![cmdline hasSuffix: @"ping\n"]) {
+            NSLog(@"Data sent - %@", cmdline);
+        }
 
     [radioSocket writeData: [cmdline dataUsingEncoding:NSUTF8StringEncoding] withTimeout:-1 tag:(long)thisSeq];
     return thisSeq;
@@ -1421,6 +1442,10 @@ BOOL subscribedToDisplays = NO;
             [self parseOpusStreamToken: scan selfStatus:selfStatus];
             break;
             
+        case tnfToken:
+            [self parseTnfToken: scan selfStatus:selfStatus];
+            break;
+        
         default:
             NSLog(@"Unexpected token in parseStatusType - %@", sourceToken);
             break;
@@ -1572,7 +1597,7 @@ BOOL subscribedToDisplays = NO;
                     [pan updateWaterfallRef:wf];
                     [wf updatePanafallRef:pan];
                     
-                    NSLog(@"Pan notify - %@", pan);
+//                    NSLog(@"Pan notify - %@", pan.streamId);
                     
                     dispatch_async(dispatch_get_main_queue(), ^(void) {
                         [[NSNotificationCenter defaultCenter] postNotificationName:@"PanafallCreated" object:pan];
@@ -1838,6 +1863,7 @@ BOOL subscribedToDisplays = NO;
                 
             case tnfEnabledToken:
                 [scan scanInteger:&intVal];
+                updateWithNotify(@"tnfEnabled", _tnfEnabled, [NSNumber numberWithBool:intVal]);
                 break;
                 
             case snapTuneEnabledToken:
@@ -2483,6 +2509,41 @@ BOOL subscribedToDisplays = NO;
     [opus statusParser:scan selfStatus:selfStatus];
 }
 
+//
+// Parse Tnf tokens
+//      called on the GCD thread associated with the GCD tcpSocketQueue
+//
+//      format: <apiHandle>|tnf <tnfNumber> <key=value>,<key=value>,...<key=value>
+//
+//      scan is initially at scanLocation = 13, start of the <tnfNumber>
+//      "<apiHandle>|tnf " has already been processed
+//
+- (void) parseTnfToken:(NSScanner *) scan selfStatus:(BOOL) selfStatus {
+    int tnfNumber;
+    BOOL addNewTnf = NO;
+    
+    // Extract the TNF number
+    [scan scanInt:&tnfNumber];
+    // skip the " "
+    [scan scanString:@" " intoString: nil];
+    
+    Tnf *tnf = [self findTnfById:(uint)tnfNumber];
+    if (tnf == nil) {
+        if ([scan.string rangeOfString:@"removed"].location != NSNotFound) {
+            return;
+        }
+        tnf = [[Tnf alloc] initWithRadio:self ID:(uint)tnfNumber];
+        addNewTnf = YES;
+    }
+    if ([scan.string rangeOfString:@"removed"].location != NSNotFound) {
+        [self removeTnf:tnf];
+    } else {
+        [tnf statusParser:scan selfStatus:selfStatus];
+    }
+    if (addNewTnf) {
+        [self addTnf:tnf];
+    }
+}
 
 
 #pragma mark
@@ -3008,6 +3069,14 @@ BOOL subscribedToDisplays = NO;
     commandUpdateNotify(cmd, @"remoteOnEnabled", _remoteOnEnabled, refRemoteOnEnabled);
 }
 
+- (void) setTnfEnabled:(NSNumber *)tnfEnabled {
+    NSString *cmd = [NSString stringWithFormat:@"radio set tnf_enabled=%i",
+                     [tnfEnabled boolValue]];
+    NSNumber *refTnfEnabled = tnfEnabled;
+    
+    commandUpdateNotify(cmd, @"tnfEnabled", _tnfEnabled, refTnfEnabled);
+}
+
 - (void) setTxInhibit:(NSNumber *)txInhibit {
     NSString *cmd = [NSString stringWithFormat:@"transmit set inhibit=%i",
                      [txInhibit boolValue]];
@@ -3217,14 +3286,177 @@ BOOL subscribedToDisplays = NO;
         });
     }
 }
-
-- (Cwx *)cwx {
+//
+// Cwx getter
+//
+- (Cwx *) cwx {
     if (_cwx == nil) {
         _cwx = [[Cwx alloc] initWithRadio: self];
     }
     return _cwx;
 }
+//
+// Tnf creation
+//
+- (Tnf *) createTnf {
+    return [[Tnf alloc] initWithRadio:self ID: (uint)_tnfs.count + 1];
+}
 
+- (Tnf *) createTnfWithID:(uint)ID {
+    return [[Tnf alloc] initWithRadio:self ID:ID];
+}
+
+- (Tnf *) createTnfWithFreq:(double)freq {
+    return [[Tnf alloc] initWithRadio:self ID: (uint)_tnfs.count + 1 freq:freq];
+}
+//
+// Add a TNF to the tnfs collection and call the tnfEventDelegate's tnfAdded: (if any)
+//
+- (void) addTnf:(Tnf *)tnf {
+    @synchronized(_tnfs) {
+        // find the TNF & add it (if NOT found)
+        if ([ self findTnfById:tnf.ID] == nil) {
+            [_tnfs addObject:tnf];
+            // TNF added, inform the Event Handler (if any)
+            if (_tnfEventDelegate != nil) {
+                if ([_tnfEventDelegate respondsToSelector:@selector(tnfAdded:)]) {
+                    [_tnfEventDelegate tnfAdded: tnf ];
+                }
+            }
+        }
+    }
+}
+//
+// Remove a TNF from the tnfs collection and call the tnfEventDelegate's tnfRemoved: (if any)
+//
+- (void) removeTnf:(Tnf *)tnf {
+    @synchronized(_tnfs) {
+        // find the TNF & remove it (if found)
+        if ([ self findTnfById:tnf.ID] != nil) {
+            [_tnfs removeObject:tnf];
+            // TNF removed, inform the Event Handler (if any)
+            if (_tnfEventDelegate != nil) {
+                if ([_tnfEventDelegate respondsToSelector:@selector(tnfRemoved:)]) {
+                    [_tnfEventDelegate tnfRemoved: tnf ];
+                }
+            }
+        }
+    }
+}
+//
+// Change the Frequency (in MHz) of an existing TNF
+//
+- (void) updateTnfFrequency:(uint)ID freq:(double)freq {
+    // find the TNF & update it (if found)
+    Tnf *tnf = [self findTnfById:ID];
+    if (tnf != nil) {
+        tnf.frequency = freq;
+    }
+}
+//
+// Change the Bandwidth (in MHz) of an existing TNF
+//
+- (void) updateTnfWidth:(uint)ID width:(double)width {
+    // find the TNF & update it (if found)
+    Tnf *tnf = [self findTnfById:ID];
+    if (tnf != nil) {
+        tnf.width = width;
+    }
+}
+//
+// Change the Depth of an existing TNF
+//
+- (void) updateTnfDepth:(uint)ID depth:(uint)depth {
+    // find the TNF & update it (if found)
+    Tnf *tnf = [self findTnfById:ID];
+    if (tnf != nil) {
+        tnf.depth = depth;
+    }
+}
+//
+// Change the Permanance of an existing TNF
+//
+- (void) updateTnfPermanent:(uint)ID permanent:(bool)permanent {
+    // find the TNF & update it (if found)
+    Tnf *tnf = [self findTnfById:ID];
+    if (tnf != nil) {
+        tnf.permanent = permanent;
+    }
+}
+//
+// Call this method to instantiate a TNF on a Panadapter
+//
+//      The Radio (hardware) will create the TNF and respond with:
+//          S<apiHandle>|tnf <tnfNumber> freq=<freq> depth=1 width=0.0001 permanent=0
+//
+//      This will update (and complete) the TNF which will then call:
+//
+//          addTnf: here on Radio adding the TNF to the tnfs collection
+//          and calling the tnfEventDelegate's tnfAdded: method (if any)
+//
+//      Freq is in MHz
+//
+- (void) requestTnf:(double)freq panID:(NSString *)panID {
+    
+    // if no Frequency specified, choose a frequency
+    if (freq == 0) {
+        // if the panafall ID is invalid, return
+        Panafall *pan = [_panafalls objectForKey: panID];
+        if (pan == nil) { return; }
+        
+        Slice *targetSlice = nil;
+        double freqDiff = 1000;
+        
+        // if there is a slice near (within freqDiff), make it the target
+        @synchronized(_slices) {
+            for (Slice *slice in _slices) {
+                if ([slice.panForSlice isEqualToString:panID]) {
+                    double diff = fabs(slice.sliceFrequency.doubleValue - pan.center);
+                    if (diff < freqDiff) {
+                        targetSlice = slice;
+                    }
+                }
+            }
+        }
+        // if no Slice found nearby, make it the center of the pan
+        if (targetSlice == nil) {
+            freq = pan.center;
+        } else {
+            
+            double filterHi = [targetSlice.sliceFilterHi doubleValue];
+            double filterLo = [targetSlice.sliceFilterLo doubleValue];
+            double sliceFreq = [targetSlice.sliceFrequency doubleValue];
+            // position around the Slice Frequency based on mode
+            if ([targetSlice.sliceMode isEqualToString:@"LSB"] || [targetSlice.sliceMode isEqualToString:@"DIGL"]) {
+                freq = sliceFreq + (((filterLo - filterHi) / 2.0) * 1e-6);
+            } else if ([targetSlice.sliceMode isEqualToString:@"CW"] || [targetSlice.sliceMode isEqualToString:@"AM"] || [targetSlice.sliceMode isEqualToString:@"SAM"]) {
+                freq = sliceFreq + ((filterHi / 2.0) * 1e-6);
+            } else if ([targetSlice.sliceMode isEqualToString:@"USB"] || [targetSlice.sliceMode isEqualToString:@"DIGU"]) {
+                freq = sliceFreq + (((filterHi - filterLo) / 2.0) * 1e-6);
+            } else {
+                freq = sliceFreq + (((filterHi - filterLo) / 2.0) * 1e-6);
+            }
+        }
+    }
+    // tell the Radio (hardware) to create the TNF
+    [self commandToRadio: [NSString stringWithFormat:@"tnf create freq=%0.6f", freq]];
+}
+//
+// Given a TNF ID, return a reference to the TNF
+//
+- (Tnf *) findTnfById:(uint)ID {
+    @synchronized(_tnfs) {
+        for (Tnf *tnf in _tnfs) {
+            if (tnf.ID == ID) {
+                return tnf;
+            }
+        }
+    }
+    return nil;
+}
+
+
+//
 
 #pragma mark
 #pragma mark Socket Delegates
@@ -3279,7 +3511,10 @@ BOOL subscribedToDisplays = NO;
         [scan scanUpToString:@"\n" intoString:&payload];
 
         if (self.logRadioMessages)
-            NSLog(@"Data received - %@\n", payload);
+            // don't show messages of the form "R<seqNumber>|0|" (makes debugging easier)
+            if (!([payload hasPrefix:@"R"] && ([payload hasSuffix:@"|0|"] || [payload hasSuffix:@"|0||"]))) {
+                NSLog(@"Data received - %@", payload);
+           }
 
         [self parseRadioStream: payload];
     }
