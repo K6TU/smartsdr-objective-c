@@ -1,7 +1,7 @@
 //
-//  Cwx.h
+//  Tnf.h
 //
-//  Created by STU PHILLIPS on 7/7/15.
+//  Created by STU PHILLIPS on 8/6/15.
 //  Copyright (c) 2015 STU PHILLIPS. All rights reserved.
 //
 // LICENSE TERMS:
@@ -34,55 +34,28 @@
 // Violation of these Copyright terms will be protected by US & International law.
 //
 
+#import <Foundation/Foundation.h>
 #import "Radio.h"
 
-@protocol CWXMessageEventHandler <NSObject>
-
-@optional
-- (void) messageQueued:(int)sequence bufferIndex:(int) index;
-@end
-
-@protocol CWXCharSentEventHandler <NSObject>
-
-@optional
-- (void) charSent:(int) index;
-@end
-
-@protocol CWXEraseSentEventHandler <NSObject>
-
-@optional
-- (void) eraseSent:(int)start stop:(int) stop;
-@end
 
 
+@interface Tnf  : NSObject <RadioParser>
 
-@interface Cwx : NSObject <RadioParser, RadioDelegate>
-
-//
-// The delegate handling here will be invoked on our run queue (or the TCP socket run queue more likely).
-// These will NOT be called on the main dispatch queue. If there are any UI updates that are interested in the update,
-// the user will have to arrange for their own dispatch onto the main queue to make the UI changes there.
-//
-@property (weak, nonatomic) id<CWXMessageEventHandler> messageQueuedEventDelegate;
-@property (weak, nonatomic) id<CWXCharSentEventHandler> charSentEventDelegate;
-@property (weak, nonatomic) id<CWXEraseSentEventHandler> eraseSentEventDelegate;
 
 // Radio object to which this Cwx belongs
 @property (weak, nonatomic, readonly) Radio *radio;
 
-@property (nonatomic) int delay;
-@property (nonatomic, readonly) NSMutableArray *macros;
-@property (nonatomic) int speed;
+@property (nonatomic, readonly) uint ID;                    // unique ID number
+@property (nonatomic, readwrite) double frequency;          // Frequency in MHz
+@property (nonatomic, readwrite) uint depth;                // 1=Normal, 2=Deep, 3=Very Deep
+@property (nonatomic, readwrite) BOOL permanent;            // True=Freq & Width fixed
+@property (nonatomic, readwrite) BOOL radioAck;             // True if all properties are set
+@property (nonatomic, readwrite) double width;              // Width in MHz
 
 
-- (id)initWithRadio:(Radio *) radio;
-- (BOOL) setMacro:(int)index macro:(NSString *) msg;
-- (BOOL) getMacro:(int)index macro:(NSString **)string;
-- (int) sendMacro:(int) index;
-- (void) clearBuffer;
-- (void) erase:(int)numberOfChars;
-- (void) send:(NSString *) string;
-- (void) send:(NSString *) string andBlock:(int) block;
-
+- (id) initWithRadio:(Radio *) radio ID:(uint)ID freq:(double)freq depth:(uint)depth width:(double)width permanent:(BOOL)permanent;
+- (id) initWithRadio:(Radio *)radio ID:(uint)ID freq:(double)freq;
+- (id) initWithRadio:(Radio *)radio ID:(uint)ID;
+- (void) removeWithCommands:(BOOL)sendCommands;
 
 @end

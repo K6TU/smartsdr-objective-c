@@ -50,16 +50,15 @@
 @property (weak, nonatomic, readwrite) Radio *radio;
 // Pointer to private run queue for Cwx
 @property (strong, nonatomic) dispatch_queue_t cwxRunQueue;
-// Array of strings
+// Cwx macro strings
 @property (nonatomic, readwrite) NSMutableArray *macros;
-
+// cwxToken enum values
 @property (strong, nonatomic) NSDictionary *cwxTokens;
-
 
 @end
 
 
-enum cwxToken {
+typedef NS_ENUM(int, CwxToken) {
     cwxNullToken=0,
     breakinDelay,
     eraseSent,
@@ -71,12 +70,14 @@ enum cwxToken {
 
 @implementation Cwx
 
+#pragma mark - Public methods
+
 - (id)initWithRadio:(Radio *) radio {
     self = [super init];
     
-    self.radio = radio;
+    _radio = radio;
     // populate the Macros array with empty strings
-    self.macros = [[NSMutableArray alloc] initWithCapacity:MAX_NUMBER_OF_MACROS];
+    _macros = [[NSMutableArray alloc] initWithCapacity:MAX_NUMBER_OF_MACROS];
     for (int i=0 ; i < MAX_NUMBER_OF_MACROS ; i++) {
         [_macros addObject: @""];
     }
@@ -87,17 +88,39 @@ enum cwxToken {
     return self;
 }
 
-
-
-- (void) initcwxTokens {
-  self.cwxTokens = [[NSDictionary alloc] initWithObjectsAndKeys:
-                          [NSNumber numberWithInteger:breakinDelay], @"break_in_delay",
-                          [NSNumber numberWithInteger:eraseSent], @"erase",
-                          [NSNumber numberWithInteger:macro], @"macro",
-                          [NSNumber numberWithInteger:sent], @"sent",
-                          [NSNumber numberWithInteger:wpm], @"wpm",
-                          nil];
+- (BOOL) getMacro:(int)index macro:(NSString **)string {
+    *string = @"";
+    if (index < 0 || index > MAX_NUMBER_OF_MACROS - 1) return false;
+    *string = (NSString *)_macros[index];
+    return true;
 }
+
+- (int) sendMacro:(int) index {
+    if (index < 0 || index > MAX_NUMBER_OF_MACROS - 1) return 0;
+    NSString *cmd = [NSString stringWithFormat:@"cwx macro send %i", index + 1];
+    return [_radio commandToRadio:cmd notify:self];
+}
+
+- (void) clearBuffer {
+    [_radio commandToRadio:@"cwx clear"];
+}
+
+- (void) erase:(int)numberOfChars {
+    NSString *cmd = [NSString stringWithFormat:@"cwx erase %i", numberOfChars];
+    [_radio commandToRadio:cmd ];
+}
+
+- (void) send:(NSString *) string {
+    NSString *cmd = [NSString stringWithFormat:@"cwx send \"%@\"", string];
+    [_radio commandToRadio:cmd];
+}
+
+- (void) send:(NSString *) string andBlock:(int) block {
+    NSString *cmd = [NSString stringWithFormat:@"cwx send \"%@\" %i", string, block];
+    [_radio commandToRadio:cmd];
+}
+
+#pragma mark - Setters
 
 // Private macro to improve readibility of setters
 
@@ -113,30 +136,39 @@ dispatch_async(self.cwxRunQueue, ^(void) { \
 [safeSelf.radio commandToRadio:(cmd)]; \
 });
 
-
 - (void) setDelay:(int)delay {
-    if (delay < 0) delay = 0;
-    if (delay > MAX_CWX_DELAY_MS) delay = MAX_CWX_DELAY_MS;
-//    if (_delay == delay) return;
     
-    NSString *cmd = [NSString stringWithFormat:@"cwx delay %i", delay];
-    
-    commandUpdateNotify(cmd, @"delay", _delay, delay);
+    // override if delay is too large or too small
+    int newDelay = delay;
+    if (newDelay < 0) newDelay = 0;
+    if (newDelay > MAX_CWX_DELAY_MS) newDelay = MAX_CWX_DELAY_MS;
+    if (_delay != newDelay) {
+        // delay is being changed
+        NSString *cmd = [NSString stringWithFormat:@"cwx delay %i", newDelay];
+        commandUpdateNotify(cmd, @"delay", _delay, newDelay);
+    } else if (newDelay != delay) {
+        // delay was overridden but did not change the existing value
+        [self didChangeValueForKey:@"delay"];
+    }
 }
-
 
 - (void) setSpeed:(int)speed {
-    if (speed < MIN_CWX_SPEED) speed = MIN_CWX_SPEED;
-    if (speed > MAX_CWX_SPEED) speed = MAX_CWX_SPEED;
-//    if (_speed == speed) return;
-    
-    NSString *cmd = [NSString stringWithFormat:@"cwx wpm %i", speed];
-    
-    commandUpdateNotify(cmd, @"speed", _speed, speed);
+
+    // override if speeed is too large or too small
+    int newSpeed = speed;
+    if (newSpeed < MIN_CWX_SPEED) newSpeed = MIN_CWX_SPEED;
+    if (newSpeed > MAX_CWX_SPEED) newSpeed = MAX_CWX_SPEED;
+    if (_speed != newSpeed) {
+        // speed is being changed
+        NSString *cmd = [NSString stringWithFormat:@"cwx wpm %i", newSpeed];
+        commandUpdateNotify(cmd, @"speed", _speed, newSpeed);
+    } else if (newSpeed != speed) {
+        // speed was overridden but did not change the existing value
+        [self didChangeValueForKey:@"speed"];
+    }
 }
 
-
-- (bool) setMacro:(int)index macro:(NSString *) msg {
+- (BOOL) setMacro:(int)index macro:(NSString *) msg {
     if (index < 0 || index > MAX_NUMBER_OF_MACROS - 1) return false;
     
     NSString *cmd = [NSString stringWithFormat:@"cwx macro save %i \"%@\"" , index + 1, msg];
@@ -147,43 +179,7 @@ dispatch_async(self.cwxRunQueue, ^(void) { \
     return true;
 }
 
-
-- (bool) getMacro:(int)index macro:(NSString **)string {
-    *string = @"";
-    if (index < 0 || index > MAX_NUMBER_OF_MACROS - 1) return false;
-    *string = (NSString *)_macros[index];
-    return true;
-}
-
-
-- (int) sendMacro:(int) index {
-    if (index < 0 || index > MAX_NUMBER_OF_MACROS - 1) return 0;
-    NSString *cmd = [NSString stringWithFormat:@"cwx macro send %i", index + 1];
-    return [_radio commandToRadio:cmd notify:self];
-}
-
-
-- (void) clearBuffer {
-    [_radio commandToRadio:@"cwx clear"];
-}
-
-
-- (void) erase:(int)numberOfChars {
-    NSString *cmd = [NSString stringWithFormat:@"cwx erase %i", numberOfChars];
-    [_radio commandToRadio:cmd ];
-}
-
-
-- (void) send:(NSString *) string {
-    NSString *cmd = [NSString stringWithFormat:@"cwx send \"%@\"", string];
-    [_radio commandToRadio:cmd];
-}
-
-
-- (void) send:(NSString *) string andBlock:(int) block {
-    NSString *cmd = [NSString stringWithFormat:@"cwx send \"%@\" %i", string, block];
-    [_radio commandToRadio:cmd];
-}
+#pragma mark - RadioDelegate protocol methods
 
 //
 // sendMacroCommand Response
@@ -228,9 +224,9 @@ dispatch_async(self.cwxRunQueue, ^(void) { \
     }
 }
 
-// Private Macro
-//
-// Macro to perform inline update on an ivar with KVO notification
+#pragma mark - RadioParser protocol methods
+
+// Private Macro to perform inline update on an ivar with KVO notification
 
 #define updateWithNotify(key,ivar,value)  \
 {    \
@@ -261,7 +257,7 @@ dispatch_async(dispatch_get_main_queue(), ^(void) { \
     // We could also have an equal sign '=' (for Prosign BT) inside the quotes, so we're converting to a '*' so that the split on "="
     // will still work.  This will prevent the character '*' from being stored in a macro.  Using the ascii byte for '=' will not work.
     NSString *newString = @"";
-    bool quotes = false;
+    BOOL quotes = false;
     for (int i = 0 ; i < all.length; i++) {
         NSString *c = [all substringWithRange:NSMakeRange(i, 1)];
         if ([c isEqualToString:@"\""])
@@ -344,6 +340,18 @@ dispatch_async(dispatch_get_main_queue(), ^(void) { \
             }
         }
     }
+}
+
+#pragma mark - Private methods
+
+- (void) initcwxTokens {
+    self.cwxTokens = [[NSDictionary alloc] initWithObjectsAndKeys:
+                      [NSNumber numberWithInteger:breakinDelay], @"break_in_delay",
+                      [NSNumber numberWithInteger:eraseSent], @"erase",
+                      [NSNumber numberWithInteger:macro], @"macro",
+                      [NSNumber numberWithInteger:sent], @"sent",
+                      [NSNumber numberWithInteger:wpm], @"wpm",
+                      nil];
 }
 
 @end
