@@ -585,6 +585,7 @@ BOOL subscribedToDisplays = NO;
         self.clientId = clientId;
         connectionState = 0;
         subscribedToDisplays = NO;
+        self.delegate = theDelegate;
         
         // Create a private run queue for us to run on
         NSString *qName = @"net.k6tu.RadioQueue";
@@ -655,7 +656,6 @@ BOOL subscribedToDisplays = NO;
         self.memoryList = [[NSMutableArray alloc] init];
         
         connectionState = connecting;
-        self.delegate = theDelegate;
         
         // Set up list for notification of command results
         self.notifyList = [[NSMutableDictionary alloc]init];
@@ -3586,12 +3586,17 @@ BOOL subscribedToDisplays = NO;
 #pragma mark
 #pragma mark Socket Delegates
 
-
-- (void) socket:(GCDAsyncSocket *)sock socketDidDisconnect:(NSError *)err  {
-    if (err.code == GCDAsyncSocketConnectTimeoutError)
-        connectionState = connectFailed;
-    else
+- (void)socketDidDisconnect:(GCDAsyncSocket *)sock withError:(NSError *)err {
+    if (!err) {
         connectionState = disConnected;
+    } else if ([err.domain isEqualToString:GCDAsyncSocketErrorDomain]) {
+        // Error is reported from GCDAsyncSocket
+        if (err.code == GCDAsyncSocketConnectTimeoutError)
+            connectionState = connectFailed;
+        else
+            connectionState = connectFailed;
+    } else
+        connectionState = connectFailed;
     
     if ([self.delegate respondsToSelector:@selector(radioConnectionStateChange:state:)]) {
         __weak Radio *safeSelf = self;

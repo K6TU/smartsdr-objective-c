@@ -50,6 +50,7 @@
 @property (readwrite, nonatomic) Float64 minBW;                              // Minimum bandwidth in MHz (Float)
 @property (readwrite, nonatomic) Float64 maxBW;                              // Maximum bandwidth in MHz (Float)
 @property (readwrite, nonatomic) long int daxIQRate;                         // DAX IQ Rate in bps (LONG INT)
+@property (readwrite, nonatomic) BOOL nbUpdating;                            // NB recalculating threshold (BOOL)
 @property (strong, readwrite, nonatomic) NSString *xvtrLabel;                // Label of selected XVTR profile (STRING)
 @property (strong, readwrite, nonatomic) NSString *preLabel;                 // Label of preselector selected (STRING)
 @property (strong, readwrite, nonatomic) NSArray *antList;                   // Array of NSString of antenna options available
@@ -98,6 +99,7 @@ enum panafallToken {
     antListToken,
     nbPanToken,
     nbLevelPanToken,
+    nbUpdatingToken,
 };
 
 
@@ -123,6 +125,7 @@ enum panafallToken {
                            [NSNumber numberWithInteger:loopbToken], @"loopb",
                            [NSNumber numberWithInteger:nbPanToken], @"nb",
                            [NSNumber numberWithInteger:nbLevelPanToken], @"nb_level",
+                           [NSNumber numberWithInteger:nbUpdatingToken], @"nb_updating",
                            [NSNumber numberWithInteger:bandToken], @"band",
                            [NSNumber numberWithInteger:daxIqToken], @"daxiq",
                            [NSNumber numberWithInteger:daxIqRateToken] , @"daxiq_rate",
@@ -310,35 +313,43 @@ enum panafallToken {
                 break;
                 
             case centerToken:
-                updateWithNotify(@"center", _center, [v floatValue]);
+                if (_center != [v floatValue])
+                    updateWithNotify(@"center", _center, [v floatValue]);
                 break;
                 
             case bandwidthToken:
-                updateWithNotify(@"bandwidth", _bandwidth, [v floatValue]);
+                if (_bandwidth != [v floatValue])
+                    updateWithNotify(@"bandwidth", _bandwidth, [v floatValue]);
                 break;
                 
             case minDbmToken:
-                updateWithNotify(@"minDbm", _minDbm, [v floatValue]);
+                if (_minDbm != [v floatValue])
+                    updateWithNotify(@"minDbm", _minDbm, [v floatValue]);
                 break;
                 
             case maxDbmToken:
-                updateWithNotify(@"maxDbm", _maxDbm, [v floatValue]);
+                if (_maxDbm != [v floatValue])
+                    updateWithNotify(@"maxDbm", _maxDbm, [v floatValue]);
                 break;
                 
             case fpsToken:
-                updateWithNotify(@"fps", _fps, (int)[v integerValue]);
+                if (_fps != [v integerValue])
+                    updateWithNotify(@"fps", _fps, (int)[v integerValue]);
                 break;
                 
             case averageToken:
-                updateWithNotify(@"average", _average, (int)[v integerValue]);
+                if (_average != [v integerValue])
+                    updateWithNotify(@"average", _average, (int)[v integerValue]);
                 break;
                 
             case weightedAverageToken:
-                updateWithNotify(@"weightedAverage", _weightedAverage, [v integerValue] ? YES : NO);
+                if (_weightedAverage != [v boolValue])
+                    updateWithNotify(@"weightedAverage", _weightedAverage, [v integerValue] ? YES : NO);
                 break;
                 
             case rfGainToken:
-                updateWithNotify(@"rfGain", _rfGain, (int)[v integerValue]);
+                if (_rfGain != [v integerValue])
+                    updateWithNotify(@"rfGain", _rfGain, (int)[v integerValue]);
                 break;
                 
             case rxAntToken:
@@ -346,23 +357,33 @@ enum panafallToken {
                 break;
                 
             case wideToken:
-                updateWithNotify(@"wide", _wide, [v integerValue] ? YES : NO);
+                if (_wide != [v boolValue])
+                    updateWithNotify(@"wide", _wide, [v integerValue] ? YES : NO);
                 break;
                 
             case loopaToken:
-                updateWithNotify(@"loopa", _loopA, [v integerValue] ? YES : NO);
+                if (_loopA != [v boolValue])
+                    updateWithNotify(@"loopa", _loopA, [v integerValue] ? YES : NO);
                 break;
                 
             case loopbToken:
-                updateWithNotify(@"loopb", _loopB, [v integerValue] ? YES : NO);
+                if (_loopB != [v boolValue])
+                    updateWithNotify(@"loopb", _loopB, [v integerValue] ? YES : NO);
                 break;
                 
             case nbPanToken:
-                updateWithNotify(@"nb", _nb, [v integerValue] ? YES : NO);
+                if (_nb != [v boolValue])
+                    updateWithNotify(@"nb", _nb, [v integerValue] ? YES : NO);
                 break;
 
             case nbLevelPanToken:
-                updateWithNotify(@"nbLevel", _nbLevel, (int)[v integerValue]);
+                if (_nbLevel != [v integerValue])
+                    updateWithNotify(@"nbLevel", _nbLevel, (int)[v integerValue]);
+                break;
+                
+            case nbUpdatingToken:
+                if (_nbUpdating != [v boolValue])
+                    updateWithNotify(@"nbUpdating", _nbUpdating, [v boolValue]);
                 break;
                 
             case bandToken:
@@ -370,19 +391,23 @@ enum panafallToken {
                 break;
                 
             case daxIqToken:
-                updateWithNotify(@"daxiq", _daxIQ, [v integerValue] ? YES : NO);
+                if (_daxIQ != [v boolValue])
+                    updateWithNotify(@"daxiq", _daxIQ, [v integerValue] ? YES : NO);
                 break;
                 
             case daxIqRateToken:
-                updateWithNotify(@"daxIQRate", _daxIQRate, [v integerValue]);
+                if (_daxIQRate != [v integerValue])
+                    updateWithNotify(@"daxIQRate", _daxIQRate, [v integerValue]);
                 break;
                 
             case capacityToken:
-                updateWithNotify(@"capacity", _capacity, (int)[v integerValue]);
+                if (_capacity != [v integerValue])
+                    updateWithNotify(@"capacity", _capacity, (int)[v integerValue]);
                 break;
                 
             case availableToken:
-                updateWithNotify(@"available", _available, (int)[v integerValue]);
+                if (_available != [v integerValue])
+                    updateWithNotify(@"available", _available, (int)[v integerValue]);
                 break;
                 
             case waterfallToken:
@@ -394,11 +419,13 @@ enum panafallToken {
                 break;
                 
             case minBwToken:
-                updateWithNotify(@"minBW", _minBW, [v floatValue]);
+                if (_minBW != [v floatValue])
+                    updateWithNotify(@"minBW", _minBW, [v floatValue]);
                 break;
                 
             case maxBwToken:
-                updateWithNotify(@"maxBW", _maxBW, [v floatValue]);
+                if (_maxBW != [v floatValue])
+                    updateWithNotify(@"maxBW", _maxBW, [v floatValue]);
                 break;
                 
             case xvtrToken:

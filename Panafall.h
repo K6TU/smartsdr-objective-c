@@ -107,6 +107,7 @@
 @property (nonatomic) BOOL loopB;                                           // Enable LOOPB for RXB (BOOL)
 @property (nonatomic) BOOL nb;                                              // Enable NB on this panafall
 @property (nonatomic) BOOL nbLevel;                                         // Noise Blanker level - 0-100
+@property (nonatomic, readonly) BOOL nbUpdating;                            // NB is recalculating its threshold (BOOL)
 @property (strong, nonatomic) NSString *band;                               // Band encompassed by this pan (STRING)
 @property (nonatomic) int daxIQ;                                            // DAX IQ channel number for this pan (INT 0=none)
 @property (readonly, nonatomic) long int daxIQRate;                         // DAX IQ Rate in bps (LONG INT)
