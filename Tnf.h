@@ -38,7 +38,6 @@
 #import "Radio.h"
 
 
-@class Radio;
 
 @interface Tnf  : NSObject <RadioParser>
 
@@ -49,14 +48,14 @@
 @property (nonatomic, readonly) uint ID;                    // unique ID number
 @property (nonatomic, readwrite) double frequency;          // Frequency in MHz
 @property (nonatomic, readwrite) uint depth;                // 1=Normal, 2=Deep, 3=Very Deep
-@property (nonatomic, readwrite) bool permanent;            // True=Freq & Width fixed
-@property (nonatomic, readwrite) bool radioAck;             // True if all properties are set
+@property (nonatomic, readwrite) BOOL permanent;            // True=Freq & Width fixed
+@property (nonatomic, readwrite) BOOL radioAck;             // True if all properties are set
 @property (nonatomic, readwrite) double width;              // Width in MHz
 
 
-- (id) initWithRadio:(Radio *) radio ID:(uint)ID freq:(double)freq depth:(uint)depth width:(double)width permanent:(bool)permanent;
+- (id) initWithRadio:(Radio *) radio ID:(uint)ID freq:(double)freq depth:(uint)depth width:(double)width permanent:(BOOL)permanent;
 - (id) initWithRadio:(Radio *)radio ID:(uint)ID freq:(double)freq;
 - (id) initWithRadio:(Radio *)radio ID:(uint)ID;
-- (void) removeWithCommands:(bool)sendCommands;
+- (void) removeWithCommands:(BOOL)sendCommands;
 
 @end

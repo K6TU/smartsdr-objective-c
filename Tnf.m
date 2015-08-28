@@ -42,7 +42,7 @@
 
 // TNF ID number
 @property (nonatomic, readwrite) uint ID;
-// Radio object to which this Cwx belongs
+// Radio object to which this Tnf belongs
 @property (weak, nonatomic, readwrite) Radio *radio;
 // Pointer to private run queue for Tnf
 @property (strong, nonatomic) dispatch_queue_t tnfRunQueue;
@@ -52,7 +52,7 @@
 @end
 
 
-enum tnfToken {
+typedef NS_ENUM(int, TnfToken) {
     tnfNullToken = 0,
     depth,
     frequency,
@@ -68,7 +68,7 @@ enum tnfToken {
 //
 // Designated initializer
 //
-- (id)initWithRadio:(Radio *) radio ID:(uint)ID freq:(double)freq depth:(uint)depth width:(double)width permanent:(bool)permanent  {
+- (id)initWithRadio:(Radio *) radio ID:(uint)ID freq:(double)freq depth:(uint)depth width:(double)width permanent:(BOOL)permanent  {
     self = [super init];
     
     _radio = radio;
@@ -97,7 +97,7 @@ enum tnfToken {
     return self;
 }
 
-- (void) removeWithCommands:(bool)sendCommands {
+- (void) removeWithCommands:(BOOL)sendCommands {
     if (sendCommands) {
         // tell the Radio (hardware)
         NSString *cmd = [NSString stringWithFormat:@"tnf remove %i", _ID];
@@ -124,29 +124,46 @@ dispatch_async(self.tnfRunQueue, ^(void) { \
 });
 
 - (void) setDepth:(uint)depth {
-    // validate the depth
-    if (depth > 3 || depth < 1) {return; }
-    NSString *cmd = [NSString stringWithFormat:@"tnf set %i depth=%i", _ID, depth];
-    commandUpdateNotify(cmd, @"depth", _depth, depth);
+    
+    if (_depth != depth) {
+        // validate the depth
+        if (depth > 3 || depth < 1) {return; }
+        NSString *cmd = [NSString stringWithFormat:@"tnf set %i depth=%i", _ID, depth];
+        commandUpdateNotify(cmd, @"depth", _depth, depth);
+    }
 }
 
 - (void) setFrequency:(double)frequency {
     
-    NSString *cmd = [NSString stringWithFormat:@"tnf set %i freq=%0.6f", _ID, frequency];
-    commandUpdateNotify(cmd, @"frequency", _frequency, frequency);
+    if (_frequency != frequency) {
+        NSString *cmd = [NSString stringWithFormat:@"tnf set %i freq=%0.6f", _ID, frequency];
+        commandUpdateNotify(cmd, @"frequency", _frequency, frequency);
+    }
 }
 
-- (void) setPermanent:(bool)permanent {
+- (void) setPermanent:(BOOL)permanent {
     
-    NSString *cmd = [NSString stringWithFormat:@"tnf set %i permanent=%i", _ID, permanent ? 1 : 0];
-    commandUpdateNotify(cmd, @"permanent", _permanent, permanent);
+    if (_permanent != permanent) {
+        NSString *cmd = [NSString stringWithFormat:@"tnf set %i permanent=%i", _ID, permanent ? 1 : 0];
+        commandUpdateNotify(cmd, @"permanent", _permanent, permanent);
+    }
 }
 
 - (void) setWidth:(double)width {
-    // validate the width
-    if (width > 6000 * 1e-6 || width < 5 * 1e-6) {return; }
-    NSString *cmd = [NSString stringWithFormat:@"tnf set %i width=%f", _ID, width];
-    commandUpdateNotify(cmd, @"width", _width, width);
+    if (_width != width) {
+        // validate the width
+        if (width > 6000 * 1e-6 || width < 5 * 1e-6) {return; }
+        NSString *cmd = [NSString stringWithFormat:@"tnf set %i width=%f", _ID, width];
+        commandUpdateNotify(cmd, @"width", _width, width);
+    }
+}
+
+- (void) setRadioAck:(BOOL)radioAck {
+    if (_radioAck != radioAck) {
+        [self willChangeValueForKey:@"radioAck"];
+        _radioAck = radioAck;
+        [self didChangeValueForKey:@"radioAck"];
+    }
 }
 
 #pragma mark - RadioParser protocol methods

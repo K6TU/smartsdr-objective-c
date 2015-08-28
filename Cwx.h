@@ -76,8 +76,8 @@
 
 
 - (id)initWithRadio:(Radio *) radio;
-- (bool) setMacro:(int)index macro:(NSString *) msg;
-- (bool) getMacro:(int)index macro:(NSString **)string;
+- (BOOL) setMacro:(int)index macro:(NSString *) msg;
+- (BOOL) getMacro:(int)index macro:(NSString **)string;
 - (int) sendMacro:(int) index;
 - (void) clearBuffer;
 - (void) erase:(int)numberOfChars;

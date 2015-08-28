@@ -47,6 +47,8 @@
 #import "OpusAudio.h"
 #import "Cwx.h"
 #import "Tnf.h"
+#import "Memory.h"
+
 
 @interface Radio ()
 
@@ -96,6 +98,7 @@
 @property (strong, readwrite, nonatomic) Cwx *cwx;                              // Cwx object
 @property (strong, nonatomic, readwrite) NSMutableArray *tnfs;                  // Array of TNF's
 
+@property (strong, nonatomic, readwrite) NSMutableArray *memoryList;            // Array of Memories
 
 
 - (void) initStatusTokens;
@@ -118,7 +121,6 @@
 - (void) parseAudioStreamToken:(NSScanner *) scan selfStatus: (BOOL) selfStatus;
 - (void) parseOpusStreamToken:(NSScanner *) scan selfStatus: (BOOL) selfStatus;
 - (void) parseMeterToken: (NSScanner *) scan;
-- (void) parseGpsToken: (NSScanner *) scan;
 - (void) parseProfileToken: (NSScanner *) scan;
 - (void) parseCwxToken: (NSScanner *) scan selfStatus:(BOOL)selfStatus;
 - (void) parseInterlockToken: (NSScanner *) scan;
@@ -151,6 +153,7 @@ enum enumStatusTokens {
     audioStreamToken,
     opusStreamToken,
     tnfToken,
+    memoryToken,
 };
 
 enum enumStatusMixerTokens {
@@ -330,6 +333,7 @@ BOOL subscribedToDisplays = NO;
                          [NSNumber numberWithInt:audioStreamToken], @"audio_stream",
                          [NSNumber numberWithInt:opusStreamToken], @"opus_stream",
                          [NSNumber numberWithInt:tnfToken], @"tnf",
+                         [NSNumber numberWithInt:memoryToken], @"memory",
                          nil];
     self.notifyList = [[NSMutableDictionary alloc]init];
 }
@@ -647,7 +651,8 @@ BOOL subscribedToDisplays = NO;
         self.equalizers[0] = [[NSNull alloc] init];
         self.equalizers[1] = [[NSNull alloc] init];
 
-        self.tnfs = [[NSMutableArray alloc]init];
+        self.tnfs = [[NSMutableArray alloc] init];
+        self.memoryList = [[NSMutableArray alloc] init];
         
         connectionState = connecting;
         self.delegate = theDelegate;
@@ -821,7 +826,6 @@ BOOL subscribedToDisplays = NO;
     [self commandToRadio:@"sub meter all"];
     [self commandToRadio:@"sub pan all"];
     [self commandToRadio:@"sub slice all"];
-    [self commandToRadio:@"sub gps all"];
     [self commandToRadio:@"sub audio_stream all"];
     [self commandToRadio:@"sub cwx all"];
     [self commandToRadio:@"sub xvtr all"];
@@ -1419,7 +1423,7 @@ BOOL subscribedToDisplays = NO;
             break;
             
         case gpsToken:
-            [self parseGpsToken: scan];
+            // not implemented
             break;
             
         case profileToken:
@@ -1446,6 +1450,10 @@ BOOL subscribedToDisplays = NO;
             [self parseTnfToken: scan selfStatus:selfStatus];
             break;
         
+        case memoryToken:
+            [self parseMemoryToken: scan selfStatus:selfStatus];
+            break;
+            
         default:
             NSLog(@"Unexpected token in parseStatusType - %@", sourceToken);
             break;
@@ -1677,12 +1685,6 @@ BOOL subscribedToDisplays = NO;
             [[NSNotificationCenter defaultCenter] postNotificationName:@"MeterCreated" object:thisMeter];
         });
     }
-}
-
-
-
-- (void) parseGpsToken: (NSScanner *) scan {
-    
 }
 
 //
@@ -2529,22 +2531,66 @@ BOOL subscribedToDisplays = NO;
     
     Tnf *tnf = [self findTnfById:(uint)tnfNumber];
     if (tnf == nil) {
-        if ([scan.string rangeOfString:@"removed"].location != NSNotFound) {
-            return;
-        }
+        // stop processing if Tnf is "removed"
+        if ([scan.string rangeOfString:@"removed"].location != NSNotFound) { return; }
+        // create a new Tnf
         tnf = [[Tnf alloc] initWithRadio:self ID:(uint)tnfNumber];
         addNewTnf = YES;
     }
     if ([scan.string rangeOfString:@"removed"].location != NSNotFound) {
+        // if found but marked "removed", remove Tnf
         [self removeTnf:tnf];
     } else {
+        // pass the Status to the Tnf for parsing
         [tnf statusParser:scan selfStatus:selfStatus];
     }
+    // if a new Tnf was added, add it to the tnfs collection
     if (addNewTnf) {
         [self addTnf:tnf];
     }
 }
 
+
+//
+// Parse Memory tokens
+//      called on the GCD thread associated with the GCD tcpSocketQueue
+//
+//      format: <apiHandle>|memory <memoryIndex> <key=value> <key=value> ...<key=value>
+//
+//      scan is initially at scanLocation = 16, start of the <memoryIndex>
+//      "<apiHandle>|memory " has already been processed
+//
+- (void) parseMemoryToken:(NSScanner *) scan selfStatus:(BOOL) selfStatus {
+    int memoryIndex;
+    BOOL addNewMemory = NO;
+    
+    // Extract the Memory index
+    [scan scanInt: &memoryIndex];
+    // skip the " "
+    [scan scanString:@" " intoString: nil];
+    
+    Memory *mem = [self findMemoryByIndex: memoryIndex];
+    if (mem == nil) {
+        // stop processing if Memory is "removed"
+        if ([scan.string rangeOfString: @"removed"].location != NSNotFound) { return; }
+        // create a new Memory
+        mem = [[Memory alloc] initWithRadio: self];
+        mem.index = memoryIndex;
+        addNewMemory = YES;
+    }
+    if ([scan.string rangeOfString:@"removed"].location != NSNotFound) {
+        // if found but marked "removed", remove Memory
+        mem.radioAck = NO;
+        [self removeMemory: mem];
+    } else {
+        // pass the Status to the Memory for parsing
+        [mem statusParser: scan selfStatus: selfStatus];
+    }
+    // if a new Memory was added, add it to the tnfs collection
+    if (addNewMemory) {
+        [self addMemory: mem];
+    }
+}
 
 #pragma mark
 #pragma mark Radio Setter methods
@@ -3317,12 +3363,10 @@ BOOL subscribedToDisplays = NO;
         // find the TNF & add it (if NOT found)
         if ([ self findTnfById:tnf.ID] == nil) {
             [_tnfs addObject:tnf];
-            // TNF added, inform the Event Handler (if any)
-            if (_tnfEventDelegate != nil) {
-                if ([_tnfEventDelegate respondsToSelector:@selector(tnfAdded:)]) {
-                    [_tnfEventDelegate tnfAdded: tnf ];
-                }
-            }
+            // TNF added, inform any listeners
+            dispatch_async(dispatch_get_main_queue(), ^(void) {
+                [[NSNotificationCenter defaultCenter] postNotificationName:@"TnfCreated" object: tnf];
+            });
         }
     }
 }
@@ -3334,12 +3378,10 @@ BOOL subscribedToDisplays = NO;
         // find the TNF & remove it (if found)
         if ([ self findTnfById:tnf.ID] != nil) {
             [_tnfs removeObject:tnf];
-            // TNF removed, inform the Event Handler (if any)
-            if (_tnfEventDelegate != nil) {
-                if ([_tnfEventDelegate respondsToSelector:@selector(tnfRemoved:)]) {
-                    [_tnfEventDelegate tnfRemoved: tnf ];
-                }
-            }
+            // TNF removed, inform any listeners
+            dispatch_async(dispatch_get_main_queue(), ^(void) {
+                [[NSNotificationCenter defaultCenter] postNotificationName:@"TnfDeleted" object: tnf];
+            });
         }
     }
 }
@@ -3376,7 +3418,7 @@ BOOL subscribedToDisplays = NO;
 //
 // Change the Permanance of an existing TNF
 //
-- (void) updateTnfPermanent:(uint)ID permanent:(bool)permanent {
+- (void) updateTnfPermanent:(uint)ID permanent:(BOOL)permanent {
     // find the TNF & update it (if found)
     Tnf *tnf = [self findTnfById:ID];
     if (tnf != nil) {
@@ -3449,6 +3491,89 @@ BOOL subscribedToDisplays = NO;
         for (Tnf *tnf in _tnfs) {
             if (tnf.ID == ID) {
                 return tnf;
+            }
+        }
+    }
+    return nil;
+}
+//
+// Return an array of Tnf's for a given Panafall
+//
+- (NSArray *)findTnfsByPanafall:(NSString *) streamId {
+    Panafall * pan = nil;
+    // find the Panafall
+    @synchronized(_panafalls) {
+        pan = [_panafalls objectForKey: streamId];
+    }
+    // if not found, return an empty list of Tnf's
+    if (pan == nil) { return [[NSArray alloc] init]; }
+    
+    NSMutableArray * panTnfs = [[NSMutableArray alloc] init];
+    // get the frequency bounds of the Panafall
+    Float32 lowerFrequency = pan.center - (pan.bandwidth/2.0);
+    Float32 upperFrequency = pan.center + (pan.bandwidth/2.0);
+    // find all of the Tnf's within the range of the Panafall
+    @synchronized(_tnfs) {
+        for (Tnf * tnf in _tnfs) {
+            if(tnf.frequency >= lowerFrequency || tnf.frequency <= upperFrequency) {
+                [panTnfs addObject: tnf];
+            }
+        }
+    }
+    return [NSArray arrayWithArray: panTnfs];
+}
+//
+// Add a Memory to the memoryList collection
+//
+- (void) addMemory:(Memory *)mem {
+    @synchronized(_memoryList) {
+        // find the Memory, exit if found
+        if ([ self findMemoryByIndex: mem.index] != nil) { return; }
+
+        [self willChangeValueForKey: @"memoryList"];
+        [_memoryList addObject: mem];
+        [self didChangeValueForKey: @"memoryList"];
+    }
+}
+//
+// Inform the memoryEventDelegate (if any) that a Memory was added
+//
+- (void) onMemoryAdded:(Memory *)mem {
+    // Memory added, inform the Event Handler (if any)
+    if (_memoryEventDelegate != nil) {
+        if ([_memoryEventDelegate respondsToSelector:@selector(memoryAdded:)]) {
+            [_memoryEventDelegate memoryAdded: mem ];
+        }
+    }
+}
+//
+// Remove a Memory from the memoryList collection and call the memoryEventDelegate's memoryRemoved: (if any)
+//
+- (void) removeMemory:(Memory *)mem {
+    @synchronized(_memoryList) {
+        // find the Memory, exit if NOT found
+        if ([ self findMemoryByIndex: mem.index] == nil) { return; }
+        
+        [self willChangeValueForKey: @"memoryList"];
+        [_memoryList removeObject: mem];
+        [self didChangeValueForKey: @"memoryList"];
+        
+        // Memory removed, inform the Event Handler (if any)
+        if (_memoryEventDelegate != nil) {
+            if ([_memoryEventDelegate respondsToSelector:@selector(memoryRemoved:)]) {
+                [_memoryEventDelegate memoryRemoved: mem ];
+            }
+        }
+    }
+}
+//
+// Given a Memory index, return a reference to the Memory
+//
+- (Memory *) findMemoryByIndex:(int)index {
+    @synchronized(_memoryList) {
+        for (Memory *mem in _memoryList) {
+            if (mem.index == index) {
+                return mem;
             }
         }
     }

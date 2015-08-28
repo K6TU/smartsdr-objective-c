@@ -104,6 +104,7 @@ enum radioAtuState {
 @class OpusAudio;
 @class Cwx;
 @class Tnf;
+@class Memory;
 
 @protocol RadioDelegate <NSObject>
 @optional
@@ -158,6 +159,14 @@ enum radioAtuState {
 - (void) tnfAdded:(Tnf *)tnf;
 - (void) tnfRemoved:(Tnf *)tnf;
 @end
+
+@protocol MemoryEventHandler <NSObject>
+
+@optional
+- (void) memoryAdded:(Memory *)mem;
+- (void) memoryRemoved:(Memory *)mem;
+@end
+
 
 #define MAX_SLICES_PER_RADIO    8
 
@@ -352,6 +361,8 @@ enum radioAtuState {
 @property (nonatomic) NSNumber *tnfEnabled;                         // Set true if TNF's are enabled - BOOL
 @property (strong, nonatomic, readonly) NSMutableArray *tnfs;       // Array of TNF's
 
+@property (strong, nonatomic, readonly) NSMutableArray *memoryList; // Array of Memories
+
 
 // Class methods
 
@@ -401,14 +412,20 @@ enum radioAtuState {
 - (void) updateTnfFrequency:(uint)ID freq:(double)freq;             // Update the Frequency of an existing TNF
 - (void) updateTnfWidth:(uint)ID width:(double)width;               // Update the width of an existing TNF
 - (void) updateTnfDepth:(uint)ID depth:(uint)depth;                 // Update the Depth of an existing TNF
-- (void) updateTnfPermanent:(uint)ID permanent:(bool)permanent;     // Update the Permanent of an existing TNF
+- (void) updateTnfPermanent:(uint)ID permanent:(BOOL)permanent;     // Update the Permanent of an existing TNF
 - (void) requestTnf:(double)freq panID:(NSString *)panID;           // Create a TNF on the specified Pan at the specified Frequency
+
+- (void) addMemory:(Memory *)mem;
+- (void) removeMemory:(Memory *)mem;
+- (void) onMemoryAdded:(Memory *)mem;
+- (Memory *) findMemoryByIndex:(int)index;
+
 //
 // The delegate handling here will be invoked on our run queue (or the TCP socket run queue more likely).
 // It will NOT be called on the main dispatch queue. If there are any UI updates that are interested in the update,
 // the user will have to arrange for their own dispatch onto the main queue to make the UI changes there.
 //
-@property (weak, nonatomic) id<TNFEventHandler> tnfEventDelegate;
+@property (weak, nonatomic) id<MemoryEventHandler> memoryEventDelegate;
 
 
 @end
