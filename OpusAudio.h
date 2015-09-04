@@ -70,6 +70,8 @@
 @property (nonatomic, readonly) NSInteger txRate;                           // TX rate in bytes/second
 @property (weak, nonatomic) id <OpusStreamHandler> delegate;                // Delegate to handle the receive stream
 @property (nonatomic) dispatch_queue_t runQueue;                            // Run queue for this Opus instance
+@property (nonatomic) DDLogLevel debugLogLevel;                             // Set for level of debugging
+
 
 - (void) setDelegate:(id<OpusStreamHandler>)delegate runQueue:(dispatch_queue_t) runQueue;
 - (void) streamSend:(NSData *) frame;

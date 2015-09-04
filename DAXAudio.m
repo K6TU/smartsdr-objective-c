@@ -70,6 +70,8 @@
 @end
 
 
+static DDLogLevel ddLogLevel = DDLogLevelError;
+
 enum audioStreamTokens {
     noneToken = 0,
     daxToken,
@@ -145,6 +147,7 @@ enum audioStreamTokens {
     
     self.radio = radio;
     self.daxChannel = daxChannel;
+    self.debugLogLevel = radio.debugLogLevel;
 
     // Ask the radio to set up the stream for us
     [radio cmdNewAudioStream:daxChannel];
@@ -196,7 +199,7 @@ enum audioStreamTokens {
     self.rxBytes = self.rcRxBytes;
     self.txBytes = self.rcTxBytes;
     
-    NSLog(@"Rx: %li  RxR: %li  Lost:%li", (long)self.rcRxPackets, (long)self.rxRate, (long)self.rcLostPacketCount);
+    DDLogVerbose(@"Rx: %li  RxR: %li  Lost:%li", (long)self.rcRxPackets, (long)self.rxRate, (long)self.rcLostPacketCount);
 }
 
 //
@@ -422,7 +425,7 @@ enum audioStreamTokens {
                 
             default:
                 // Ignore
-                NSLog(@"AudioStream statusParser: Unknown key %@", k);
+                DDLogVerbose(@"AudioStream statusParser: Unknown key %@", k);
                 break;
         }
     }
@@ -445,6 +448,15 @@ enum audioStreamTokens {
 
 - (void) willRemoveStreamProcessor {
     
+}
+
+
+#pragma mark
+#pragma mark Custom Setters
+
+-(void) setDebugLogLevel:(DDLogLevel)debugLogLevel {
+    ddLogLevel = debugLogLevel;
+    _debugLogLevel = debugLogLevel;
 }
     
 #pragma mark

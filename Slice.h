@@ -131,6 +131,8 @@
 @property (strong, nonatomic) NSNumber *loopBEnabled;               // Loop B enabled - BOOL
 @property (strong, nonatomic) NSNumber *qskEnabled;                 // QSK capable on slice - BOOL
 @property (strong, nonatomic) NSString *panForSlice;                // Pan adaptor stream for this slice - STRING
+@property (nonatomic) DDLogLevel debugLogLevel;                     // Set for level of debugging
+
 
 // Interface of use between Radio and Slice - DO NOT USE
 - (id) initWithRadio: (Radio *) radio sliceNumber: (NSInteger) sliceNum;

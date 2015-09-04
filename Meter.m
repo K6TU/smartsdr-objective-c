@@ -55,6 +55,9 @@
 @end
 
 
+static DDLogLevel ddLogLevel = DDLogLevelError;
+
+
 enum meterTokens {
     nullMeterToken = 0,
     srcToken,
@@ -130,7 +133,8 @@ enum meterTokens {
 - (void) setupMeter:(Radio *)radio scan:(NSScanner *) scan {
     // Set up our properties
     self.radio = radio;
-
+    self.debugLogLevel = radio.debugLogLevel;
+    
     // Split the meter into key=value fields, then separate into key and value based on = delimiter
     NSString *all;
     [scan scanUpToString:@"\n" intoString:&all];
@@ -160,7 +164,7 @@ enum meterTokens {
                 else if ([value isEqualToString:@"SLC"])
                     self.meterSource = sliceSource;
                 else {
-                    NSLog(@"Unknown meter source in setupMeter (src=%@", value);
+                    DDLogError(@"Unknown meter source in setupMeter (src=%@)", value);
                     self.meterSource = nullSource;
                 }
                 
@@ -217,10 +221,19 @@ enum meterTokens {
                 break;
                 
             default:
-                NSLog(@"Unkown KV pair in meter - %@", s);
+                DDLogVerbose(@"Unkown KV pair in meter - %@", s);
                 break;
         }
     }
+}
+
+
+#pragma mark
+#pragma mark Custom Setters
+
+-(void) setDebugLogLevel:(DDLogLevel)debugLogLevel {
+    ddLogLevel = debugLogLevel;
+    _debugLogLevel = debugLogLevel;
 }
 
 @end

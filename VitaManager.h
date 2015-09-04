@@ -60,6 +60,8 @@
 
 @property (readonly, nonatomic) NSInteger vitaPort;                     // The UDP port on which this VitaManager is expecting streams
 @property (weak, readonly, nonatomic) Radio *radio;                     // The radio on which we are receiving streams
+@property (nonatomic) DDLogLevel debugLogLevel;                         // Set for level of debugging
+
 
 // handleRadio initiates the VitaManager for the specified radio
 // On success, returns YES after which the vitaPort property provides the port to

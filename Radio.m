@@ -296,6 +296,8 @@ enum enumStatusInterlockStateTokens {
 };
 
 
+static DDLogLevel ddLogLevel = DDLogLevelError;
+
 
 @implementation Radio
 
@@ -593,7 +595,7 @@ BOOL subscribedToDisplays = NO;
                             onPort:[self.radioInstance.port unsignedIntegerValue]
                        withTimeout:5.0
                              error:&error]) {
-            NSLog(@"Error connecting to %@ - %@", self.radioInstance.ipAddress, error);
+            DDLogError(@"Error connecting to %@ - %@", self.radioInstance.ipAddress, error);
             return nil;
         }
 
@@ -654,10 +656,6 @@ BOOL subscribedToDisplays = NO;
         
         self.cwx = [[Cwx alloc] initWithRadio: self];
         
-#ifdef DEBUG
-        self.logRadioMessages = YES;
-#endif
-        
         // Listen for notification of slice deletion
         //[[NSNotificationCenter defaultCenter] addObserver:self
         //                                         selector:@selector(sliceDeleteNotification:)
@@ -665,6 +663,13 @@ BOOL subscribedToDisplays = NO;
         //                                           object:nil];
     }
     return self;
+}
+
+
+- (id) initWithRadioInstanceAndDelegate: (RadioInstance *) thisRadio delegate: (id) theDelegate clientId:(NSString *) clientId logLevel:(DDLogLevel) logLevel {
+    
+    self.debugLogLevel = logLevel;
+    return [self initWithRadioInstanceAndDelegate:thisRadio delegate:theDelegate clientId:clientId];
 }
 
 
@@ -706,7 +711,7 @@ BOOL subscribedToDisplays = NO;
 
 - (void) dealloc {
     [self stopPingTimer];
-    NSLog(@"Radio dealloc completed");
+    DDLogVerbose(@"Radio dealloc completed");
 }
 
 
@@ -762,7 +767,7 @@ BOOL subscribedToDisplays = NO;
         
         // Invoke close - this will close the socket and trigger a disconnect state change to
         // any delegate
-        NSLog(@"Radio timed out - sending radio state change on radioTimedOut");
+        DDLogError(@"Radio timed out - sending radio state change on radioTimedOut");
         
         connectionState = radioTimedOut;
         
@@ -843,8 +848,10 @@ BOOL subscribedToDisplays = NO;
     
     NSString *cmdline = [[NSString alloc] initWithFormat:@"c%@%u|%@\n", verbose ? @"d" : @"", (unsigned int)thisSeq, cmd ];
     
-    if (self.logRadioMessages)
-        NSLog(@"Data sent - %@", cmdline);
+    if ([cmd isEqualToString:@"ping"])
+        DDLogVerbose(@"Data sent - %@", cmdline);
+    else
+        DDLogDebug(@"Data sent - %@", cmdline);
     
     [radioSocket writeData: [cmdline dataUsingEncoding:NSUTF8StringEncoding] withTimeout:-1 tag:(long)thisSeq];
 }
@@ -865,9 +872,11 @@ BOOL subscribedToDisplays = NO;
         self.notifyList[[NSString stringWithFormat:@"%u", thisSeq]] = notifyMe;
     }
     
-    if (self.logRadioMessages)
-        NSLog(@"Data sent - %@", cmdline);
-
+    if ([cmd isEqualToString:@"ping"])
+        DDLogVerbose(@"Data sent - %@", cmdline);
+    else
+        DDLogDebug(@"Data sent - %@", cmdline);
+    
     [radioSocket writeData: [cmdline dataUsingEncoding:NSUTF8StringEncoding] withTimeout:-1 tag:(long)thisSeq];
     return thisSeq;
 }
@@ -915,12 +924,12 @@ BOOL subscribedToDisplays = NO;
     if (callback)
         [self performSelector:callback withObject:cmdResponse];
     else {
-        NSLog(@"radioCommandResponse: selector NULL - seqNum = %u  key = %@", seqNum, key);
+        DDLogError(@"radioCommandResponse: selector NULL - seqNum = %u  key = %@", seqNum, key);
         for (NSString *s in self.notifyList) {
-            NSLog(@"  Waiting key: %@", s);
+            DDLogError(@"  Waiting key: %@", s);
         }
         for (NSString *s in self.responseCallbacks) {
-            NSLog(@"  Callback key: %@", s);
+            DDLogError(@"  Callback key: %@", s);
         }
     }
 #pragma clang diagnostic pop
@@ -1330,7 +1339,7 @@ BOOL subscribedToDisplays = NO;
             break;
             
         default:    // Huh?
-            NSLog(@"Unexpected message type from radio - %@", payload);
+            DDLogError(@"Unexpected message type from radio - %@", payload);
             break;
     }
 }
@@ -1422,7 +1431,7 @@ BOOL subscribedToDisplays = NO;
             break;
             
         default:
-            NSLog(@"Unexpected token in parseStatusType - %@", sourceToken);
+            DDLogVerbose(@"Unexpected token in parseStatusType - %@", sourceToken);
             break;
     }
     return;
@@ -1572,7 +1581,7 @@ BOOL subscribedToDisplays = NO;
                     [pan updateWaterfallRef:wf];
                     [wf updatePanafallRef:pan];
                     
-                    NSLog(@"Pan notify - %@", pan);
+                    DDLogVerbose(@"Pan notify - %@", pan);
                     
                     dispatch_async(dispatch_get_main_queue(), ^(void) {
                         [[NSNotificationCenter defaultCenter] postNotificationName:@"PanafallCreated" object:pan];
@@ -1869,7 +1878,7 @@ BOOL subscribedToDisplays = NO;
                 // Eat until the next space or \n
                 [scan scanUpToCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"]
                                      intoString:nil];
-                NSLog(@"Unexpected token in parseRadioToken - %@", token);
+                DDLogVerbose(@"Unexpected token in parseRadioToken - %@", token);
                 break;
         }
         // Scanner is either at a space or at the end - eat either
@@ -1920,7 +1929,7 @@ BOOL subscribedToDisplays = NO;
                 // Eat until the next space or \n
                 [scan scanUpToCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"]
                                      intoString:nil];
-                NSLog(@"Unexpected token in parseAtuToken - %@", token);
+                DDLogVerbose(@"Unexpected token in parseAtuToken - %@", token);
                 break;
         }
         // Scanner is either at a space or at the end - eat either
@@ -2209,7 +2218,7 @@ BOOL subscribedToDisplays = NO;
                 // Eat until the next space or \n
                 [scan scanUpToCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"]
                                      intoString:nil];
-                NSLog(@"Unexpected token in parseTransmitToken - %@", token);
+                DDLogVerbose(@"Unexpected token in parseTransmitToken - %@", token);
                 break;
         }
         // Scanner is either at a space or at the end - eat either
@@ -2334,7 +2343,7 @@ BOOL subscribedToDisplays = NO;
                 // Eat until the next space or \n
                 [scan scanUpToCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"]
                                      intoString:nil];
-                NSLog(@"Unexpected token in parseInterlockToken - %@", token);
+                DDLogVerbose(@"Unexpected token in parseInterlockToken - %@", token);
                 break;
         }
         
@@ -2482,6 +2491,17 @@ BOOL subscribedToDisplays = NO;
     
     [opus statusParser:scan selfStatus:selfStatus];
 }
+
+
+
+#pragma mark
+#pragma mark Custom Setters
+
+-(void) setDebugLogLevel:(DDLogLevel)debugLogLevel {
+    ddLogLevel = debugLogLevel;
+    _debugLogLevel = debugLogLevel;
+}
+
 
 
 
@@ -3278,8 +3298,11 @@ BOOL subscribedToDisplays = NO;
         [scan scanCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@"\000"] intoString:nil];
         [scan scanUpToString:@"\n" intoString:&payload];
 
-        if (self.logRadioMessages)
-            NSLog(@"Data received - %@\n", payload);
+        if (!([payload hasPrefix:@"R"] && ([payload hasSuffix:@"|0|"] || [payload hasSuffix:@"|0||"]))) {
+            DDLogDebug(@"Data received - %@\n", payload);
+        } else {
+            DDLogVerbose(@"Data received - %@\n", payload);
+        }
 
         [self parseRadioStream: payload];
     }

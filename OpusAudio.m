@@ -71,6 +71,8 @@
 @end
 
 
+static DDLogLevel ddLogLevel = DDLogLevelError;
+
 
 enum opusStreamTokens {
     noneToken = 0,
@@ -376,7 +378,7 @@ enum opusStreamTokens {
                 
             default:
                 // Ignore
-                NSLog(@"OpusStream statusParser: Unknown key %@", k);
+                DDLogVerbose(@"OpusStream statusParser: Unknown key %@", k);
                 break;
         }
     }
@@ -394,12 +396,27 @@ enum opusStreamTokens {
         NSString *qName = [NSString stringWithFormat:@"net.k6tu.opusStreamQueue-%@", streamId];
         self.runQueue = dispatch_queue_create([qName UTF8String], NULL);
     }
+    
+    self.debugLogLevel = radio.debugLogLevel;
 }
 
 
 - (void) willRemoveStreamProcessor {
     
 }
+
+
+
+#pragma mark
+#pragma mark Custom Setters
+
+-(void) setDebugLogLevel:(DDLogLevel)debugLogLevel {
+    ddLogLevel = debugLogLevel;
+    _debugLogLevel = debugLogLevel;
+}
+
+
+
 
 #pragma mark
 #pragma mark Setters with Commands

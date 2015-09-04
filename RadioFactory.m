@@ -59,6 +59,8 @@ enum vitaTokens {
 };
 
 
+static DDLogLevel ddLogLevel = DDLogLevelError;
+
 
 
 @implementation RadioInstance
@@ -134,7 +136,7 @@ enum vitaTokens {
         NSError *error = nil;
         
         if (![udpSocket bindToPort:FLEX_DISCOVERY error:&error]) {
-            NSLog(@"Error binding: %@", error);
+            DDLogError(@"Error binding: %@", error);
             return nil;;
         }
         
@@ -154,7 +156,7 @@ enum vitaTokens {
         NSRunLoop *runOnThis = [NSRunLoop currentRunLoop];
         [runOnThis addTimer:self.timeoutTimer forMode:NSDefaultRunLoopMode];
         
-        NSLog(@"Ready");
+        DDLogError(@"Ready");
     }
 
 #ifdef DEBUGN
@@ -222,7 +224,7 @@ enum vitaTokens {
         }
         
         [[NSNotificationCenter defaultCenter] postNotificationName:@"K6TURadioFactory" object:self];
-        NSLog(@"Radio added");
+        DDLogError(@"Radio added");
         
     } else if (![inList isEqual:radio]) {
         // The radio instance has changed... a different radio is at the same address
@@ -233,7 +235,7 @@ enum vitaTokens {
         }
         
         [[NSNotificationCenter defaultCenter] postNotificationName:@"K6TURadioFactory" object:self];
-        NSLog(@"Radio updated");
+        DDLogError(@"Radio updated");
     } else {
         // Update the last time this radio was seen
         inList.lastSeen = [NSDate date];
@@ -266,7 +268,7 @@ enum vitaTokens {
                 // This radio has timed out - remove it
                 [self.discoveredRadios removeObjectForKey:keys[i]];
                 sendNotification = YES;
-                NSLog(@"Radio timeout");
+                DDLogError(@"Radio timeout");
             }
         }
     }
@@ -407,5 +409,15 @@ withFilterContext:(id)filterContext
         }
     }
 }
+
+
+#pragma mark
+#pragma mark Custom Setters
+
+-(void) setDebugLogLevel:(DDLogLevel)debugLogLevel {
+    ddLogLevel = debugLogLevel;
+    _debugLogLevel = debugLogLevel;
+}
+
 
 @end

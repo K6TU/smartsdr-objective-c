@@ -72,6 +72,10 @@
 
 @end
 
+
+static DDLogLevel ddLogLevel = DDLogLevelError;
+
+
 #define VITA_DEFAULT_PORT 4991
 
 @implementation VitaManager
@@ -105,6 +109,7 @@ GCDAsyncUdpSocket *vitaTxSocket;
 
 - (BOOL) handleRadio:(Radio *)radio {
     self.radio = radio;
+    self.debugLogLevel = radio.debugLogLevel;
     
     BOOL socketSuccess = NO;
     NSError *error = nil;
@@ -116,18 +121,18 @@ GCDAsyncUdpSocket *vitaTxSocket;
         if ([vitaRxSocket bindToPort:portNum error:&error]) {
             socketSuccess = YES;
             if (![vitaRxSocket connectToHost:self.radio.radioInstance.ipAddress onPort:0 error:&error])
-                NSLog(@"VitaManager: Error connecting to host - %@", error);
+                DDLogError(@"VitaManager: Error connecting to host - %@", error);
             
             break;
         }
         
         // We didn't get the port we wanted
-        NSLog(@"VitaManager: Error binding port = %i - %@", (int)portNum, error);
+        DDLogError(@"VitaManager: Error binding port = %i - %@", (int)portNum, error);
         portNum++;
     }
     
     if (!socketSuccess) {
-        NSLog(@"VitaManager: Unable to find free socket");
+        DDLogError(@"VitaManager: Unable to find free socket");
         return NO;
     }
     
@@ -141,7 +146,7 @@ GCDAsyncUdpSocket *vitaTxSocket;
     //    NSLog(@"VitaManager: Error connecting to tx host - %@", error);
     
     if (![self createTxSocket:self.radio.radioInstance]) {
-        NSLog(@"Error creating VITA TX Socket");
+        DDLogError(@"Error creating VITA TX Socket");
     }
     
     // Record our socket
@@ -159,7 +164,7 @@ GCDAsyncUdpSocket *vitaTxSocket;
     // [vitaTxSocket sendData:vitaPacket withTimeout:-1 tag:0];
     CFSocketError socketError = CFSocketSendData(self.txSocket, (CFDataRef)self.destAddress, (CFDataRef) vitaPacket, 0);
     if (socketError)
-        NSLog(@"txStreamPacket send error");
+        DDLogError(@"txStreamPacket send error");
 }
 
 
@@ -241,6 +246,18 @@ GCDAsyncUdpSocket *vitaTxSocket;
             break;
     }
 }
+
+
+
+
+#pragma mark
+#pragma mark Custom Setters
+
+-(void) setDebugLogLevel:(DDLogLevel)debugLogLevel {
+    ddLogLevel = debugLogLevel;
+    _debugLogLevel = debugLogLevel;
+}
+
 
 
 #pragma mark

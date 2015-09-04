@@ -127,6 +127,7 @@
 // being removed from the set of RadioInstances.
 
 @interface RadioFactory : NSObject <GCDAsyncUdpSocketDelegate>
+@property (nonatomic) DDLogLevel debugLogLevel;                             // Set for level of debugging
 
 // availableRadioInstances: returns an NSArray containing RadioInstance objects of
 // all the radios currently discovered by the RadioFactory.

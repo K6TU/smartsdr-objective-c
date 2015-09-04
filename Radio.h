@@ -48,6 +48,54 @@
 
 #import "GCDAsyncSocket.h"
 
+// For ultimate flexibility with logging and fine grained control of logging
+// levels, this model class and hierarchy are dependent on Robbie Hansen's
+// CocoaLumberjack logging class.  Full details can be found at:
+//
+// http://github.com/CocoaLumberjack/CocoaLumberjack.git
+//
+//
+// To include this, add #import <CocoaLumberjack/CocoaLumberjack.h> in your Prefix.pch
+// precompiled headers file.
+//
+// If not defined, this class replaces the calls to CocoaLumberjack macros with NSLog calls
+// as the syntax is identical.
+//
+
+#ifndef DDLogError
+
+typedef NS_OPTIONS(NSUInteger, DDLogFlag) {
+    DDLogFlagError      = (1 << 0), // 0...00001
+    DDLogFlagWarning    = (1 << 1), // 0...00010
+    DDLogFlagInfo       = (1 << 2), // 0...00100
+    DDLogFlagDebug      = (1 << 3), // 0...01000
+    DDLogFlagVerbose    = (1 << 4)  // 0...10000
+};
+
+typedef NS_ENUM(NSUInteger, DDLogLevel) {
+    DDLogLevelOff       = 0,
+    DDLogLevelError     = (DDLogFlagError),                       // 0...00001
+    DDLogLevelWarning   = (DDLogLevelError   | DDLogFlagWarning), // 0...00011
+    DDLogLevelInfo      = (DDLogLevelWarning | DDLogFlagInfo),    // 0...00111
+    DDLogLevelDebug     = (DDLogLevelInfo    | DDLogFlagDebug),   // 0...01111
+    DDLogLevelVerbose   = (DDLogLevelDebug   | DDLogFlagVerbose), // 0...11111
+    DDLogLevelAll       = NSUIntegerMax                           // 1111....11111 (DDLogLevelVerbose plus any other flags)
+};
+
+
+#define LOG_ERROR   (ddLogLevel & DDLogLevelError)
+#define LOG_WARN    (ddLogLevel & DDLogLevelWarning)
+#define LOG_INFO    (ddLogLevel & DDLogLevelInfo)
+#define LOG_DEBUG   (ddLogLevel & DDLogLevelDebug)
+#define LOG_VERBOSE (ddLogLevel & DDLogLevelVerbose)
+
+#define DDLogError(frmt, ...)           if (LOG_ERROR) NSLog(frmt, ##__VA_ARGS__)
+#define DDLogWarn(frmt, ...)            if (LOG_WARN) NSLog(frmt, ##__VA_ARGS__)
+#define DDLogInfo(frmt, ...)            if (LOG_INFO) NSLog(frmt, ##__VA_ARGS__)
+#define DDLogDebug(frmt, ...)           if (LOG_DEBUG) NSLog(frmt, ##__VA_ARGS__)
+#define DDLogVerbose(frmt, ...)         if (LOG_VERBOSE) NSLog(frmt, ##__VA_ARGS__)
+
+#endif
 
 // The primary interface object for a Flex 6000 series radio
 // Must be instantiated from a RadioInstance provided from the RadioFactory
@@ -338,8 +386,8 @@ enum radioAtuState {
 
 @property (strong, nonatomic) NSNumber *isGui;                      // Set true if client supports a graphical user interface
 
-@property (nonatomic) BOOL logRadioMessages;                        // Set true automatically if a debug build, otherwise, set true to
-                                                                    // turn on logging of messages to/from the radio API
+@property (nonatomic) DDLogLevel debugLogLevel;                     // Set for level of debugging
+
 @property (strong, nonatomic, readonly) Cwx *cwx;                   // reference to the CWX object
 
 // Class methods
@@ -347,6 +395,7 @@ enum radioAtuState {
 // initWithRadioUInstanceAndDelegate: Invoke with the RadioInstance of the radio to be
 // commanded.
 - (id) initWithRadioInstanceAndDelegate: (RadioInstance *) thisRadio delegate: (id) theDelegate clientId:(NSString *) clientId;
+- (id) initWithRadioInstanceAndDelegate: (RadioInstance *) thisRadio delegate: (id) theDelegate clientId:(NSString *) clientId logLevel:(DDLogLevel) logLevel;
 
 // close: Call to disconnect from this Radio and release all resources.
 - (void) close;

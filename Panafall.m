@@ -103,6 +103,9 @@ enum panafallToken {
 };
 
 
+static DDLogLevel ddLogLevel = DDLogLevelError;
+
+
 @implementation Panafall
 
 
@@ -442,7 +445,7 @@ enum panafallToken {
                 
             default:
                 // Ignore
-                NSLog(@"Panafall statusParser: Unknown key %@", k);
+                DDLogError(@"Panafall statusParser: Unknown key %@", k);
                 break;
         }
     }

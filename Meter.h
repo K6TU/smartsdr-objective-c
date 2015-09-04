@@ -78,6 +78,7 @@ enum meterUnits {
 @property (strong, readonly, nonatomic) NSString *unitsLabel;               // Meter units in human readable form
 @property (readonly, nonatomic) int fps;                                    // Meter updates in frames per second
 @property (readonly, nonatomic) Float32 value;                              // Scaled meter value
+@property (nonatomic) DDLogLevel debugLogLevel;                             // Set for level of debugging
 
 @end
 

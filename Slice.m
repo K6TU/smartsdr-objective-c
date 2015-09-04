@@ -55,6 +55,9 @@
 @end
 
 
+static DDLogLevel ddLogLevel = DDLogLevelError;
+
+
 @implementation Slice
 
 
@@ -78,6 +81,7 @@
         [self initStatusSliceTokens];
         
         self.meters = [[NSMutableDictionary alloc]init];
+        self.debugLogLevel = radio.debugLogLevel;
     }
     return self;
 }
@@ -155,8 +159,20 @@
 }
 
 
+
 #pragma mark
-#pragma Setters
+#pragma mark Custom Setters
+
+-(void) setDebugLogLevel:(DDLogLevel)debugLogLevel {
+    ddLogLevel = debugLogLevel;
+    _debugLogLevel = debugLogLevel;
+}
+
+
+
+
+#pragma mark
+#pragma Mark Setters with Commands
 
 // Private macro to improve readibility of setters
 
@@ -1203,7 +1219,7 @@ enum enumStatusSliceTokens {
                 // Eat until the next space or \n
                 [scan scanUpToCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@" \n"]
                                      intoString:nil];
-                NSLog(@"Unexpected token in Slice statusParser - %@", token);
+                DDLogVerbose(@"Unexpected token in Slice statusParser - %@", token);
                 break;
         }
         
