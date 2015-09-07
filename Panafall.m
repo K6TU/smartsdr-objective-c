@@ -100,6 +100,9 @@ enum panafallToken {
     nbPanToken,
     nbLevelPanToken,
     nbUpdatingToken,
+    wnbToken,
+    wnbLevelToken,
+    wnbUpdatingToken,
 };
 
 
@@ -140,6 +143,9 @@ static DDLogLevel ddLogLevel = DDLogLevelError;
                            [NSNumber numberWithInteger:xvtrToken], @"xvtr",
                            [NSNumber numberWithInteger:preToken], @"pre",
                            [NSNumber numberWithInteger:antListToken], @"ant_list",
+                           [NSNumber numberWithInteger:wnbToken], @"wnb",
+                           [NSNumber numberWithInteger:wnbLevelToken], @"wnb_level",
+                           [NSNumber numberWithInteger:wnbUpdatingToken], @"wnb_updating",
                            nil];
 }
 
@@ -389,6 +395,21 @@ static DDLogLevel ddLogLevel = DDLogLevelError;
                     updateWithNotify(@"nbUpdating", _nbUpdating, [v boolValue]);
                 break;
                 
+            case wnbToken:
+                if (_wnb != [v boolValue])
+                    updateWithNotify(@"wnb", _wnb, [v integerValue] ? YES : NO);
+                break;
+                
+            case wnbLevelToken:
+                if (_wnbLevel != [v integerValue])
+                    updateWithNotify(@"wnbLevel", _wnbLevel, (int)[v integerValue]);
+                break;
+                
+            case wnbUpdatingToken:
+                if (_wnbUpdating != [v boolValue])
+                    updateWithNotify(@"wnbUpdating", _wnbUpdating, [v boolValue]);
+                break;
+                
             case bandToken:
                 updateWithNotify(@"band", _band, v);
                 break;
@@ -578,6 +599,34 @@ static DDLogLevel ddLogLevel = DDLogLevelError;
                      self.streamId, band];
     
     commandUpdateNotify(cmd, @"band", _band, band);
+}
+
+
+- (void) setNb:(BOOL)nb {
+    NSString *cmd = [NSString stringWithFormat:@"display panafall set %@ nb=%i",
+                     self.streamId, nb];
+    commandUpdateNotify(cmd, @"nb", _nb, nb);
+}
+
+
+- (void) setNbLevel:(int)nbLevel {
+    NSString *cmd = [NSString stringWithFormat:@"display panafall set %@ nb_level=%i",
+                     self.streamId, nbLevel];
+    commandUpdateNotify(cmd, @"nbLevel", _nbLevel, nbLevel);
+}
+
+
+- (void) setWnb:(BOOL)wnb {
+    NSString *cmd = [NSString stringWithFormat:@"display panafall set %@ wnb=%i",
+                     self.streamId, wnb];
+    commandUpdateNotify(cmd, @"wnb", _wnb, wnb);
+}
+
+
+- (void) setWnbLevel:(int)wnbLevel {
+    NSString *cmd = [NSString stringWithFormat:@"display panafall set %@ wnb_level=%i",
+                     self.streamId, wnbLevel];
+    commandUpdateNotify(cmd, @"wnbLevel", _wnbLevel, wnbLevel);
 }
 
 

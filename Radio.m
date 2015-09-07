@@ -1171,7 +1171,7 @@ BOOL subscribedToDisplays = NO;
     
     // separate them out into an array
     NSArray *micListRef = [stringVal componentsSeparatedByString:@","];
-    updateWithNotify(@"antList", _micList, micListRef);
+    updateWithNotify(@"micList", _micList, micListRef);
 }
 
 

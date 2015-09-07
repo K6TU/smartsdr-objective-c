@@ -94,6 +94,14 @@
 
 @property (strong, nonatomic) NSString *status;
 
+// inUseIp:  IP address of the client using this radio
+
+@property (strong, nonatomic) NSString *inUseIp;
+
+// inUseHost:  Hostname of the client using this radio
+
+@property (strong, nonatomic) NSString *inUseHost;
+
 
 
 // lastSeen:  The date and time of which a discovery message from this radio

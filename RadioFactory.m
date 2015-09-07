@@ -56,6 +56,8 @@ enum vitaTokens {
     dpVersionToken,
     versionToken,
     statusToken,
+    inUseIpToken,
+    inUseHostToken,
 };
 
 
@@ -96,7 +98,10 @@ static DDLogLevel ddLogLevel = DDLogLevelError;
     if ([self.ipAddress isEqualToString:radio.ipAddress] &&
         [self.port isEqualToNumber:radio.port] &&
         [self.model isEqualToString:radio.model] &&
-        [self.serialNum isEqualToString:radio.serialNum]) {
+        [self.serialNum isEqualToString:radio.serialNum] &&
+        [self.status isEqualToString:radio.status] &&
+        ((self.name == nil && radio.name == nil) || [self.name isEqualToString:radio.name]) &&
+        ((self.callsign == nil && radio.callsign == nil) || [self.callsign isEqualToString:radio.callsign])) {
         return YES;
     }
     return NO;
@@ -183,8 +188,10 @@ static DDLogLevel ddLogLevel = DDLogLevelError;
                          [NSNumber numberWithInt:nameToken], @"nickname",
                          [NSNumber numberWithInt:dpVersionToken], @"discovery_protocol_version",
                          [NSNumber numberWithInt:versionToken], @"version",
-                         [NSNumber numberWithInt:statusToken], @"status"
-                         , nil];
+                         [NSNumber numberWithInt:statusToken], @"status",
+                         [NSNumber numberWithInt:inUseIpToken], @"inuse_ip",
+                         [NSNumber numberWithInt:inUseHostToken], @"inuse_host",
+                         nil];
     return self;
 }
 
@@ -399,6 +406,15 @@ withFilterContext:(id)filterContext
                         
                     case statusToken:
                         newRadio.status = v;
+                        break;
+                        
+                    case inUseIpToken:
+                        newRadio.inUseIp = v;
+                        break;
+                        
+                    case inUseHostToken:
+                        newRadio.inUseHost = v;
+                        break;
                         
                     default:
                         break;
