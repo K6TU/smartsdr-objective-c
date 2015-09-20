@@ -1870,7 +1870,7 @@ BOOL subscribedToDisplays = NO;
 
             case fullDuplexEnabledToken:
                 [scan scanInteger:&intVal];
-                updateWithNotify(@"fullDupledEnabled", _fullDuplexEnabled, [NSNumber numberWithBool:intVal]);
+                updateWithNotify(@"fullDuplexEnabled", _fullDuplexEnabled, [NSNumber numberWithBool:intVal]);
                 break;
                 
             default:
@@ -3189,7 +3189,7 @@ BOOL subscribedToDisplays = NO;
 }
 
 - (void) setFullDuplexEnabled:(NSNumber *)fullDuplexEnabled {
-    NSString *cmd = [NSString stringWithFormat:@"radio set binaural_rx=%i",
+    NSString *cmd = [NSString stringWithFormat:@"radio set full_duplex_enabled=%i",
                      [fullDuplexEnabled boolValue]];
     NSNumber *refFullDuplexEnabled = fullDuplexEnabled;
     
