@@ -1308,6 +1308,90 @@ BOOL subscribedToDisplays = NO;
 }
 
 
+- (void) globalProfileLoadCallback:(NSString *) cmdResponse {
+    // cmdResponse is the full response including the R<seqnum>|
+    NSScanner *scan = [[NSScanner alloc] initWithString:[cmdResponse substringFromIndex:1]];
+    [scan scanInteger:nil];
+    [scan scanString:@"|" intoString:nil];
+    NSInteger result;
+    
+    [scan setCharactersToBeSkipped:nil];
+    
+    // Grab the response number, skip it and the trailing |
+    [scan scanInteger:&result];
+    NSDictionary *userInfo = [[NSDictionary alloc]initWithObjectsAndKeys:[NSNumber numberWithInteger:result], @"result", nil];
+    
+    dispatch_async(dispatch_get_main_queue(), ^(void) {
+        [[NSNotificationCenter defaultCenter]postNotificationName:@"RadioGlobalProfileLoaded" object:self userInfo:userInfo];
+    });
+    
+    DDLogVerbose(@"globalProfileLoadCallback");
+}
+
+
+- (void) globalProfileSaveCallback:(NSString *) cmdResponse {
+    // cmdResponse is the full response including the R<seqnum>|
+    NSScanner *scan = [[NSScanner alloc] initWithString:[cmdResponse substringFromIndex:1]];
+    [scan scanInteger:nil];
+    [scan scanString:@"|" intoString:nil];
+    NSInteger result;
+    
+    [scan setCharactersToBeSkipped:nil];
+    
+    // Grab the response number, skip it and the trailing |
+    [scan scanInteger:&result];
+    NSDictionary *userInfo = [[NSDictionary alloc]initWithObjectsAndKeys:[NSNumber numberWithInteger:result], @"result", nil];
+    
+    dispatch_async(dispatch_get_main_queue(), ^(void) {
+        [[NSNotificationCenter defaultCenter]postNotificationName:@"RadioGlobalProfileSaved" object:self userInfo:userInfo];
+    });
+    
+    DDLogVerbose(@"globalProfileSaveCallback");
+}
+
+
+- (void) transmitProfileLoadCallback:(NSString *) cmdResponse {
+    // cmdResponse is the full response including the R<seqnum>|
+    NSScanner *scan = [[NSScanner alloc] initWithString:[cmdResponse substringFromIndex:1]];
+    [scan scanInteger:nil];
+    [scan scanString:@"|" intoString:nil];
+    NSInteger result;
+    
+    [scan setCharactersToBeSkipped:nil];
+    
+    // Grab the response number, skip it and the trailing |
+    [scan scanInteger:&result];
+    NSDictionary *userInfo = [[NSDictionary alloc]initWithObjectsAndKeys:[NSNumber numberWithInteger:result], @"result", nil];
+  
+    dispatch_async(dispatch_get_main_queue(), ^(void) {
+        [[NSNotificationCenter defaultCenter]postNotificationName:@"RadioTransmitProfileLoaded" object:self userInfo:userInfo];
+
+    });
+    
+    DDLogVerbose(@"transmitProfileLoadCallback");
+}
+
+
+- (void) transmitProfileSaveCallback:(NSString *) cmdResponse {
+    // cmdResponse is the full response including the R<seqnum>|
+    NSScanner *scan = [[NSScanner alloc] initWithString:[cmdResponse substringFromIndex:1]];
+    [scan scanInteger:nil];
+    [scan scanString:@"|" intoString:nil];
+    NSInteger result;
+    
+    [scan setCharactersToBeSkipped:nil];
+    
+    // Grab the response number, skip it and the trailing |
+    [scan scanInteger:&result];
+    NSDictionary *userInfo = [[NSDictionary alloc]initWithObjectsAndKeys:[NSNumber numberWithInteger:result], @"result", nil];
+ 
+    dispatch_async(dispatch_get_main_queue(), ^(void) {
+        [[NSNotificationCenter defaultCenter]postNotificationName:@"RadioTransmitProfileSaved" object:self userInfo:userInfo];
+    });
+    
+    DDLogVerbose(@"transmitProfileSaveCallback");
+}
+
 #pragma mark
 #pragma mark Parser Handlers
 
@@ -2572,8 +2656,10 @@ BOOL subscribedToDisplays = NO;
 - (void) cmdSaveGlobalProfile:(NSString *)profile {
     NSString *notificationName;
     
+    // Remove any "*" in the profile name
+    profile = [profile stringByReplacingOccurrencesOfString:@"*" withString:@""];
     NSString *cmd = [NSString stringWithFormat:@"profile global save \"%@\"", profile];
-    [self commandToRadio: cmd];
+    [self commandToRadio:cmd notifySel:@selector(globalProfileSaveCallback:)];
     
     // notify listeners
     // is this a new profile?
@@ -2589,15 +2675,16 @@ BOOL subscribedToDisplays = NO;
     dispatch_async(dispatch_get_main_queue(), ^(void) {
         [[NSNotificationCenter defaultCenter] postNotificationName:notificationName object:profile];
     });
-    
 }
 
 
 - (void) cmdSaveTxProfile:(NSString *)profile {
     NSString *notificationName;
     
+    // Remove any "*" in the profile name
+    profile = [profile stringByReplacingOccurrencesOfString:@"*" withString:@""];
     NSString *cmd = [NSString stringWithFormat:@"profile transmit save \"%@\"", [profile stringByReplacingOccurrencesOfString:@"*" withString:@""]];
-    [self commandToRadio: cmd];
+    [self commandToRadio: cmd notifySel:@selector(transmitProfileSaveCallback:)];
    
     // notify listeners
     // is this a new profile?
@@ -2676,7 +2763,16 @@ BOOL subscribedToDisplays = NO;
     
     NSString *refCurrentGlobalProfile = currentGlobalProfile;
     
-    commandUpdateNotify(cmd, @"currentGlobalProfile", _currentGlobalProfile, refCurrentGlobalProfile);
+    /* Let observers know the change on the main queue */
+    [self willChangeValueForKey:(@"currentGlobalProfile")];
+    _currentGlobalProfile = refCurrentGlobalProfile;
+    [self didChangeValueForKey:(@"currentGlobalProfile")];
+    
+    __weak Radio *safeSelf = self;
+    dispatch_async(self.radioRunQueue, ^(void) {
+        /* Send the command to the radio on our private queue */
+        [safeSelf commandToRadio:cmd notifySel:@selector(globalProfileLoadCallback:)];
+    });
 }
 
 - (void) setCurrentTxProfile:(NSString *)currentTxProfile {
@@ -2684,7 +2780,16 @@ BOOL subscribedToDisplays = NO;
     
     NSString *refCurrentTxProfile = currentTxProfile;
     
-    commandUpdateNotify(cmd, @"currentTxProfile", _currentTxProfile, refCurrentTxProfile);
+    /* Let observers know the change on the main queue */
+    [self willChangeValueForKey:(@"currentTxProfile")];
+    _currentTxProfile = refCurrentTxProfile;
+    [self didChangeValueForKey:(@"currentTxProfile")];
+    
+    __weak Radio *safeSelf = self;
+    dispatch_async(self.radioRunQueue, ^(void) {
+        /* Send the command to the radio on our private queue */
+        [safeSelf commandToRadio:cmd notifySel:@selector(transmitProfileLoadCallback:)];
+    });
 }
 
 - (void) setTransmitFilterLo:(NSString *)transmitFilterLo  {
