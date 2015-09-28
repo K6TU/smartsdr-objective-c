@@ -322,6 +322,28 @@ static DDLogLevel ddLogLevel = DDLogLevelError;
 }
 
 
+
+- (void) setSliceWnbEnabled:(NSNumber *)sliceWnbEnabled {
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i wnb=%i",
+                     [self.thisSliceNumber intValue],
+                     [sliceWnbEnabled boolValue]];
+    NSNumber *refSliceWnbEnabled = sliceWnbEnabled;
+    
+    commandUpdateNotify(cmd, @"sliceWnbEnabled", _sliceWnbEnabled, refSliceWnbEnabled);
+}
+
+
+- (void) setSliceWnbLevel:(NSNumber *)sliceWnbLevel {
+    NSString *cmd = [NSString stringWithFormat:@"slice set %i nb_level=%i",
+                     [self.thisSliceNumber intValue],
+                     [sliceWnbLevel intValue]];
+    NSNumber *refSliceWnbLevel = sliceWnbLevel;
+    
+    commandUpdateNotify(cmd, @"sliceWnbLevel", _sliceWnbLevel, refSliceWnbLevel);
+}
+
+
+
 - (void) setSliceNrEnabled:(NSNumber *)sliceNrEnabled {
     NSString *cmd = [NSString stringWithFormat:@"slice set %i nr=%i",
                      [self.thisSliceNumber intValue],
@@ -746,6 +768,8 @@ enum enumStatusSliceTokens {
     diguOffsetToken,
     postDemodBypassEnabledToken,
     rfGainToken,
+    sliceWnbEnabledToken,
+    sliceWnbLevelToken,
 };
 
 
@@ -761,6 +785,8 @@ enum enumStatusSliceTokens {
                               [NSNumber numberWithInt:nrLevelToken], @"nr_level",
                               [NSNumber numberWithInt:nbToken], @"nb",
                               [NSNumber numberWithInt:nbLevelToken], @"nb_level",
+                              [NSNumber numberWithInt:sliceWnbEnabledToken], @"wnb",
+                              [NSNumber numberWithInt:sliceWnbLevelToken], @"wnb_level",
                               [NSNumber numberWithInt:anfToken], @"anf",
                               [NSNumber numberWithInt:anfLevelToken], @"anf_level",
                               [NSNumber numberWithInt:apfToken], @"apf",
@@ -902,6 +928,16 @@ enum enumStatusSliceTokens {
             case nbLevelToken:
                 [scan scanInteger:&intVal];
                 updateWithNotify(@"sliceNbLevel",_sliceNbLevel,[NSNumber numberWithInteger:intVal]);
+                break;
+                
+            case sliceWnbEnabledToken:
+                [scan scanInteger:&intVal];
+                updateWithNotify(@"sliceWnbEnabled", _sliceWnbEnabled, [NSNumber numberWithInteger:intVal]);
+                break;
+                
+            case sliceWnbLevelToken:
+                [scan scanInteger:&intVal];
+                updateWithNotify(@"sliceWnbLevel", _sliceWnbLevel, [NSNumber numberWithInteger:intVal]);
                 break;
                 
             case anfToken:

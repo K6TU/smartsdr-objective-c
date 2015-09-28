@@ -73,6 +73,8 @@
 @property (strong, nonatomic) NSNumber *sliceFilterHi;              // RX filter high frequency - INTEGER
 @property (strong, nonatomic) NSNumber *sliceNbEnabled;             // State of DSP Noise Blanker - BOOL
 @property (strong, nonatomic) NSNumber *sliceNbLevel;               // DSP Noise Blanker level - INTEGER (0 -100)
+@property (strong, nonatomic) NSNumber *sliceWnbEnabled;            // State of WNB - BOOL
+@property (strong, nonatomic) NSNumber *sliceWnbLevel;              // WNB noise blanker level
 @property (strong, nonatomic) NSNumber *sliceNrEnabled;             // State of DSP Noise Reduction - BOOL
 @property (strong, nonatomic) NSNumber *sliceNrLevel;               // DSP Noise Reduction level - INTEGER (0 - 100)
 @property (strong, nonatomic) NSNumber *sliceAnfEnabled;            // State of DSP Automatic Notch Filter - BOOL

@@ -65,7 +65,7 @@
 @property (weak, readonly, nonatomic) Panafall *panafall;                   // Panafall associated with this waterfall
 @property (strong, readonly, nonatomic) NSString *streamId;                 // Identifier of this waterfall (STRING)
 @property (readonly, nonatomic) int xPixels;                                // Size of waterfall in pixels
-@property (nonatomic) int lineDuration;                                     // Line duration in milliseconds
+@property (nonatomic) int lineDuration;                                     // Line duration 0-100 - interacts with Pan adaptor FPS rate to give line duration for waterfall
 @property (strong, readonly, nonatomic) NSString *panadaptorId;             // Panadaptor linked to this waterfall (if any)
 @property (nonatomic) int colorGain;                                        // Setting of color gain (INT)
 @property (nonatomic) BOOL autoBlack;                                       // State of auto black (BOOL)
