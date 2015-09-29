@@ -333,11 +333,11 @@ enum enumStatusEqTokens {
 
 - (void) statusParser:(NSScanner *)scan selfStatus:(BOOL)selfStatus {
     NSString *token;
-    NSString *stringVal;
+    NSString *stringVal = [scan string];
     NSInteger intVal;
     BOOL eqSc;
     
-    eqSc = ([stringVal rangeOfString:@"sc"].location == NSNotFound);
+    eqSc = ([stringVal rangeOfString:@"sc"].location != NSNotFound);
     
     // First parameter after eq is rx|tx or rxsc|txsc
     // Gobble it up and discard...
